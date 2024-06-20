@@ -34,9 +34,11 @@
 #dirs
 build
 cmake-build-relwithdebinfo
-.vs
-.vscode
-.idea
+.vs/
+.vscode/
+.idea/
+Binary/
+
 
 
 
