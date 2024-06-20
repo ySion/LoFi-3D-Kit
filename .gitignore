@@ -38,6 +38,7 @@ cmake-build-relwithdebinfo
 .vscode/
 .idea/
 Binary/
+out
 
 
 

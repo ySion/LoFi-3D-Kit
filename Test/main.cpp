@@ -10,5 +10,6 @@ int main() {
       getchar();
       getchar();
       getchar();
+      getchar();
       return 0;
 }

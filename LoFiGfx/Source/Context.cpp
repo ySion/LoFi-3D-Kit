@@ -182,7 +182,6 @@ void Context::Init() {
       }
 
       {
-            VmaAllocator vma_allocator{};
 	      VmaVulkanFunctions vma_vulkan_func{};
 	      vma_vulkan_func.vkAllocateMemory = vkAllocateMemory;
 	      vma_vulkan_func.vkBindBufferMemory = vkBindBufferMemory;
@@ -221,15 +220,182 @@ void Context::Init() {
                   throw std::runtime_error("Failed to create VMA allocator");
             }
 
-            _allocator = vma_allocator;
+            volkLoadVmaAllocator(_allocator);
 
-            MessageManager::addMessage(MessageType::Normal, "Successfully initialized LoFi context");
+            vkGetDeviceQueue(_device,0, 0, &_queue);
+
+            VkCommandPoolCreateInfo command_pool_ci{};
+            command_pool_ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+            command_pool_ci.queueFamilyIndex = 0;
+            command_pool_ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+            if(vkCreateCommandPool(_device, &command_pool_ci, nullptr, &_commandPool) != VK_SUCCESS) {
+                  MessageManager::addMessage(MessageType::Error, "Failed to create command pool");
+                  throw std::runtime_error("Failed to create command pool");
+            }
+
+            VkCommandBufferAllocateInfo command_buffer_ai{};
+            command_buffer_ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            command_buffer_ai.commandPool = _commandPool;
+            command_buffer_ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            command_buffer_ai.commandBufferCount = 3;
+
+            if(vkAllocateCommandBuffers(_device, &command_buffer_ai, &_commandBuffer[0]) != VK_SUCCESS) {
+                  MessageManager::addMessage(MessageType::Error, "Failed to allocate command buffers");
+                  throw std::runtime_error("Failed to allocate command buffers");
+            }
       }
+
+      {
+            VkFenceCreateInfo fence_ci{};
+            fence_ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            fence_ci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+            VkSemaphoreCreateInfo semaphore_ci{};
+            semaphore_ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+            for(int i = 0; i < 3; i++) {
+                  vkCreateFence(_device, &fence_ci, nullptr, &_mainCommandFence[i]);
+                  vkCreateSemaphore(_device, &semaphore_ci, nullptr, &_mainCommandSemaphore[i]);
+            }
+      }
+
+      MessageManager::addMessage(MessageType::Normal, "Successfully initialized LoFi context");
 }
 
 void Context::Shutdown() {
+      _textures.clear();
+      _windows.clear();
+
+      for(int i = 0; i < 3; i++) {
+            vkDestroyFence(_device, _mainCommandFence[i], nullptr);
+            vkDestroySemaphore(_device, _mainCommandSemaphore[i], nullptr);
+      }
+      vkFreeCommandBuffers(_device, _commandPool, 3, _commandBuffer);
+      vkDestroyCommandPool(_device, _commandPool, nullptr);
       vmaDestroyAllocator(_allocator);
       vkDestroyDevice(_device, nullptr);
       vkDestroyInstance(_instance, nullptr);
 }
 
+uint32_t Context::CreateWindow(const char *title, int w, int h) {
+      auto ptr = std::make_unique<Window>(title, w, h);
+      auto id = ptr->GetWindowID();
+      _windows.emplace(id, std::move(ptr));
+      return id;
+}
+
+void Context::DestroyWindow(uint32_t id) {
+      if(_windows.contains(id)) {
+            _windows.erase(id);
+      }
+}
+
+void * Context::PollEvent() {
+      static SDL_Event event{};
+
+      SDL_PollEvent(&event);
+
+      if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
+            const auto id = event.window.windowID;
+            DestroyWindow(id);
+      }
+
+      if (event.type == SDL_EVENT_WINDOW_RESIZED) {
+            const auto id = event.window.windowID;
+            if(auto res = _windows.find(id); res != _windows.end() ) {
+                  vkDeviceWaitIdle(_device);
+                  res->second->Update();
+            }
+      }
+
+      if (_windows.empty()) {
+            return nullptr;
+      }
+
+      return &event;
+}
+
+Texture* Context::CreateRenderTexture(int w, int h) {
+      VkImageCreateInfo image_ci{};
+      image_ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+      image_ci.imageType = VK_IMAGE_TYPE_2D;
+      image_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
+      image_ci.extent = VkExtent3D{(uint32_t)w, (uint32_t)h, 1};
+      image_ci.mipLevels = 1;
+      image_ci.arrayLayers = 1;
+      image_ci.samples = VK_SAMPLE_COUNT_1_BIT;
+      image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
+      image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+      image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+      image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      image_ci.flags = 0;
+
+      VkImageViewCreateInfo view_ci{};
+      view_ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+      view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+      view_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
+      view_ci.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+      view_ci.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+      view_ci.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+      view_ci.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+      view_ci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      view_ci.subresourceRange.baseMipLevel = 0;
+      view_ci.subresourceRange.levelCount = 1;
+      view_ci.subresourceRange.baseArrayLayer = 0;
+      view_ci.subresourceRange.layerCount = 1;
+
+      VmaAllocationCreateInfo alloc_ci{};
+      alloc_ci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+
+      auto ptr = std::make_unique<Texture>(image_ci, alloc_ci);
+      ptr->CreateView(view_ci);
+      auto raw_ptr = ptr.get();
+      _textures.insert({raw_ptr, std::move(ptr)});
+      return raw_ptr;
+}
+
+Texture * Context::CreateDepthStencil(int w, int h) {
+
+      VkImageCreateInfo image_ci{};
+      image_ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+      image_ci.imageType = VK_IMAGE_TYPE_2D;
+      image_ci.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
+      image_ci.extent = VkExtent3D{(uint32_t)w, (uint32_t)h, 1};
+      image_ci.mipLevels = 1;
+      image_ci.arrayLayers = 1;
+      image_ci.samples = VK_SAMPLE_COUNT_1_BIT;
+      image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
+      image_ci.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+      image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+      image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      image_ci.flags = 0;
+
+      VkImageViewCreateInfo view_ci{};
+      view_ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+      view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+      view_ci.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
+      view_ci.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+      view_ci.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+      view_ci.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+      view_ci.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+      view_ci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+      view_ci.subresourceRange.baseMipLevel = 0;
+      view_ci.subresourceRange.levelCount = 1;
+      view_ci.subresourceRange.baseArrayLayer = 0;
+      view_ci.subresourceRange.layerCount = 1;
+
+      VmaAllocationCreateInfo alloc_ci{};
+      alloc_ci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+
+      auto ptr = std::make_unique<Texture>(image_ci, alloc_ci);
+      ptr->CreateView(view_ci);
+      auto raw_ptr = ptr.get();
+      _textures.insert({raw_ptr, std::move(ptr)});
+      return raw_ptr;
+}
+
+void Context::DestroyTexture(Texture *texture) {
+      if(auto res = _textures.find(texture); res != _textures.end()){
+            _textures.erase(res);
+      }
+}

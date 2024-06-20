@@ -8,6 +8,9 @@ set(Source_List
         Source/Context.cpp
         Source/Message.cpp
         Source/PhysicalDevice.cpp
+        Source/Window.cpp
+        Source/Texture.cpp
+        Source/Marcos.cpp
 )
 
 find_package(Vulkan REQUIRED)

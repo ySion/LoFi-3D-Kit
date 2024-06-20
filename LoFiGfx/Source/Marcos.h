@@ -12,5 +12,9 @@ Class& operator=(const Class&) = delete; \
 Class& operator=(Class&&) = delete;
 
 #include "../Third/volk/volk.h"
+#include "VmaLoader.h"
+
+VmaAllocator volkGetLoadedVmaAllocator();
+void volkLoadVmaAllocator(VmaAllocator allocator);
 
 #endif //MARCOS_H
