@@ -7,7 +7,7 @@
 
 #include <vector>
 
-#include "Marcos.h"
+#include "Helper.h"
 
 namespace LoFi {
       class Texture {
