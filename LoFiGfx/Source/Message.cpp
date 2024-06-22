@@ -8,7 +8,7 @@
 
 using namespace LoFi;
 
-void MessageManager::addMessage(MessageType type, std::string_view content) {
+void MessageManager::Log(MessageType type, std::string_view content) {
       switch(type) {
             case MessageType::Normal:
                   NormalCount++;
@@ -29,11 +29,11 @@ void MessageManager::addMessage(MessageType type, std::string_view content) {
       Messages.emplace_front(type, std::string(content));
 }
 
-void MessageManager::clearMessages() {
+void MessageManager::Clear() {
             Messages.clear();
 }
 
-std::string MessageManager::getMessages(int MessageCount) {
+std::string MessageManager::Get(int MessageCount) {
       std::string result {};
       for (const auto& msg : Messages) {
             MessageCount--;

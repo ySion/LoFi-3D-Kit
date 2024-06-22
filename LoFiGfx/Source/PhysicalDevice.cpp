@@ -17,7 +17,6 @@ PhysicalDevice::PhysicalDevice(VkPhysicalDevice physicalDevice) {
 	_queueFamilyProperties.resize(queueFamilyCount);
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, _queueFamilyProperties.data());
 
-
 	_features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
 	_features2.pNext = &_rayTracingFeatures;
 
@@ -49,8 +48,6 @@ PhysicalDevice::PhysicalDevice(VkPhysicalDevice physicalDevice) {
 
 	vkGetPhysicalDeviceFeatures2(physicalDevice, &_features2);
 
-
-
 	//Get Properties
 
 	_properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
@@ -72,7 +69,6 @@ PhysicalDevice::PhysicalDevice(VkPhysicalDevice physicalDevice) {
 	_meshShaderProperties.pNext = &_fragmentShadingRateProperties;
 
 	_fragmentShadingRateProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_PROPERTIES_KHR;
-	
 
 	_memoryProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2;
 
@@ -80,14 +76,11 @@ PhysicalDevice::PhysicalDevice(VkPhysicalDevice physicalDevice) {
 
 	vkGetPhysicalDeviceMemoryProperties2(physicalDevice, &_memoryProperties2);
 
-
 }
 
-bool PhysicalDevice::isQueueFamily0SupportAllQueue() const
-{
-	if (_queueFamilyProperties.empty()) {
-		return false;
-	}
+bool PhysicalDevice::isQueueFamily0SupportAllQueue() const {
+
+	if (_queueFamilyProperties.empty()) { return false;}
 
 	if ((_queueFamilyProperties[0].queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
 		(_queueFamilyProperties[0].queueFlags & VK_QUEUE_COMPUTE_BIT) &&

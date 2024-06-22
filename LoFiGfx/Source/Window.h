@@ -17,7 +17,7 @@ namespace LoFi {
 
 class Window {
 public:
-      NO_COPY_MOVE_CONS(Window)
+      NO_COPY_MOVE_CONS(Window);
 
       explicit Window(const char* title, int width, int height);
 
@@ -29,9 +29,23 @@ public:
 
       void Update();
 
-      int32_t GetWindowID() const;
+      [[nodiscard]] int32_t GetWindowID() const;
+
+      [[nodiscard]] VkSemaphore GetCurrentSemaphore() const;
+
+      [[nodiscard]] Texture* GetCurrentRenderTarget() const;
+
+      [[nodiscard]] uint32_t GetCurrentRenderTargetIndex() const;
+
+      [[nodiscard]] VkSwapchainKHR GetSwapChain() const;
+
+      VkImageMemoryBarrier2 GenerateBarrier() const;
 
 private:
+      friend class Context;
+
+      void AcquireNextImage();
+
       void CreateOrRecreateSwapChain();
 
       int _w {};
@@ -43,6 +57,11 @@ private:
       VkSwapchainKHR _swapchain {};
 
       std::vector<std::unique_ptr<Texture>> _images{};
+
+      std::vector<VkSemaphore> _imageAvailableSemaphores {};
+
+      uint32_t _currentFrameIndex {};
+      uint32_t _currentImageIndex {};
 };
 
 } // LoFi

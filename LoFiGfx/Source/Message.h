@@ -28,11 +28,11 @@ namespace LoFi {
 
             NO_COPY_MOVE_CONS(MessageManager);
 
-            static void addMessage(MessageType type, std::string_view content);
+            static void Log(MessageType type, std::string_view content);
 
-            static void clearMessages();
+            static void Clear();
 
-            static std::string getMessages(int messageCount = 0);
+            static std::string Get(int messageCount = 0);
       private:
             inline static std::list<Message> Messages;
             inline static uint32_t ErrorCount = 0;

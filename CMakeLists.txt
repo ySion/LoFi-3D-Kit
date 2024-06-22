@@ -12,5 +12,8 @@ set(SDL_STATIC ON)
 set(SDL_SHARED OFF)
 add_subdirectory(Third/SDL)
 
+add_subdirectory(Third/entt)
+
+
 add_subdirectory(LoFiGfx)
 add_subdirectory(Test)

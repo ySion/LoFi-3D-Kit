@@ -1,34 +1,47 @@
-﻿//
+//
 // Created by starr on 2024/6/20.
 //
-#define VK_NO_PROTOTYPES
 #include "Context.h"
-
 #include "Message.h"
 #include "PhysicalDevice.h"
 
 #include <format>
 #include <vector>
-#include "SDL3/SDL.h"
-#include "SDL3/SDL_vulkan.h"
+#include <windowsx.h>
 
+#include "SDL3/SDL.h"
+
+#include "../Third/dxc/dxcapi.h"
+#include <wrl/client.h>
+
+#undef CreateWindow
+#undef GetWindowID
+
+template<class T>using ComPtr = Microsoft::WRL::ComPtr<T>;
 using namespace LoFi;
 
-Context::~Context() {
-     Shutdown();
+Context* Context::GlobalContext = nullptr;
+
+Context::Context() {
+      if (GlobalContext) {
+            MessageManager::Log(MessageType::Error, "Context already exists");
+            throw std::runtime_error("Context already exists");
+      }
+      GlobalContext = this;
 }
 
-void Context::EnableDebug() {
-      _bDebugMode = true;
+Context::~Context() {
+      Shutdown();
+      GlobalContext = nullptr;
 }
 
 void Context::Init() {
       volkInitialize();
 
       std::vector<const char*> instance_layers{ };
-      if(_bDebugMode) instance_layers.push_back("VK_LAYER_KHRONOS_validation");
+      if (_bDebugMode) instance_layers.push_back("VK_LAYER_KHRONOS_validation");
 
-      std::vector needed_instance_extension {
+      std::vector needed_instance_extension{
             "VK_KHR_surface",
             "VK_KHR_win32_surface"
       };
@@ -42,22 +55,22 @@ void Context::Init() {
             std::vector<const char*> missing_extensions_names{};
             for (const auto& ext : needed_instance_extension) {
                   if (std::ranges::find_if(extensions, [&ext](const auto& extension) {
-                         return std::strcmp(extension.extensionName, ext) == 0;
-                  }) == extensions.end()) {
+                        return std::strcmp(extension.extensionName, ext) == 0;
+                        }) == extensions.end()) {
                         missing_extensions_names.push_back(ext);
                   }
             }
 
-            if(missing_extensions_names.size() != 0) {
-                  std::string missing_extensions = "";
+            if (!missing_extensions_names.empty()) {
+                  std::string missing_extensions{};
                   for (const auto& ext : missing_extensions_names) {
                         missing_extensions += ext;
                         missing_extensions += "\n";
                   }
                   auto error_message = std::format("Missing instance extensions: \n{}", missing_extensions);
-                  MessageManager::addMessage(MessageType::Error, error_message);
+                  MessageManager::Log(MessageType::Error, error_message);
                   throw std::runtime_error(error_message);
-            };
+            }
       }
 
 
@@ -69,7 +82,7 @@ void Context::Init() {
       app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
       app_info.apiVersion = VK_API_VERSION_1_3;
 
-      VkInstanceCreateInfo instance_ci {};
+      VkInstanceCreateInfo instance_ci{};
       instance_ci.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
       instance_ci.pApplicationInfo = &app_info;
       instance_ci.enabledLayerCount = instance_layers.size();
@@ -78,13 +91,12 @@ void Context::Init() {
       instance_ci.ppEnabledExtensionNames = needed_instance_extension.data();
 
       VkInstance instance{};
-      if(vkCreateInstance(&instance_ci, nullptr, &instance) != VK_SUCCESS) {
-            MessageManager::addMessage(MessageType::Error, "Failed to create Vulkan instance");
+      if (vkCreateInstance(&instance_ci, nullptr, &instance) != VK_SUCCESS) {
+            MessageManager::Log(MessageType::Error, "Failed to create Vulkan instance");
             throw std::runtime_error("Failed to create Vulkan instance");
       }
       _instance = instance;
       volkLoadInstance(instance);
-
 
       PhysicalDevice physical_device_ability_ptr{};
       {
@@ -93,25 +105,25 @@ void Context::Init() {
             std::vector<VkPhysicalDevice> physicalDevices(count);
             vkEnumeratePhysicalDevices(instance, &count, physicalDevices.data());
 
-            for (const auto& physical_device: physicalDevices) {
+            for (const auto& physical_device : physicalDevices) {
                   PhysicalDevice ability(physical_device);
 
-                  if(!ability.isQueueFamily0SupportAllQueue()) continue;
-                  if(!ability._accelerationStructureFeatures.accelerationStructure) continue;
-                  if(!ability._rayTracingFeatures.rayTracingPipeline) continue;
-                  if(!ability._meshShaderFeatures.meshShader) continue;
+                  if (!ability.isQueueFamily0SupportAllQueue()) continue;
+                  if (!ability._accelerationStructureFeatures.accelerationStructure) continue;
+                  if (!ability._rayTracingFeatures.rayTracingPipeline) continue;
+                  if (!ability._meshShaderFeatures.meshShader) continue;
 
                   auto finalCard = std::format("Physical device selected: {}", ability._properties2.properties.deviceName);
-                  MessageManager::addMessage(MessageType::Normal, finalCard);
+                  MessageManager::Log(MessageType::Normal, finalCard);
 
                   _physicalDevice = physical_device;
                   physical_device_ability_ptr = ability;
                   break;
             }
 
-            if(!_physicalDevice) {
+            if (!_physicalDevice) {
                   std::string error_msg = "No suitable physical device found";
-                  MessageManager::addMessage(MessageType::Error, error_msg);
+                  MessageManager::Log(MessageType::Error, error_msg);
                   throw std::runtime_error(error_msg);
             }
       }
@@ -138,20 +150,20 @@ void Context::Init() {
             std::vector<const char*> missing_extensions_names{};
             for (const auto& ext : needed_device_extensions) {
                   if (std::ranges::find_if(extensions, [&ext](const auto& extension) {
-                         return std::strcmp(extension.extensionName, ext) == 0;
-                  }) == extensions.end()) {
+                        return std::strcmp(extension.extensionName, ext) == 0;
+                        }) == extensions.end()) {
                         missing_extensions_names.push_back(ext);
                   }
             }
 
-            if(missing_extensions_names.size() != 0) {
-                  std::string missing_extensions = "";
+            if (!missing_extensions_names.empty()) {
+                  std::string missing_extensions{};
                   for (const auto& ext : missing_extensions_names) {
                         missing_extensions += ext;
                         missing_extensions += "\n";
                   }
                   auto error_message = std::format("Missing device extensions: \n{}", missing_extensions);
-                  MessageManager::addMessage(MessageType::Error, error_message);
+                  MessageManager::Log(MessageType::Error, error_message);
                   throw std::runtime_error(error_message);
             }
 
@@ -162,8 +174,7 @@ void Context::Init() {
             float queue_priority = 1.0f;
             queue_ci.pQueuePriorities = &queue_priority;
 
-
-            VkDeviceCreateInfo device_ci {};
+            VkDeviceCreateInfo device_ci{};
             device_ci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
             device_ci.pNext = &physical_device_ability_ptr._features2;
             device_ci.enabledExtensionCount = needed_device_extensions.size();
@@ -172,8 +183,8 @@ void Context::Init() {
             device_ci.pQueueCreateInfos = &queue_ci;
 
             VkDevice device{};
-            if(vkCreateDevice(_physicalDevice, &device_ci, nullptr, &device) != VK_SUCCESS) {
-                  MessageManager::addMessage(MessageType::Error, "Failed to create Vulkan device");
+            if (vkCreateDevice(_physicalDevice, &device_ci, nullptr, &device) != VK_SUCCESS) {
+                  MessageManager::Log(MessageType::Error, "Failed to create Vulkan device");
                   throw std::runtime_error("Failed to create Vulkan device");
             }
 
@@ -182,55 +193,55 @@ void Context::Init() {
       }
 
       {
-	      VmaVulkanFunctions vma_vulkan_func{};
-	      vma_vulkan_func.vkAllocateMemory = vkAllocateMemory;
-	      vma_vulkan_func.vkBindBufferMemory = vkBindBufferMemory;
-	      vma_vulkan_func.vkBindImageMemory = vkBindImageMemory;
-	      vma_vulkan_func.vkCreateBuffer = vkCreateBuffer;
-	      vma_vulkan_func.vkCreateImage = vkCreateImage;
-	      vma_vulkan_func.vkDestroyBuffer = vkDestroyBuffer;
-	      vma_vulkan_func.vkDestroyImage = vkDestroyImage;
-	      vma_vulkan_func.vkFlushMappedMemoryRanges = vkFlushMappedMemoryRanges;
-	      vma_vulkan_func.vkFreeMemory = vkFreeMemory;
-	      vma_vulkan_func.vkGetBufferMemoryRequirements = vkGetBufferMemoryRequirements;
-	      vma_vulkan_func.vkGetImageMemoryRequirements = vkGetImageMemoryRequirements;
-	      vma_vulkan_func.vkGetPhysicalDeviceMemoryProperties = vkGetPhysicalDeviceMemoryProperties;
-	      vma_vulkan_func.vkGetPhysicalDeviceProperties = vkGetPhysicalDeviceProperties;
-	      vma_vulkan_func.vkInvalidateMappedMemoryRanges = vkInvalidateMappedMemoryRanges;
-	      vma_vulkan_func.vkMapMemory = vkMapMemory;
-	      vma_vulkan_func.vkUnmapMemory = vkUnmapMemory;
-	      vma_vulkan_func.vkCmdCopyBuffer = vkCmdCopyBuffer;
-	      vma_vulkan_func.vkGetImageMemoryRequirements2KHR = vkGetImageMemoryRequirements2KHR;
-	      vma_vulkan_func.vkGetBufferMemoryRequirements2KHR = vkGetBufferMemoryRequirements2KHR;
-	      vma_vulkan_func.vkBindBufferMemory2KHR = vkBindBufferMemory2KHR;
-	      vma_vulkan_func.vkBindImageMemory2KHR = vkBindImageMemory2KHR;
-	      vma_vulkan_func.vkGetPhysicalDeviceMemoryProperties2KHR = vkGetPhysicalDeviceMemoryProperties2KHR;
-	      vma_vulkan_func.vkGetDeviceBufferMemoryRequirements = vkGetDeviceBufferMemoryRequirements;
-	      vma_vulkan_func.vkGetDeviceImageMemoryRequirements = vkGetDeviceImageMemoryRequirements;
+            VmaVulkanFunctions vma_vulkan_func{};
+            vma_vulkan_func.vkAllocateMemory = vkAllocateMemory;
+            vma_vulkan_func.vkBindBufferMemory = vkBindBufferMemory;
+            vma_vulkan_func.vkBindImageMemory = vkBindImageMemory;
+            vma_vulkan_func.vkCreateBuffer = vkCreateBuffer;
+            vma_vulkan_func.vkCreateImage = vkCreateImage;
+            vma_vulkan_func.vkDestroyBuffer = vkDestroyBuffer;
+            vma_vulkan_func.vkDestroyImage = vkDestroyImage;
+            vma_vulkan_func.vkFlushMappedMemoryRanges = vkFlushMappedMemoryRanges;
+            vma_vulkan_func.vkFreeMemory = vkFreeMemory;
+            vma_vulkan_func.vkGetBufferMemoryRequirements = vkGetBufferMemoryRequirements;
+            vma_vulkan_func.vkGetImageMemoryRequirements = vkGetImageMemoryRequirements;
+            vma_vulkan_func.vkGetPhysicalDeviceMemoryProperties = vkGetPhysicalDeviceMemoryProperties;
+            vma_vulkan_func.vkGetPhysicalDeviceProperties = vkGetPhysicalDeviceProperties;
+            vma_vulkan_func.vkInvalidateMappedMemoryRanges = vkInvalidateMappedMemoryRanges;
+            vma_vulkan_func.vkMapMemory = vkMapMemory;
+            vma_vulkan_func.vkUnmapMemory = vkUnmapMemory;
+            vma_vulkan_func.vkCmdCopyBuffer = vkCmdCopyBuffer;
+            vma_vulkan_func.vkGetImageMemoryRequirements2KHR = vkGetImageMemoryRequirements2KHR;
+            vma_vulkan_func.vkGetBufferMemoryRequirements2KHR = vkGetBufferMemoryRequirements2KHR;
+            vma_vulkan_func.vkBindBufferMemory2KHR = vkBindBufferMemory2KHR;
+            vma_vulkan_func.vkBindImageMemory2KHR = vkBindImageMemory2KHR;
+            vma_vulkan_func.vkGetPhysicalDeviceMemoryProperties2KHR = vkGetPhysicalDeviceMemoryProperties2;
+            vma_vulkan_func.vkGetDeviceBufferMemoryRequirements = vkGetDeviceBufferMemoryRequirements;
+            vma_vulkan_func.vkGetDeviceImageMemoryRequirements = vkGetDeviceImageMemoryRequirements;
 
-	      VmaAllocatorCreateInfo vma_allocator_create_info{};
-	      vma_allocator_create_info.device = _device;
-	      vma_allocator_create_info.physicalDevice = _physicalDevice;
-	      vma_allocator_create_info.instance = _instance;
-	      vma_allocator_create_info.vulkanApiVersion = VK_API_VERSION_1_3;
-	      vma_allocator_create_info.pVulkanFunctions = &vma_vulkan_func;
+            VmaAllocatorCreateInfo vma_allocator_create_info{};
+            vma_allocator_create_info.device = _device;
+            vma_allocator_create_info.physicalDevice = _physicalDevice;
+            vma_allocator_create_info.instance = _instance;
+            vma_allocator_create_info.vulkanApiVersion = VK_API_VERSION_1_3;
+            vma_allocator_create_info.pVulkanFunctions = &vma_vulkan_func;
 
             if (vmaCreateAllocator(&vma_allocator_create_info, &_allocator) != VK_SUCCESS) {
-                  MessageManager::addMessage(MessageType::Error, "Failed to create VMA allocator");
+                  MessageManager::Log(MessageType::Error, "Failed to create VMA allocator");
                   throw std::runtime_error("Failed to create VMA allocator");
             }
 
             volkLoadVmaAllocator(_allocator);
 
-            vkGetDeviceQueue(_device,0, 0, &_queue);
+            vkGetDeviceQueue(_device, 0, 0, &_queue);
 
             VkCommandPoolCreateInfo command_pool_ci{};
             command_pool_ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
             command_pool_ci.queueFamilyIndex = 0;
             command_pool_ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
-            if(vkCreateCommandPool(_device, &command_pool_ci, nullptr, &_commandPool) != VK_SUCCESS) {
-                  MessageManager::addMessage(MessageType::Error, "Failed to create command pool");
+            if (vkCreateCommandPool(_device, &command_pool_ci, nullptr, &_commandPool) != VK_SUCCESS) {
+                  MessageManager::Log(MessageType::Error, "Failed to create command pool");
                   throw std::runtime_error("Failed to create command pool");
             }
 
@@ -240,8 +251,8 @@ void Context::Init() {
             command_buffer_ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
             command_buffer_ai.commandBufferCount = 3;
 
-            if(vkAllocateCommandBuffers(_device, &command_buffer_ai, &_commandBuffer[0]) != VK_SUCCESS) {
-                  MessageManager::addMessage(MessageType::Error, "Failed to allocate command buffers");
+            if (vkAllocateCommandBuffers(_device, &command_buffer_ai, &_commandBuffer[0]) != VK_SUCCESS) {
+                  MessageManager::Log(MessageType::Error, "Failed to allocate command buffers");
                   throw std::runtime_error("Failed to allocate command buffers");
             }
       }
@@ -253,74 +264,122 @@ void Context::Init() {
 
             VkSemaphoreCreateInfo semaphore_ci{};
             semaphore_ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-            for(int i = 0; i < 3; i++) {
-                  vkCreateFence(_device, &fence_ci, nullptr, &_mainCommandFence[i]);
-                  vkCreateSemaphore(_device, &semaphore_ci, nullptr, &_mainCommandSemaphore[i]);
+
+            for (int i = 0; i < 3; i++) {
+                  if (vkCreateFence(_device, &fence_ci, nullptr, &_mainCommandFence[i]) != VK_SUCCESS) {
+                        std::string msg = "Context::Init Failed to create fence";
+                        MessageManager::Log(MessageType::Error, msg);
+                        throw std::runtime_error(msg);
+                  }
+
+                  if (vkCreateSemaphore(_device, &semaphore_ci, nullptr, &_mainCommandQueueSemaphore[i]) != VK_SUCCESS) {
+                        std::string msg = "Context::Init Failed to create semaphore";
+                        MessageManager::Log(MessageType::Error, msg);
+                        throw std::runtime_error(msg);
+                  }
             }
       }
 
-      MessageManager::addMessage(MessageType::Normal, "Successfully initialized LoFi context");
+      if (FAILED(DxcCreateInstance(CLSID_DxcLibrary, IID_PPV_ARGS(&_dxcLibrary)))) {
+            MessageManager::Log(MessageType::Error, "Failed to create DXC library");
+            throw std::runtime_error("Failed to create DXC library");
+      }
+
+      if (FAILED(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&_dxcCompiler)))) {
+            MessageManager::Log(MessageType::Error, "Failed to create DXC compiler");
+            throw std::runtime_error("Failed to create DXC compiler");
+      }
+
+      if (FAILED(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&_dxcUtils)))) {
+            MessageManager::Log(MessageType::Error, "Failed to create DXC utils");
+            throw std::runtime_error("Failed to create DXC utils");
+      }
+
+      /*if (FAILED(_dxcLibrary->CreateIncludeHandler(&_dxcIncludeHandler))) {
+            MessageManager::addMessage(MessageType::Error, "Failed to create DXC include handler");
+            throw std::runtime_error("Failed to create DXC include handler");
+      }
+      */
+
+      volkLoadEcsWorld(&_world);
+
+      MessageManager::Log(MessageType::Normal, "Successfully initialized LoFi context");
 }
 
 void Context::Shutdown() {
-      _textures.clear();
-      _windows.clear();
+      vkDeviceWaitIdle(_device);
 
-      for(int i = 0; i < 3; i++) {
-            vkDestroyFence(_device, _mainCommandFence[i], nullptr);
-            vkDestroySemaphore(_device, _mainCommandSemaphore[i], nullptr);
-      }
-      vkFreeCommandBuffers(_device, _commandPool, 3, _commandBuffer);
       vkDestroyCommandPool(_device, _commandPool, nullptr);
+      {
+            auto view = _world.view<Component::Window, Component::Swapchain>();
+            _world.destroy(view.begin(), view.end());
+      }
+
+      {
+            auto view = _world.view<Component::Texture>();
+            _world.destroy(view.begin(), view.end());
+      }
+
+      {
+            auto view = _world.view<Component::Buffer>();
+            _world.destroy(view.begin(), view.end());
+      }
+
+
+      for (int i = 0; i < 3; i++) {
+            vkDestroyFence(_device, _mainCommandFence[i], nullptr);
+            vkDestroySemaphore(_device, _mainCommandQueueSemaphore[i], nullptr);
+      }
+
       vmaDestroyAllocator(_allocator);
       vkDestroyDevice(_device, nullptr);
       vkDestroyInstance(_instance, nullptr);
+
+      _dxcUtils->Release();
+      _dxcLibrary->Release();
+      _dxcCompiler->Release();
 }
 
-uint32_t Context::CreateWindow(const char *title, int w, int h) {
-      auto ptr = std::make_unique<Window>(title, w, h);
-      auto id = ptr->GetWindowID();
-      _windows.emplace(id, std::move(ptr));
+entt::entity Context::CreateWindow(const char* title, int w, int h) {
+
+      if (w < 1 || h < 1) {
+            std::string msg = "Context::CreateWindow - Invalid window size";
+            MessageManager::Log(MessageType::Error, msg);
+            throw std::runtime_error(msg);
+      }
+
+      auto id = _world.create();
+      auto& com = _world.emplace<Component::Window>(id, id, title, w, h);
+
+      auto win_id = com.GetWindowID();
+      _windowIdToWindow.emplace(win_id, id);
+
       return id;
 }
 
 void Context::DestroyWindow(uint32_t id) {
-      if(_windows.contains(id)) {
-            _windows.erase(id);
+
+      if (_windowIdToWindow.contains(id)) {
+            DestroyWindow(_windowIdToWindow[id]);
+            _windowIdToWindow.erase(id);
       }
 }
 
-void * Context::PollEvent() {
-      static SDL_Event event{};
-
-      SDL_PollEvent(&event);
-
-      if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
-            const auto id = event.window.windowID;
-            DestroyWindow(id);
+void Context::DestroyWindow(entt::entity window) {
+      if (_world.try_get<Component::Window>(window)) {
+            vkDeviceWaitIdle(_device);
+            _world.destroy(window);
       }
-
-      if (event.type == SDL_EVENT_WINDOW_RESIZED) {
-            const auto id = event.window.windowID;
-            if(auto res = _windows.find(id); res != _windows.end() ) {
-                  vkDeviceWaitIdle(_device);
-                  res->second->Update();
-            }
-      }
-
-      if (_windows.empty()) {
-            return nullptr;
-      }
-
-      return &event;
 }
 
-Texture* Context::CreateRenderTexture(int w, int h) {
+entt::entity Context::CreateRenderTexture(int w, int h) {
+      auto id = _world.create();
+
       VkImageCreateInfo image_ci{};
       image_ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
       image_ci.imageType = VK_IMAGE_TYPE_2D;
       image_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
-      image_ci.extent = VkExtent3D{(uint32_t)w, (uint32_t)h, 1};
+      image_ci.extent = VkExtent3D{ (uint32_t)w, (uint32_t)h, 1 };
       image_ci.mipLevels = 1;
       image_ci.arrayLayers = 1;
       image_ci.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -347,20 +406,19 @@ Texture* Context::CreateRenderTexture(int w, int h) {
       VmaAllocationCreateInfo alloc_ci{};
       alloc_ci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 
-      auto ptr = std::make_unique<Texture>(image_ci, alloc_ci);
-      ptr->CreateView(view_ci);
-      auto raw_ptr = ptr.get();
-      _textures.insert({raw_ptr, std::move(ptr)});
-      return raw_ptr;
+      _world.emplace<Component::Texture>(id, image_ci, alloc_ci).CreateView(view_ci);
+
+      return id;
 }
 
-Texture * Context::CreateDepthStencil(int w, int h) {
+entt::entity Context::CreateDepthStencil(int w, int h) {
+      auto id = _world.create();
 
       VkImageCreateInfo image_ci{};
       image_ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
       image_ci.imageType = VK_IMAGE_TYPE_2D;
       image_ci.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
-      image_ci.extent = VkExtent3D{(uint32_t)w, (uint32_t)h, 1};
+      image_ci.extent = VkExtent3D{ (uint32_t)w, (uint32_t)h, 1 };
       image_ci.mipLevels = 1;
       image_ci.arrayLayers = 1;
       image_ci.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -387,15 +445,298 @@ Texture * Context::CreateDepthStencil(int w, int h) {
       VmaAllocationCreateInfo alloc_ci{};
       alloc_ci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 
-      auto ptr = std::make_unique<Texture>(image_ci, alloc_ci);
-      ptr->CreateView(view_ci);
-      auto raw_ptr = ptr.get();
-      _textures.insert({raw_ptr, std::move(ptr)});
-      return raw_ptr;
+      _world.emplace<Component::Texture>(id, image_ci, alloc_ci).CreateView(view_ci);
+
+      return id;
 }
 
-void Context::DestroyTexture(Texture *texture) {
-      if(auto res = _textures.find(texture); res != _textures.end()){
-            _textures.erase(res);
+entt::entity Context::CreateVertexBuffer(uint64_t size, bool high_dynamic)
+{
+      auto id = _world.create();
+
+      VkBufferCreateInfo buffer_ci{};
+      buffer_ci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+      buffer_ci.size = size;
+      buffer_ci.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+      buffer_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+      VmaAllocationCreateInfo alloc_ci{};
+      alloc_ci.usage = high_dynamic ? VMA_MEMORY_USAGE_AUTO_PREFER_HOST : VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+
+      _world.emplace<Component::Buffer>(id, buffer_ci, alloc_ci);
+      return id;
+}
+
+entt::entity Context::CreateVertexBuffer(void* data, uint64_t size, bool high_dynamic) {
+      auto id = CreateVertexBuffer(size, high_dynamic);
+      auto& buffer = _world.get<Component::Buffer>(id);
+      buffer.SetData(data, size);
+      return id;
+}
+
+//Buffer * Context::CreateVertexBuffer(void *p, uint64_t size) {
+//      if(!p) {
+//            std::string msg = "Context::CreateVertexBuffer - Invalid pointer";
+//            MessageManager::Log(MessageType::Warning, msg);
+//            return nullptr;
+//      }
+//
+//      VkBufferCreateInfo buffer_ci{};
+//      buffer_ci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+//      buffer_ci.size = size;
+//      buffer_ci.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+//      buffer_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+//
+//      VmaAllocationCreateInfo alloc_ci{};
+//      alloc_ci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+//
+//      auto ptr = std::make_unique<Buffer>(buffer_ci, alloc_ci);
+//      ptr->SetData(p, size);
+//      auto raw_ptr = ptr.get();
+//      _buffers.insert({raw_ptr, std::move(ptr)});
+//      return raw_ptr;
+//}
+//
+//void Context::DestroyTexture(Texture *texture) {
+//      if(auto res = _textures.find(texture); res != _textures.end()){
+//            _textures.erase(res);
+//      }
+//
+//}
+
+
+void* Context::PollEvent() {
+      static SDL_Event event{};
+
+      SDL_PollEvent(&event);
+
+      if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
+            const auto id = event.window.windowID;
+            DestroyWindow(id);
       }
+
+      if (event.type == SDL_EVENT_WINDOW_RESIZED) {
+            const auto id = event.window.windowID;
+      }
+
+      if (_windowIdToWindow.empty()) {
+            return nullptr;
+      }
+
+      return &event;
+}
+
+void Context::EnqueueCommand(const std::function<void(VkCommandBuffer)>& command) {
+      _commandQueue.push_back(command);
+}
+
+void Context::BeginFrame() {
+      PrepareWindowRenderTarget();
+      auto cmd = GetCurrentCommandBuffer();
+
+      if (vkResetCommandBuffer(cmd, 0) != VK_SUCCESS) {
+            std::string msg = "Context::BeginFrame Failed to reset command buffer";
+            MessageManager::Log(MessageType::Error, msg);
+            throw std::runtime_error(msg);
+      }
+
+      VkCommandBufferBeginInfo begin_info{};
+      begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+      if (vkBeginCommandBuffer(cmd, &begin_info) != VK_SUCCESS) {
+            std::string msg = "Context::BeginFrame Failed to begin command buffer";
+            MessageManager::Log(MessageType::Error, msg);
+            throw std::runtime_error(msg);
+      }
+
+      for (const auto& i : _commandQueue) {
+            i(cmd);
+      }
+
+      _commandQueue.clear();
+
+      //VkRenderingAttachmentInfoKHR color_attachment_info = vkb::initializers::rendering_attachment_info();
+      //color_attachment_info.imageView = swapchain_buffers[i].view;        // color_attachment.image_view;
+
+
+      //VkRenderingAttachmentInfoKHR depth_attachment_info = vkb::initializers::rendering_attachment_info();
+      //depth_attachment_info.imageView = depth_stencil.view;
+
+
+      auto render_area = VkRect2D{ VkOffset2D{}, VkExtent2D{3, 5} };
+      VkRenderingInfoKHR render_info = {
+            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
+            .pNext = nullptr,
+            .flags = 0,
+            .renderArea = render_area,
+            .layerCount = 1,
+            .viewMask = 0,
+            .colorAttachmentCount = 0,
+            .pColorAttachments = nullptr,
+            .pDepthAttachment = nullptr,
+            .pStencilAttachment = nullptr
+      };
+
+      vkCmdBeginRenderingKHR(cmd, &render_info);
+
+      vkCmdEndRendering(cmd);
+}
+
+void Context::EndFrame() {
+
+      auto cmd_buf = GetCurrentCommandBuffer();
+
+      auto window_count = _windowIdToWindow.size();
+
+      std::vector<VkImageMemoryBarrier2> barriers{};
+      barriers.reserve(window_count);
+
+      _world.view<Component::Swapchain>().each([&](auto entity, auto& swapchain) {
+            barriers.push_back(swapchain.GenerateCurrentRenderTargetBarrier());
+      });
+
+      VkDependencyInfoKHR window_bgin_barrier = {
+           .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR,
+           .imageMemoryBarrierCount = (uint32_t)barriers.size(),
+           .pImageMemoryBarriers = barriers.data()
+      };
+
+      vkCmdPipelineBarrier2(cmd_buf, &window_bgin_barrier);
+
+      barriers.clear();
+
+      _world.view<Component::Swapchain>().each([&](auto entity, const auto& swapchain) {
+            barriers.push_back(swapchain.GenerateCurrentRenderTargetBarrier());
+      });
+
+      VkDependencyInfo window_end_barrier = {
+           .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR,
+           .imageMemoryBarrierCount = (uint32_t)barriers.size(),
+           .pImageMemoryBarriers = barriers.data()
+      };
+
+      vkCmdPipelineBarrier2(cmd_buf, &window_end_barrier);
+
+      if (vkEndCommandBuffer(cmd_buf) != VK_SUCCESS) {
+            std::string msg = "Context::EndFrame Failed to end command buffer";
+            MessageManager::Log(MessageType::Error, msg);
+            throw std::runtime_error(msg);
+      }
+
+      std::vector<VkSemaphore> semaphores_wait_for{};
+      std::vector<VkPipelineStageFlags> dst_stage_wait_for{};
+      semaphores_wait_for.reserve(window_count);
+      dst_stage_wait_for.reserve(window_count);
+
+      _world.view<Component::Swapchain>().each([&](auto entity, auto& swapchain) {
+            semaphores_wait_for.push_back(swapchain.GetCurrentSemaphore());
+            dst_stage_wait_for.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+      });
+
+      VkSubmitInfo vk_submit_info{};
+      VkCommandBuffer buffers[] = { cmd_buf };
+      vk_submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+      vk_submit_info.commandBufferCount = 1;
+      vk_submit_info.pCommandBuffers = buffers;
+      vk_submit_info.pWaitSemaphores = semaphores_wait_for.data();
+      vk_submit_info.waitSemaphoreCount = semaphores_wait_for.size();
+      vk_submit_info.pWaitDstStageMask = dst_stage_wait_for.data();
+      vk_submit_info.pSignalSemaphores = &_mainCommandQueueSemaphore[GetCurrentFrameIndex()];
+      vk_submit_info.signalSemaphoreCount = 1;
+
+      if (vkQueueSubmit(_queue, 1, &vk_submit_info, GetCurrentFence()) != VK_SUCCESS) {
+            std::string msg = "Context::EndFrame Failed to submit command buffer";
+            MessageManager::Log(MessageType::Error, msg);
+            throw std::runtime_error(msg);
+      }
+
+      //Present
+      std::vector<VkSwapchainKHR> swap_chains{};
+      std::vector<uint32_t> present_images{};
+      swap_chains.reserve(window_count);
+      present_images.reserve(window_count);
+
+      _world.view<Component::Swapchain>().each([&](auto entity, const Component::Swapchain& swapchain) {
+            swap_chains.push_back(swapchain.GetSwapchain());
+            present_images.push_back(swapchain.GetCurrentRenderTargetIndex());
+      });
+
+      VkPresentInfoKHR present_info{};
+      present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+      present_info.waitSemaphoreCount = 1;
+      present_info.pWaitSemaphores = &_mainCommandQueueSemaphore[GetCurrentFrameIndex()];
+      present_info.pImageIndices = present_images.data();
+      present_info.pSwapchains = swap_chains.data();
+      present_info.swapchainCount = (uint32_t)swap_chains.size();
+
+      auto res = vkQueuePresentKHR(_queue, &present_info);
+      if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
+            /*for(auto& i : _windows) {
+                  i.second->Update();
+            }*/
+      } else if (res != VK_SUCCESS) {
+            std::string msg = "frame_end:Failed to present";
+            MessageManager::Log(MessageType::Error, msg);
+            throw std::runtime_error(msg);
+      }
+
+      GoNextFrame();
+}
+
+//Program* Context::CreateProgram(const char* source_code, const char* type, const char* entry)
+//{
+//      std::string_view code{ source_code };
+//
+//      std::vector<uint8_t> sbuffer(code.size() + 1);
+//      std::ranges::copy(code, sbuffer.begin());
+//      sbuffer.back() = '\0';
+//
+//      DxcBuffer buffer = {
+//            .Ptr = sbuffer.data(),
+//            .Size = (uint32_t)sbuffer.size(),
+//            .Encoding = 0
+//      };
+//
+//
+//      std::vector<LPCWSTR> args{};
+//      args.push_back(L"-Zpc");
+//      args.push_back(L"-auto-binding-space");
+//      args.push_back(L"0");
+//      args.push_back(L"-HV");
+//      args.push_back(L"2021");
+//      args.push_back(L"-T");
+//      args.push_back(L"-E");
+//      args.push_back(L"main");
+//      args.push_back(L"-spirv");
+//      args.push_back(L"-fspv-target-env=vulkan1.3");
+//      ComPtr<IDxcResult> compiled_shader{};
+//      _dxcCompiler->Compile(&buffer, args.data(), (uint32_t)(args.size()), nullptr, IID_PPV_ARGS(&compiled_shader));
+//      return nullptr;
+//}
+
+void Context::PrepareWindowRenderTarget() {
+      auto fence = GetCurrentFence();
+      vkWaitForFences(_device, 1, &fence, true, UINT64_MAX);
+
+      _world.view<Component::Swapchain>().each([&](auto entity, auto& swapchain) {
+            swapchain.AcquireNextImage();
+      });
+
+      vkResetFences(_device, 1, &fence);
+}
+
+uint32_t Context::GetCurrentFrameIndex() const {
+      return _currentCommandBufferIndex;
+}
+
+VkCommandBuffer Context::GetCurrentCommandBuffer() const {
+      return _commandBuffer[_currentCommandBufferIndex];
+}
+
+VkFence Context::GetCurrentFence() const {
+      return _mainCommandFence[_currentCommandBufferIndex];
+}
+
+void Context::GoNextFrame() {
+      _currentCommandBufferIndex = (_currentCommandBufferIndex + 1) % 3;
 }
