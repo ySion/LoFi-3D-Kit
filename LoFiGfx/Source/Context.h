@@ -51,6 +51,8 @@ namespace LoFi {
 
       class Context {
 
+            friend class Component::Buffer;
+
             struct SamplerCIHash {
                   std::size_t operator()(const VkSamplerCreateInfo& s) const noexcept {
                         return XXH64(&s, sizeof(VkSamplerCreateInfo), 0);

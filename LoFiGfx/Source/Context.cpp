@@ -1,7 +1,4 @@
-//
-// Created by starr on 2024/6/20.
-//
-#include "Context.h"
+﻿#include "Context.h"
 #include "Message.h"
 #include "PhysicalDevice.h"
 
@@ -451,7 +448,7 @@ void Context::Shutdown() {
 
       vkDestroySampler(_device, _defaultSampler, nullptr);
 
-      for(auto i : _samplers) {
+      for (auto i : _samplers) {
             vkDestroySampler(_device, i.second, nullptr);
       }
 
@@ -556,9 +553,7 @@ entt::entity Context::CreateBuffer(uint64_t size, bool cpu_access) {
 
       entt::delegate<void(Context* self, const Component::Buffer*)> deleg{};
 
-      _world.emplace<Component::Buffer>(id, buffer_ci, alloc_ci).SetCallBackOnRecreate([&](const Component::Buffer* buffer) {
-            this->MakeBindlessIndexBuffer(buffer->GetID(), buffer->GetBindlessIndex());
-      });
+      _world.emplace<Component::Buffer>(id, id, buffer_ci, alloc_ci);
 
       MakeBindlessIndexBuffer(id);
       return id;
@@ -652,6 +647,13 @@ entt::entity Context::CreateDepthStencil(int w, int h) {
 }
 
 void Context::DestroyBuffer(entt::entity buffer) {
+
+      if (!_world.valid(buffer)) {
+            auto msg = "Context::DestroyBuffer - Invalid buffer entity, ignore it.";
+            MessageManager::Log(MessageType::Warning, msg);
+            return;
+      }
+
       if (auto comp = _world.try_get<Component::Buffer>(buffer); comp) {
             auto bindless_index = comp->GetBindlessIndex();
 
@@ -664,6 +666,13 @@ void Context::DestroyBuffer(entt::entity buffer) {
 }
 
 void Context::DestroyTexture(entt::entity texture) {
+
+      if (!_world.valid(texture)) {
+            auto msg = "Context::DestroyTexture - Invalid buffer entity, ignore it.";
+            MessageManager::Log(MessageType::Warning, msg);
+            return;
+      }
+
       if (auto comp = _world.try_get<Component::Texture>(texture); comp) {
             auto bindless_index_for_sampler = comp->GetBindlessIndexForSampler();
             auto bindless_index_for_compute_kernel = comp->GetBindlessIndexForComputeKernel();
@@ -868,6 +877,12 @@ void Context::EndFrame() {
 
 void Context::MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t viewIndex, std::optional<uint32_t> specifyindex) {
 
+      if (!_world.valid(texture)) {
+            std::string msg = "Context::MakeBindlessIndexTextureForSampler - Invalid texture entity";
+            MessageManager::Log(MessageType::Error, msg);
+            throw std::runtime_error(msg);
+      }
+
       auto texture_component = _world.try_get<Component::Texture>(texture);
 
       if (!texture_component) {
@@ -913,6 +928,13 @@ void Context::MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t 
 }
 
 void Context::MakeBindlessIndexTextureForComputeKernel(entt::entity texture, uint32_t viewIndex, std::optional<uint32_t> specifyindex) {
+
+      if (!_world.valid(texture)) {
+            std::string msg = "Context::MakeBindlessIndexTextureForComputeKernel - Invalid texture entity";
+            MessageManager::Log(MessageType::Error, msg);
+            throw std::runtime_error(msg);
+      }
+
       auto texture_component = _world.try_get<Component::Texture>(texture);
 
       if (!texture_component) {
@@ -957,6 +979,13 @@ void Context::MakeBindlessIndexTextureForComputeKernel(entt::entity texture, uin
 }
 
 void Context::MakeBindlessIndexBuffer(entt::entity buffer, std::optional<uint32_t> specifyindex) {
+
+      if (!_world.valid(buffer)) {
+            std::string msg = "Context::BindBuffer - Invalid buffer entity";
+            MessageManager::Log(MessageType::Error, msg);
+            throw std::runtime_error(msg);
+      }
+
       auto buffer_component = _world.try_get<Component::Buffer>(buffer);
 
       if (!buffer_component) {

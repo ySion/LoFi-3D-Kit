@@ -30,7 +30,7 @@ namespace LoFi::Component {
 
             [[nodiscard]] VkBufferView* GetViewPtr(uint32_t idx) { return &_views.at(idx); }
 
-            [[nodiscard]] VkDeviceSize GetSize() const { return _bufferCI.size; }
+            [[nodiscard]] VkDeviceSize GetSize() const { return _bufferCI->size; }
 
             [[nodiscard]] bool IsHostSide() const { return _isHostSide; }
 
@@ -51,8 +51,6 @@ namespace LoFi::Component {
             void Recreate(uint64_t size);
 
       private:
-
-            void SetCallBackOnRecreate(const std::function<void(const Component::Buffer*)>& func);
 
             void CreateBuffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci);
 
@@ -82,18 +80,14 @@ namespace LoFi::Component {
 
             VmaAllocation _memory{};
 
-            std::vector<VkBufferView> _views{};
+            std::unique_ptr<VkBufferCreateInfo> _bufferCI{};
 
-
-            VkBufferCreateInfo _bufferCI{};
-
-            VmaAllocationCreateInfo _memoryCI{};
-
-
-            std::vector<VkBufferViewCreateInfo> _viewCIs{};
+            std::unique_ptr<VmaAllocationCreateInfo> _memoryCI{};
 
             std::unique_ptr<Buffer> _intermediateBuffer{};
 
-            std::function<void(const Component::Buffer*)> _callBackOnRecreate;
+            std::vector<VkBufferView> _views{};
+
+            std::vector<VkBufferViewCreateInfo> _viewCIs{};
       };
 }

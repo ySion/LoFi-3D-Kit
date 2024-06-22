@@ -34,6 +34,7 @@
 #dirs
 build
 cmake-build-relwithdebinfo
+cmake-build-debug
 .vs/
 .vscode/
 .idea/

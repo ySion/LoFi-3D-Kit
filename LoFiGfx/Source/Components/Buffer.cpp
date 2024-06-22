@@ -63,7 +63,7 @@ void LoFi::Component::Buffer::SetData(void* p, uint64_t size) {
             throw std::runtime_error(msg);
       }
 
-      if (size > _bufferCI.size) {
+      if (size > _bufferCI->size) {
             Recreate(size);
       }
 
@@ -109,14 +109,14 @@ void LoFi::Component::Buffer::SetData(void* p, uint64_t size) {
 }
 
 void LoFi::Component::Buffer::Recreate(uint64_t size) {
-      if (_bufferCI.size >= size) return;
+      if (_bufferCI->size >= size) return;
 
       Unmap();
 
-      _bufferCI.size = size;
+      _bufferCI->size = size;
       vmaDestroyBuffer(volkGetLoadedVmaAllocator(), _buffer, _memory);
 
-      if (vmaCreateBuffer(volkGetLoadedVmaAllocator(), &_bufferCI, &_memoryCI, &_buffer, &_memory, nullptr) != VK_SUCCESS) {
+      if (vmaCreateBuffer(volkGetLoadedVmaAllocator(), _bufferCI.get(), _memoryCI.get(), &_buffer, &_memory, nullptr) != VK_SUCCESS) {
             const std::string msg = "Buffer::Recreate - Failed to create buffer";
             MessageManager::Log(MessageType::Error, msg);
             throw std::runtime_error(msg);
@@ -126,24 +126,21 @@ void LoFi::Component::Buffer::Recreate(uint64_t size) {
 
       RecreateAllViews();
 
-      if (_callBackOnRecreate) _callBackOnRecreate(this);
+      Context::Get()->MakeBindlessIndexBuffer(_id, GetBindlessIndex());
 
-      auto str = std::format(R"(Buffer::CreateBuffer - Recreate "{}" bytes at "{}" side)", _bufferCI.size, _isHostSide ? "Host" : "Device");
+      auto str = std::format(R"(Buffer::CreateBuffer - Recreate "{}" bytes at "{}" side)", _bufferCI->size, _isHostSide ? "Host" : "Device");
       MessageManager::Log(MessageType::Normal, str);
 }
-
-void LoFi::Component::Buffer::SetCallBackOnRecreate(const std::function<void(const Component::Buffer*)>& func) {
-      _callBackOnRecreate = func;
-}
-
 void LoFi::Component::Buffer::CreateBuffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci) {
-      _bufferCI = buffer_ci;
-      _memoryCI = alloc_ci;
+
+      _bufferCI.reset(new VkBufferCreateInfo{ buffer_ci });
+      _memoryCI.reset(new VmaAllocationCreateInfo{ alloc_ci });
+
       if (_buffer != nullptr) {
             vmaDestroyBuffer(volkGetLoadedVmaAllocator(), _buffer, _memory);
       }
 
-      if (vmaCreateBuffer(volkGetLoadedVmaAllocator(), &_bufferCI, &_memoryCI, &_buffer, &_memory, nullptr) != VK_SUCCESS) {
+      if (vmaCreateBuffer(volkGetLoadedVmaAllocator(), _bufferCI.get(), _memoryCI.get(), &_buffer, &_memory, nullptr) != VK_SUCCESS) {
             const std::string msg = "Buffer::CreateBuffer - Failed to create buffer";
             MessageManager::Log(MessageType::Error, msg);
             throw std::runtime_error(msg);
@@ -153,7 +150,7 @@ void LoFi::Component::Buffer::CreateBuffer(const VkBufferCreateInfo& buffer_ci, 
       vmaGetAllocationMemoryProperties(volkGetLoadedVmaAllocator(), _memory, &fgs);
       _isHostSide = (fgs & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
 
-      auto str = std::format(R"(Buffer::CreateBuffer - Emplace "{}" bytes at "{}" side)", _bufferCI.size, _isHostSide ? "Host" : "Device");
+      auto str = std::format(R"(Buffer::CreateBuffer - Emplace "{}" bytes at "{}" side)", _bufferCI->size, _isHostSide ? "Host" : "Device");
       MessageManager::Log(MessageType::Normal, str);
 }
 
