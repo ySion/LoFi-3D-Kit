@@ -12,16 +12,16 @@ void MessageManager::Log(MessageType type, std::string_view content) {
       switch(type) {
             case MessageType::Normal:
                   NormalCount++;
-            std::printf("Normal: %s\n", content.data());
+            std::printf("[Normal]: %s\n", content.data());
             break;
             case MessageType::Warning:
                   WarningCount++;
-            std::printf("Warning: %s\n", content.data());
+            std::printf("[Warning]: %s\n", content.data());
 
             break;
             case MessageType::Error:
                   ErrorCount++;
-            std::printf("Error: %s\n", content.data());
+            std::printf("[Error]: %s\n", content.data());
             break;
             default: return;
       }

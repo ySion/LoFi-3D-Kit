@@ -4,11 +4,13 @@
 #pragma once
 
 #include "Helper.h"
+#include "PhysicalDevice.h"
 
 #include "Components/Window.h"
 #include "Components/Swapchain.h"
 #include "Components/Texture.h"
 #include "Components/Buffer.h"
+#include "../Third/xxHash/xxh3.h"
 
 struct IDxcLibrary;
 struct IDxcCompiler3;
@@ -20,7 +22,47 @@ namespace LoFi {
             bool Debug = false;
       };
 
+
+      class FreeList {
+      public:
+            uint32_t Gen() {
+                  if (_free.empty()) {
+                        return _top++;
+                  } else {
+                        uint32_t id = _free.back();
+                        _free.pop_back();
+                        return id;
+                  }
+            }
+
+            void Free(uint32_t id) {
+                  _free.push_back(id);
+            }
+
+            void Clear() {
+                  _top = 0;
+                  _free.clear();
+            }
+
+      private:
+            uint32_t _top {};
+            std::vector<uint32_t> _free {};
+      };
+
       class Context {
+
+            struct SamplerCIHash {
+                  std::size_t operator()(const VkSamplerCreateInfo& s) const noexcept {
+                        return XXH64(&s, sizeof(VkSamplerCreateInfo), 0);
+                  }
+            };
+
+            struct SamplerCIEqual {
+                  std::size_t operator()(const VkSamplerCreateInfo& a, const VkSamplerCreateInfo& b) const noexcept {
+                        return memcmp(&a, &b, sizeof(VkSamplerCreateInfo));
+                  }
+            };
+
             static Context* GlobalContext;
 
       public:
@@ -42,17 +84,26 @@ namespace LoFi {
 
             void DestroyWindow(entt::entity window);
 
+
+           /* [[nodiscard]] entt::entity  CreateTexture2DArray();
+
+            [[nodiscard]] entt::entity  CreateTexture3D();
+
+            [[nodiscard]] entt::entity  CreateTextureCube();*/
+
+            [[nodiscard]] entt::entity CreateTexture2D(VkFormat format, int w, int h, int mipMapCounts = 1);
+
+            [[nodiscard]] entt::entity CreateBuffer(uint64_t size, bool cpu_access = false);
+
+            [[nodiscard]] entt::entity CreateBuffer(void* data, uint64_t size, bool cpu_access = false);
+
             [[nodiscard]] entt::entity CreateRenderTexture(int w, int h);
 
             [[nodiscard]] entt::entity CreateDepthStencil(int w, int h);
 
-            [[nodiscard]] entt::entity CreateVertexBuffer(uint64_t size, bool high_dynamic = false);
+            void DestroyBuffer(entt::entity buffer);
 
-            [[nodiscard]] entt::entity CreateVertexBuffer(void* data, uint64_t size, bool high_dynamic = false);
-
-
-
-            //void DestroyTexture(Texture* texture);
+            void DestroyTexture(entt::entity texture);
 
             void* PollEvent();
 
@@ -65,6 +116,14 @@ namespace LoFi {
            // Program* CreateProgram(const char* source_code, const char* type, const char* entry = "main");
 
       private:
+
+            void MakeBindlessIndexBuffer(entt::entity buffer, std::optional<uint32_t> specifyindex = {});
+
+            void MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t viewIndex = 0, std::optional<uint32_t> specifyindex = {});
+
+            void MakeBindlessIndexTextureForComputeKernel(entt::entity texture, uint32_t viewIndex = 0, std::optional<uint32_t> specifyindex = {});
+
+            void SetTextureSampler(entt::entity image, const VkSamplerCreateInfo& sampler_ci);
 
             void PrepareWindowRenderTarget();
 
@@ -84,6 +143,8 @@ namespace LoFi {
 
             VkPhysicalDevice _physicalDevice{};
 
+            PhysicalDevice _physicalDeviceAbility{};
+
             VkDevice _device{};
 
             VmaAllocator _allocator{};
@@ -101,6 +162,21 @@ namespace LoFi {
             uint32_t _currentCommandBufferIndex = 0;
 
             uint64_t _sumFrameCount = 0;
+
+            //Descriptors
+
+            VkDescriptorPool _descriptorPool{};
+
+            VkDescriptorSetLayout _bindlessDescriptorSetLayout{};
+
+            VkDescriptorSet _bindlessDescriptorSet{};
+
+            //Normal Sampler
+            VkSampler _defaultSampler{};
+
+            entt::dense_map<VkSamplerCreateInfo, VkSampler, SamplerCIHash, SamplerCIEqual> _samplers{};
+
+            FreeList _bindlessIndexFreeList[3]{};
 
       private:
             std::vector<std::function<void(VkCommandBuffer)>> _commandQueue;

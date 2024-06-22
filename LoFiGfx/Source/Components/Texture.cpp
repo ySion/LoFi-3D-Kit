@@ -16,7 +16,7 @@ LoFi::Component::Texture::Texture(const VkImageCreateInfo& image_ci, VkImage Ima
       _currentLayout = _imageCI.initialLayout;
 }
 
-LoFi::Component::Texture::Texture(const VkImageCreateInfo& image_ci, const VmaAllocationCreateInfo& alloc_ci) {
+LoFi::Component::Texture::Texture(entt::entity id, const VkImageCreateInfo& image_ci, const VmaAllocationCreateInfo& alloc_ci) {
       const auto allocator = volkGetLoadedVmaAllocator();
 
       if (vmaCreateImage(allocator, &image_ci, &alloc_ci, &_image, &_memory, nullptr) != VK_SUCCESS) {
@@ -24,7 +24,7 @@ LoFi::Component::Texture::Texture(const VkImageCreateInfo& image_ci, const VmaAl
             MessageManager::Log(MessageType::Error, msg);
             throw std::runtime_error(msg);
       }
-
+      _id = id;
       _currentAccessMask = 0;
       _currentLayout = _imageCI.initialLayout;
 }
@@ -66,4 +66,14 @@ void LoFi::Component::Texture::Clean() {
       if (!_isBorrow) {
             vmaDestroyImage(volkGetLoadedVmaAllocator(), _image, _memory);
       }
+}
+
+void LoFi::Component::Texture::SetBindlessIndexForSampler(std::optional<uint32_t> index)
+{
+      _bindlessIndexForSampler = index;
+}
+
+void LoFi::Component::Texture::SetBindlessIndexForComputeKernel(std::optional<uint32_t> index)
+{
+      _bindlessIndexForComputeKernel = index;
 }

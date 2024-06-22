@@ -5,14 +5,11 @@
 #include "Message.h"
 #include "PhysicalDevice.h"
 
-#include <format>
-#include <vector>
-#include <windowsx.h>
+#include <wrl/client.h>
 
 #include "SDL3/SDL.h"
 
 #include "../Third/dxc/dxcapi.h"
-#include <wrl/client.h>
 
 #undef CreateWindow
 #undef GetWindowID
@@ -98,7 +95,6 @@ void Context::Init() {
       _instance = instance;
       volkLoadInstance(instance);
 
-      PhysicalDevice physical_device_ability_ptr{};
       {
             uint32_t count = 0;
             vkEnumeratePhysicalDevices(instance, &count, nullptr);
@@ -117,7 +113,7 @@ void Context::Init() {
                   MessageManager::Log(MessageType::Normal, finalCard);
 
                   _physicalDevice = physical_device;
-                  physical_device_ability_ptr = ability;
+                  _physicalDeviceAbility = ability;
                   break;
             }
 
@@ -129,17 +125,16 @@ void Context::Init() {
       }
 
       {
-            std::vector needed_device_extensions{
-                  "VK_KHR_dynamic_rendering", // 必要的
-                  "VK_EXT_descriptor_indexing", // 必要的
+            std::vector needed_device_extensions{ // 必要的
+                  "VK_KHR_dynamic_rendering",
+                  "VK_EXT_descriptor_indexing",
                   "VK_KHR_maintenance2",
 
                   "VK_KHR_swapchain",
                   "VK_KHR_get_memory_requirements2",
                   "VK_KHR_dedicated_allocation",
                   "VK_KHR_bind_memory2",
-                  "VK_KHR_spirv_1_4",
-                  "VK_KHR_synchronization2"
+                  "VK_KHR_spirv_1_4"
             };
 
             uint32_t count = 0;
@@ -176,7 +171,7 @@ void Context::Init() {
 
             VkDeviceCreateInfo device_ci{};
             device_ci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-            device_ci.pNext = &physical_device_ability_ptr._features2;
+            device_ci.pNext = &_physicalDeviceAbility._features2;
             device_ci.enabledExtensionCount = needed_device_extensions.size();
             device_ci.ppEnabledExtensionNames = needed_device_extensions.data();
             device_ci.queueCreateInfoCount = 1;
@@ -295,13 +290,134 @@ void Context::Init() {
             throw std::runtime_error("Failed to create DXC utils");
       }
 
-      /*if (FAILED(_dxcLibrary->CreateIncludeHandler(&_dxcIncludeHandler))) {
-            MessageManager::addMessage(MessageType::Error, "Failed to create DXC include handler");
-            throw std::runtime_error("Failed to create DXC include handler");
-      }
-      */
-
       volkLoadEcsWorld(&_world);
+
+      {
+
+            std::array size{
+                  //VkDescriptorPoolSize {
+                  //      .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, // UBO
+                  //      .descriptorCount = 65535
+                  //},
+                  VkDescriptorPoolSize {
+                        .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // Storage Buffer
+                        .descriptorCount = 65535
+                  },
+                  VkDescriptorPoolSize {
+                        .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                        .descriptorCount = 65535
+                  },
+                  VkDescriptorPoolSize {
+                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, // sampler
+                        .descriptorCount = 65535
+                  },
+            };
+
+
+            VkDescriptorPoolCreateInfo pool_ci{};
+            pool_ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+            pool_ci.maxSets = 16;
+            pool_ci.pPoolSizes = size.data();
+            pool_ci.poolSizeCount = size.size();
+            pool_ci.flags = VkDescriptorPoolCreateFlagBits::VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT;
+
+
+            if (auto res = vkCreateDescriptorPool(_device, &pool_ci, nullptr, &_descriptorPool); res != VK_SUCCESS) {
+                  auto msg = std::format("Context::Init - Failed to create descriptor pool, res {}", (uint64_t)res);
+                  MessageManager::Log(MessageType::Error, msg);
+                  throw std::runtime_error(msg);
+            }
+
+            std::array binding{
+                 VkDescriptorSetLayoutBinding {
+                        .binding = 0,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                        .descriptorCount = 32767,
+                        .stageFlags = VK_SHADER_STAGE_ALL
+                 },
+                 VkDescriptorSetLayoutBinding {
+                        .binding = 1,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                        .descriptorCount = 32767,
+                        .stageFlags = VK_SHADER_STAGE_ALL
+                 },
+                 VkDescriptorSetLayoutBinding {
+                        .binding = 2,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .descriptorCount = 32767,
+                        .stageFlags = VK_SHADER_STAGE_ALL
+                 }
+            };
+
+            std::array<VkDescriptorBindingFlags, 3> flags{
+                  VkDescriptorBindingFlagBits::VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VkDescriptorBindingFlagBits::VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT,
+                  VkDescriptorBindingFlagBits::VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VkDescriptorBindingFlagBits::VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT,
+                  VkDescriptorBindingFlagBits::VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VkDescriptorBindingFlagBits::VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT
+            };
+
+            VkDescriptorSetLayoutBindingFlagsCreateInfo flag_info = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
+            flag_info.bindingCount = flags.size();
+            flag_info.pBindingFlags = flags.data();
+
+            VkDescriptorSetLayoutCreateInfo layout_ci{};
+            layout_ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            layout_ci.pBindings = binding.data();
+            layout_ci.bindingCount = binding.size();
+            layout_ci.pNext = &flag_info;
+            layout_ci.flags = VkDescriptorSetLayoutCreateFlagBits::VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+
+
+            if (auto res = vkCreateDescriptorSetLayout(_device, &layout_ci, nullptr, &_bindlessDescriptorSetLayout); res != VK_SUCCESS) {
+                  auto msg = std::format("Context::Init - Failed to create descriptor set layout, res {}", (uint64_t)res);
+                  MessageManager::Log(MessageType::Error, msg);
+                  throw std::runtime_error(msg);
+            }
+
+
+            VkDescriptorSetAllocateInfo alloc_ci{
+                  .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+                  .descriptorPool = _descriptorPool,
+                  .descriptorSetCount = 1,
+                  .pSetLayouts = &_bindlessDescriptorSetLayout
+            };
+
+            if (auto res = vkAllocateDescriptorSets(_device, &alloc_ci, &_bindlessDescriptorSet); res != VK_SUCCESS) {
+                  auto msg = std::format("Context::Init - Failed to allocate descriptor set, res {}", (uint64_t)res);
+                  MessageManager::Log(MessageType::Error, msg);
+                  throw std::runtime_error(msg);
+            }
+      }
+
+      {
+            //Default sampler
+            VkSamplerCreateInfo defualt_sampler_ci{
+                  .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+                  .pNext = nullptr,
+                  .flags = 0,
+                  .magFilter = VK_FILTER_LINEAR,
+                  .minFilter = VK_FILTER_LINEAR,
+                  .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+                  .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                  .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                  .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                  .mipLodBias = 0,
+                  .anisotropyEnable = true,
+                  .maxAnisotropy = _physicalDeviceAbility._properties2.properties.limits.maxSamplerAnisotropy,
+                  .compareEnable = false,
+                  .compareOp = VK_COMPARE_OP_ALWAYS,
+                  .minLod = 0,
+                  .maxLod = 0,
+                  .borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
+                  .unnormalizedCoordinates = false
+            };
+
+            if (auto res = vkCreateSampler(_device, &defualt_sampler_ci, nullptr, &_defaultSampler); res != VK_SUCCESS) {
+                  auto str = std::format("Context::Init - Failed to create default sampler, res {}", (uint64_t)res);
+                  MessageManager::Log(MessageType::Error, str);
+                  throw std::runtime_error(str);
+            }
+      }
+
 
       MessageManager::Log(MessageType::Normal, "Successfully initialized LoFi context");
 }
@@ -325,10 +441,18 @@ void Context::Shutdown() {
             _world.destroy(view.begin(), view.end());
       }
 
-
       for (int i = 0; i < 3; i++) {
             vkDestroyFence(_device, _mainCommandFence[i], nullptr);
             vkDestroySemaphore(_device, _mainCommandQueueSemaphore[i], nullptr);
+      }
+
+      vkDestroyDescriptorPool(_device, _descriptorPool, nullptr);
+      vkDestroyDescriptorSetLayout(_device, _bindlessDescriptorSetLayout, nullptr);
+
+      vkDestroySampler(_device, _defaultSampler, nullptr);
+
+      for(auto i : _samplers) {
+            vkDestroySampler(_device, i.second, nullptr);
       }
 
       vmaDestroyAllocator(_allocator);
@@ -372,6 +496,81 @@ void Context::DestroyWindow(entt::entity window) {
       }
 }
 
+entt::entity Context::CreateTexture2D(VkFormat format, int w, int h, int mipMapCounts) {
+      auto id = _world.create();
+
+      VkImageCreateInfo image_ci{};
+      image_ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+      image_ci.imageType = VK_IMAGE_TYPE_2D;
+      image_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
+      image_ci.extent = VkExtent3D{ (uint32_t)w, (uint32_t)h, 1 };
+      image_ci.mipLevels = mipMapCounts;
+      image_ci.arrayLayers = 1;
+      image_ci.samples = VK_SAMPLE_COUNT_1_BIT;
+      image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
+      image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+      image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+      image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      image_ci.flags = 0;
+
+
+
+      VkImageViewCreateInfo view_ci{};
+      view_ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+      view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+      view_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
+      view_ci.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+      view_ci.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+      view_ci.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+      view_ci.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+      view_ci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      view_ci.subresourceRange.baseMipLevel = 0;
+      view_ci.subresourceRange.levelCount = 1;
+      view_ci.subresourceRange.baseArrayLayer = 0;
+      view_ci.subresourceRange.layerCount = 1;
+
+      VmaAllocationCreateInfo alloc_ci{};
+      alloc_ci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+
+      _world.emplace<Component::Texture>(id, id, image_ci, alloc_ci).CreateView(view_ci);
+
+      if (mipMapCounts != 1) {
+            //TODO
+      }
+
+      return id;
+}
+
+
+entt::entity Context::CreateBuffer(uint64_t size, bool cpu_access) {
+      auto id = _world.create();
+
+      VkBufferCreateInfo buffer_ci{};
+      buffer_ci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+      buffer_ci.size = size;
+      buffer_ci.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+      buffer_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+      VmaAllocationCreateInfo alloc_ci{};
+      alloc_ci.usage = cpu_access ? VMA_MEMORY_USAGE_AUTO_PREFER_HOST : VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+
+      entt::delegate<void(Context* self, const Component::Buffer*)> deleg{};
+
+      _world.emplace<Component::Buffer>(id, buffer_ci, alloc_ci).SetCallBackOnRecreate([&](const Component::Buffer* buffer) {
+            this->MakeBindlessIndexBuffer(buffer->GetID(), buffer->GetBindlessIndex());
+      });
+
+      MakeBindlessIndexBuffer(id);
+      return id;
+}
+
+entt::entity Context::CreateBuffer(void* data, uint64_t size, bool cpu_access) {
+      auto id = CreateBuffer(size, cpu_access);
+      auto& buffer = _world.get<Component::Buffer>(id);
+      buffer.SetData(data, size);
+      return id;
+}
+
 entt::entity Context::CreateRenderTexture(int w, int h) {
       auto id = _world.create();
 
@@ -384,7 +583,7 @@ entt::entity Context::CreateRenderTexture(int w, int h) {
       image_ci.arrayLayers = 1;
       image_ci.samples = VK_SAMPLE_COUNT_1_BIT;
       image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
-      image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+      image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
       image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
       image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
       image_ci.flags = 0;
@@ -406,8 +605,9 @@ entt::entity Context::CreateRenderTexture(int w, int h) {
       VmaAllocationCreateInfo alloc_ci{};
       alloc_ci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 
-      _world.emplace<Component::Texture>(id, image_ci, alloc_ci).CreateView(view_ci);
-
+      _world.emplace<Component::Texture>(id, id, image_ci, alloc_ci).CreateView(view_ci);
+      MakeBindlessIndexTextureForSampler(id);
+      MakeBindlessIndexTextureForComputeKernel(id);
       return id;
 }
 
@@ -445,58 +645,41 @@ entt::entity Context::CreateDepthStencil(int w, int h) {
       VmaAllocationCreateInfo alloc_ci{};
       alloc_ci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 
-      _world.emplace<Component::Texture>(id, image_ci, alloc_ci).CreateView(view_ci);
-
+      _world.emplace<Component::Texture>(id, id, image_ci, alloc_ci).CreateView(view_ci);
+      //MakeBindlessIndexTextureForSampler(id);
+      //MakeBindlessIndexTextureForComputeKernel(id);
       return id;
 }
 
-entt::entity Context::CreateVertexBuffer(uint64_t size, bool high_dynamic)
-{
-      auto id = _world.create();
+void Context::DestroyBuffer(entt::entity buffer) {
+      if (auto comp = _world.try_get<Component::Buffer>(buffer); comp) {
+            auto bindless_index = comp->GetBindlessIndex();
 
-      VkBufferCreateInfo buffer_ci{};
-      buffer_ci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-      buffer_ci.size = size;
-      buffer_ci.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-      buffer_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            if (bindless_index.has_value()) {
+                  _bindlessIndexFreeList[0].Free(bindless_index.value());
+            }
 
-      VmaAllocationCreateInfo alloc_ci{};
-      alloc_ci.usage = high_dynamic ? VMA_MEMORY_USAGE_AUTO_PREFER_HOST : VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-
-      _world.emplace<Component::Buffer>(id, buffer_ci, alloc_ci);
-      return id;
+            _world.destroy(buffer);
+      }
 }
 
-entt::entity Context::CreateVertexBuffer(void* data, uint64_t size, bool high_dynamic) {
-      auto id = CreateVertexBuffer(size, high_dynamic);
-      auto& buffer = _world.get<Component::Buffer>(id);
-      buffer.SetData(data, size);
-      return id;
+void Context::DestroyTexture(entt::entity texture) {
+      if (auto comp = _world.try_get<Component::Texture>(texture); comp) {
+            auto bindless_index_for_sampler = comp->GetBindlessIndexForSampler();
+            auto bindless_index_for_compute_kernel = comp->GetBindlessIndexForComputeKernel();
+
+            if (bindless_index_for_sampler.has_value()) {
+                  _bindlessIndexFreeList[2].Free(bindless_index_for_sampler.value());
+            }
+
+            if (bindless_index_for_compute_kernel.has_value()) {
+                  _bindlessIndexFreeList[1].Free(bindless_index_for_compute_kernel.value());
+            }
+
+            _world.destroy(texture);
+      }
 }
 
-//Buffer * Context::CreateVertexBuffer(void *p, uint64_t size) {
-//      if(!p) {
-//            std::string msg = "Context::CreateVertexBuffer - Invalid pointer";
-//            MessageManager::Log(MessageType::Warning, msg);
-//            return nullptr;
-//      }
-//
-//      VkBufferCreateInfo buffer_ci{};
-//      buffer_ci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-//      buffer_ci.size = size;
-//      buffer_ci.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-//      buffer_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-//
-//      VmaAllocationCreateInfo alloc_ci{};
-//      alloc_ci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-//
-//      auto ptr = std::make_unique<Buffer>(buffer_ci, alloc_ci);
-//      ptr->SetData(p, size);
-//      auto raw_ptr = ptr.get();
-//      _buffers.insert({raw_ptr, std::move(ptr)});
-//      return raw_ptr;
-//}
-//
 //void Context::DestroyTexture(Texture *texture) {
 //      if(auto res = _textures.find(texture); res != _textures.end()){
 //            _textures.erase(res);
@@ -683,6 +866,135 @@ void Context::EndFrame() {
       GoNextFrame();
 }
 
+void Context::MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t viewIndex, std::optional<uint32_t> specifyindex) {
+
+      auto texture_component = _world.try_get<Component::Texture>(texture);
+
+      if (!texture_component) {
+            std::string msg = "Context::BindTextureForSampler - Invalid texture entity";
+            MessageManager::Log(MessageType::Error, msg);
+            throw std::runtime_error(msg);
+      }
+
+      VkSampler sampler = texture_component->GetSampler();
+
+      if (sampler == VK_NULL_HANDLE) {
+            sampler = _defaultSampler;
+      }
+
+      VkDescriptorImageInfo image_info = {
+            .sampler = sampler,
+            .imageView = texture_component->GetView(viewIndex),
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+      };
+
+
+      auto free_index = specifyindex.value_or(_bindlessIndexFreeList[2].Gen());
+
+      VkWriteDescriptorSet write{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .pNext = nullptr,
+            .dstSet = _bindlessDescriptorSet,
+            .dstBinding = 2,
+            .dstArrayElement = free_index,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &image_info,
+            .pBufferInfo = nullptr,
+            .pTexelBufferView = nullptr
+      };
+
+      vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
+
+      texture_component->SetBindlessIndexForSampler(free_index);
+
+      auto str = std::format("Context::MakeBindlessIndexTextureForSampler - Texture id: {}, index: {}", (uint32_t)texture_component->GetID(), free_index);
+      MessageManager::Log(MessageType::Normal, str);
+}
+
+void Context::MakeBindlessIndexTextureForComputeKernel(entt::entity texture, uint32_t viewIndex, std::optional<uint32_t> specifyindex) {
+      auto texture_component = _world.try_get<Component::Texture>(texture);
+
+      if (!texture_component) {
+            std::string msg = "Context::BindRawTexture - Invalid texture entity";
+            MessageManager::Log(MessageType::Error, msg);
+            throw std::runtime_error(msg);
+      }
+
+      VkSampler sampler = texture_component->GetSampler();
+
+      if (sampler == VK_NULL_HANDLE) {
+            sampler = _defaultSampler;
+      }
+
+      VkDescriptorImageInfo image_info = {
+            .sampler = sampler,
+            .imageView = texture_component->GetView(viewIndex),
+            .imageLayout = VK_IMAGE_LAYOUT_GENERAL
+      };
+
+      auto free_index = specifyindex.value_or(_bindlessIndexFreeList[1].Gen());
+
+      VkWriteDescriptorSet write{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .pNext = nullptr,
+            .dstSet = _bindlessDescriptorSet,
+            .dstBinding = 1,
+            .dstArrayElement = free_index,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+            .pImageInfo = &image_info,
+            .pBufferInfo = nullptr,
+            .pTexelBufferView = nullptr
+      };
+
+      vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
+
+      texture_component->SetBindlessIndexForComputeKernel(free_index);
+
+      auto str = std::format("Context::MakeBindlessIndexTextureForComputeKernel - Texture id: {}, index: {}", (uint32_t)texture_component->GetID(), free_index);
+      MessageManager::Log(MessageType::Normal, str);
+}
+
+void Context::MakeBindlessIndexBuffer(entt::entity buffer, std::optional<uint32_t> specifyindex) {
+      auto buffer_component = _world.try_get<Component::Buffer>(buffer);
+
+      if (!buffer_component) {
+            std::string msg = "Context::BindBuffer - Invalid buffer entity";
+            MessageManager::Log(MessageType::Error, msg);
+            throw std::runtime_error(msg);
+      }
+
+      VkDescriptorBufferInfo buffer_info = {
+            .buffer = buffer_component->GetBuffer(),
+            .offset = 0,
+            .range = VK_WHOLE_SIZE
+      };
+
+      auto free_index = specifyindex.value_or(_bindlessIndexFreeList[0].Gen());
+
+      VkWriteDescriptorSet write{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .pNext = nullptr,
+            .dstSet = _bindlessDescriptorSet,
+            .dstBinding = 0,
+            .dstArrayElement = free_index,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+            .pImageInfo = nullptr,
+            .pBufferInfo = &buffer_info,
+            .pTexelBufferView = nullptr
+      };
+
+      vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
+
+      buffer_component->SetBindlessIndex(free_index);
+
+      auto str = std::format("Context::MakeBindlessIndexBuffer - buffer id: {}, index: {}", (uint32_t)buffer_component->GetID(), free_index);
+      MessageManager::Log(MessageType::Normal, str);
+}
+
+
 //Program* Context::CreateProgram(const char* source_code, const char* type, const char* entry)
 //{
 //      std::string_view code{ source_code };
@@ -713,6 +1025,30 @@ void Context::EndFrame() {
 //      _dxcCompiler->Compile(&buffer, args.data(), (uint32_t)(args.size()), nullptr, IID_PPV_ARGS(&compiled_shader));
 //      return nullptr;
 //}
+
+void Context::SetTextureSampler(entt::entity image, const VkSamplerCreateInfo& sampler_ci) {
+      auto texture = _world.try_get<Component::Texture>(image);
+
+      if (!texture) {
+            std::string msg = "Context::SetTextureSampler - Invalid texture entity";
+            MessageManager::Log(MessageType::Error, msg);
+            throw std::runtime_error(msg);
+      }
+
+      VkSampler sampler = nullptr;
+
+      if (auto res = _samplers.find(sampler_ci); res != _samplers.end()) {
+            sampler = res->second;
+            texture->SetSampler(sampler);
+      } else {
+            if (auto res = vkCreateSampler(_device, &sampler_ci, nullptr, &sampler); res != VK_SUCCESS) {
+                  std::string msg = "Context::SetTextureSampler - Failed to create sampler";
+                  MessageManager::Log(MessageType::Error, msg);
+                  throw std::runtime_error(msg);
+            }
+            _samplers.emplace(sampler_ci, sampler);
+      }
+}
 
 void Context::PrepareWindowRenderTarget() {
       auto fence = GetCurrentFence();

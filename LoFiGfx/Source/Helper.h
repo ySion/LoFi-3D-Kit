@@ -19,6 +19,7 @@ Class& operator=(const Class&) = delete
 #include <string>
 #include <stdexcept>
 #include <functional>
+#include <vector>
 
 #include "../Third/volk/volk.h"
 #include "VmaLoader.h"
