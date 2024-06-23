@@ -496,31 +496,49 @@ void Context::DestroyWindow(entt::entity window) {
 entt::entity Context::CreateTexture2D(VkFormat format, int w, int h, int mipMapCounts) {
       auto id = _world.create();
 
+      bool is_depth_stencil = false;
+     
+      switch (format) {
+            case VK_FORMAT_D32_SFLOAT:
+            case VK_FORMAT_D24_UNORM_S8_UINT:
+            case VK_FORMAT_D16_UNORM:
+            case VK_FORMAT_D16_UNORM_S8_UINT:
+            case VK_FORMAT_D32_SFLOAT_S8_UINT:
+                  is_depth_stencil = true;
+                  break;
+            default:
+                  is_depth_stencil = false;
+                  break;
+      }
+
       VkImageCreateInfo image_ci{};
       image_ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
       image_ci.imageType = VK_IMAGE_TYPE_2D;
-      image_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
+      image_ci.format = format;
       image_ci.extent = VkExtent3D{ (uint32_t)w, (uint32_t)h, 1 };
       image_ci.mipLevels = mipMapCounts;
       image_ci.arrayLayers = 1;
       image_ci.samples = VK_SAMPLE_COUNT_1_BIT;
       image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
-      image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
       image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
       image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
       image_ci.flags = 0;
 
-
+      if (is_depth_stencil) {
+            image_ci.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+      }else{
+            image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+      }
 
       VkImageViewCreateInfo view_ci{};
       view_ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
       view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-      view_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
+      view_ci.format = format;
       view_ci.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
       view_ci.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
       view_ci.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
       view_ci.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-      view_ci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      view_ci.subresourceRange.aspectMask = is_depth_stencil ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
       view_ci.subresourceRange.baseMipLevel = 0;
       view_ci.subresourceRange.levelCount = 1;
       view_ci.subresourceRange.baseArrayLayer = 0;
@@ -533,6 +551,11 @@ entt::entity Context::CreateTexture2D(VkFormat format, int w, int h, int mipMapC
 
       if (mipMapCounts != 1) {
             //TODO
+      }
+
+      if (!is_depth_stencil) {
+            MakeBindlessIndexTextureForSampler(id);
+            MakeBindlessIndexTextureForComputeKernel(id);
       }
 
       return id;
@@ -551,8 +574,6 @@ entt::entity Context::CreateBuffer(uint64_t size, bool cpu_access) {
       VmaAllocationCreateInfo alloc_ci{};
       alloc_ci.usage = cpu_access ? VMA_MEMORY_USAGE_AUTO_PREFER_HOST : VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 
-      entt::delegate<void(Context* self, const Component::Buffer*)> deleg{};
-
       _world.emplace<Component::Buffer>(id, id, buffer_ci, alloc_ci);
 
       MakeBindlessIndexBuffer(id);
@@ -566,83 +587,16 @@ entt::entity Context::CreateBuffer(void* data, uint64_t size, bool cpu_access) {
       return id;
 }
 
-entt::entity Context::CreateRenderTexture(int w, int h) {
-      auto id = _world.create();
-
-      VkImageCreateInfo image_ci{};
-      image_ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-      image_ci.imageType = VK_IMAGE_TYPE_2D;
-      image_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
-      image_ci.extent = VkExtent3D{ (uint32_t)w, (uint32_t)h, 1 };
-      image_ci.mipLevels = 1;
-      image_ci.arrayLayers = 1;
-      image_ci.samples = VK_SAMPLE_COUNT_1_BIT;
-      image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
-      image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-      image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-      image_ci.flags = 0;
-
-      VkImageViewCreateInfo view_ci{};
-      view_ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-      view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-      view_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
-      view_ci.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-      view_ci.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-      view_ci.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-      view_ci.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-      view_ci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      view_ci.subresourceRange.baseMipLevel = 0;
-      view_ci.subresourceRange.levelCount = 1;
-      view_ci.subresourceRange.baseArrayLayer = 0;
-      view_ci.subresourceRange.layerCount = 1;
-
-      VmaAllocationCreateInfo alloc_ci{};
-      alloc_ci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-
-      _world.emplace<Component::Texture>(id, id, image_ci, alloc_ci).CreateView(view_ci);
-      MakeBindlessIndexTextureForSampler(id);
-      MakeBindlessIndexTextureForComputeKernel(id);
-      return id;
+entt::entity Context::CreateGraphicKernel(entt::entity program)
+{
+      return entt::null;
 }
 
-entt::entity Context::CreateDepthStencil(int w, int h) {
+entt::entity Context::CreateProgram(std::string_view source_code) {
+
       auto id = _world.create();
-
-      VkImageCreateInfo image_ci{};
-      image_ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-      image_ci.imageType = VK_IMAGE_TYPE_2D;
-      image_ci.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
-      image_ci.extent = VkExtent3D{ (uint32_t)w, (uint32_t)h, 1 };
-      image_ci.mipLevels = 1;
-      image_ci.arrayLayers = 1;
-      image_ci.samples = VK_SAMPLE_COUNT_1_BIT;
-      image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
-      image_ci.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-      image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-      image_ci.flags = 0;
-
-      VkImageViewCreateInfo view_ci{};
-      view_ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-      view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-      view_ci.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
-      view_ci.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-      view_ci.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-      view_ci.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-      view_ci.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-      view_ci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-      view_ci.subresourceRange.baseMipLevel = 0;
-      view_ci.subresourceRange.levelCount = 1;
-      view_ci.subresourceRange.baseArrayLayer = 0;
-      view_ci.subresourceRange.layerCount = 1;
-
-      VmaAllocationCreateInfo alloc_ci{};
-      alloc_ci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-
-      _world.emplace<Component::Texture>(id, id, image_ci, alloc_ci).CreateView(view_ci);
-      //MakeBindlessIndexTextureForSampler(id);
-      //MakeBindlessIndexTextureForComputeKernel(id);
+      auto& comp = _world.emplace<Component::Program>(id, id);
+      comp.CompileFromSourceCode("hello", source_code);
       return id;
 }
 
@@ -688,14 +642,6 @@ void Context::DestroyTexture(entt::entity texture) {
             _world.destroy(texture);
       }
 }
-
-//void Context::DestroyTexture(Texture *texture) {
-//      if(auto res = _textures.find(texture); res != _textures.end()){
-//            _textures.erase(res);
-//      }
-//
-//}
-
 
 void* Context::PollEvent() {
       static SDL_Event event{};

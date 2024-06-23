@@ -1,4 +1,4 @@
-//
+﻿//
 // Created by starr on 2024/6/20.
 //
 #pragma once
@@ -10,6 +10,7 @@
 #include "Components/Swapchain.h"
 #include "Components/Texture.h"
 #include "Components/Buffer.h"
+#include "Components/Program.h"
 #include "../Third/xxHash/xxh3.h"
 
 struct IDxcLibrary;
@@ -52,6 +53,7 @@ namespace LoFi {
       class Context {
 
             friend class Component::Buffer;
+            friend class Component::Program;
 
             struct SamplerCIHash {
                   std::size_t operator()(const VkSamplerCreateInfo& s) const noexcept {
@@ -99,9 +101,9 @@ namespace LoFi {
 
             [[nodiscard]] entt::entity CreateBuffer(void* data, uint64_t size, bool cpu_access = false);
 
-            [[nodiscard]] entt::entity CreateRenderTexture(int w, int h);
+            [[nodiscard]] entt::entity CreateGraphicKernel(entt::entity program);
 
-            [[nodiscard]] entt::entity CreateDepthStencil(int w, int h);
+            [[nodiscard]] entt::entity CreateProgram(std::string_view source_code);
 
             void DestroyBuffer(entt::entity buffer);
 
@@ -114,6 +116,8 @@ namespace LoFi {
             void BeginFrame();
 
             void EndFrame();
+
+
 
            // Program* CreateProgram(const char* source_code, const char* type, const char* entry = "main");
 
@@ -190,7 +194,9 @@ namespace LoFi {
             entt::dense_map<uint32_t, entt::entity> _windowIdToWindow{};
 
             IDxcLibrary* _dxcLibrary {};
+
             IDxcCompiler3* _dxcCompiler {};
+
             IDxcUtils* _dxcUtils{};
 
             entt::registry _world;

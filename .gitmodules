@@ -1,9 +1,0 @@
-[submodule "Third/SDL"]
-	path = Third/SDL
-	url = https://github.com/libsdl-org/SDL.git
-[submodule "Third/flecs"]
-	path = Third/flecs
-	url = https://github.com/SanderMertens/flecs.git
-[submodule "Third/entt"]
-	path = Third/entt
-	url = https://github.com/skypjack/entt.git

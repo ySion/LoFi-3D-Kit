@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.28)
+﻿cmake_minimum_required(VERSION 3.28)
 project(LoFiGfx)
 
 set(Source_List
@@ -8,15 +8,13 @@ set(Source_List
         Source/Context.cpp
         Source/Message.cpp
         Source/PhysicalDevice.cpp
-        
         Source/Helper.cpp
-        
-        Source/Program.cpp
-
         Source/Components/Window.cpp
         Source/Components/Swapchain.cpp
         Source/Components/Texture.cpp
- "Source/Components/Program.cpp" "Source/Components/Buffer.cpp")
+        Source/Components/Program.cpp
+        Source/Components/Buffer.cpp
+)
 
 find_package(Vulkan REQUIRED)
 
@@ -24,8 +22,8 @@ add_library(LoFiGfx SHARED ${Source_List})
 target_compile_definitions(LoFiGfx PRIVATE LOFI_GFX_DLL_EXPORT)
 target_include_directories(LoFiGfx PUBLIC Include)
 target_link_directories(LoFiGfx PRIVATE ThirdBin)
-target_link_libraries(LoFiGfx PRIVATE Vulkan::Vulkan SDL3::SDL3 dxcompiler EnTT::EnTT)
+target_link_libraries(LoFiGfx PRIVATE Vulkan::Vulkan SDL3::SDL3 dxcompiler EnTT::EnTT
+        spirv-cross-core spirv-cross-hlsl spirv-cross-glsl)
 
 configure_file(ThirdBin/dxcompiler.dll ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY} COPYONLY)
-configure_file(ThirdBin/dxil.dll ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY} COPYONLY)
 
