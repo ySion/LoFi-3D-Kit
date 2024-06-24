@@ -1,4 +1,7 @@
 ﻿#include "Context.h"
+
+#include <ranges>
+
 #include "Message.h"
 #include "PhysicalDevice.h"
 
@@ -126,6 +129,8 @@ void Context::Init() {
                   "VK_KHR_dynamic_rendering",
                   "VK_EXT_descriptor_indexing",
                   "VK_KHR_maintenance2",
+                  "VK_GOOGLE_hlsl_functionality1", //hlsl
+                  "VK_GOOGLE_user_type", //hlsl
 
                   "VK_KHR_swapchain",
                   "VK_KHR_get_memory_requirements2",
@@ -182,6 +187,7 @@ void Context::Init() {
 
             _device = device;
             volkLoadDevice(device);
+            volkLoadPhysicalDevice(_physicalDevice);
       }
 
       {
@@ -438,6 +444,18 @@ void Context::Shutdown() {
             _world.destroy(view.begin(), view.end());
       }
 
+      RecoveryAllContextResourceImmediately();
+
+      {
+            auto view = _world.view<Component::GraphicKernel>();
+            _world.destroy(view.begin(), view.end());
+      }
+
+      {
+            auto view = _world.view<Component::Program>();
+            _world.destroy(view.begin(), view.end());
+      }
+
       for (int i = 0; i < 3; i++) {
             vkDestroyFence(_device, _mainCommandFence[i], nullptr);
             vkDestroySemaphore(_device, _mainCommandQueueSemaphore[i], nullptr);
@@ -478,19 +496,24 @@ entt::entity Context::CreateWindow(const char* title, int w, int h) {
       return id;
 }
 
-void Context::DestroyWindow(uint32_t id) {
+void Context::RecoveryContextResource(const ContextResourceRecoveryInfo &pack) {
+      _resource_recovery_queue.enqueue(pack);
+}
 
-      if (_windowIdToWindow.contains(id)) {
-            DestroyWindow(_windowIdToWindow[id]);
-            _windowIdToWindow.erase(id);
-      }
+void Context::DestroyWindow(uint32_t id) {
+      ContextResourceRecoveryInfo info{
+            .Type = ContextResourceType::WINDOW,
+            .Resource1 = (uint64_t)id
+      };
+      RecoveryContextResource(info);
 }
 
 void Context::DestroyWindow(entt::entity window) {
-      if (_world.try_get<Component::Window>(window)) {
-            vkDeviceWaitIdle(_device);
-            _world.destroy(window);
-      }
+      ContextResourceRecoveryInfo info{
+            .Type = ContextResourceType::WINDOW,
+            .Resource1 = (size_t)window
+      };
+      RecoveryContextResource(info);
 }
 
 entt::entity Context::CreateTexture2D(VkFormat format, int w, int h, int mipMapCounts) {
@@ -587,9 +610,15 @@ entt::entity Context::CreateBuffer(void* data, uint64_t size, bool cpu_access) {
       return id;
 }
 
-entt::entity Context::CreateGraphicKernel(entt::entity program)
-{
-      return entt::null;
+entt::entity Context::CreateGraphicKernel(entt::entity program) {
+      auto id = _world.create();
+      auto& kernel = _world.emplace<Component::GraphicKernel>(id, id);
+      bool success = kernel.CreateFromProgram(program);
+      if(!success) {
+            auto str = std::format("Context::CreateGraphicKernel - Failed to create graphic kernel from program, return a empty kernel");
+            MessageManager::Log(MessageType::Warning, str);
+      }
+      return id;
 }
 
 entt::entity Context::CreateProgram(std::string_view source_code) {
@@ -608,15 +637,7 @@ void Context::DestroyBuffer(entt::entity buffer) {
             return;
       }
 
-      if (auto comp = _world.try_get<Component::Buffer>(buffer); comp) {
-            auto bindless_index = comp->GetBindlessIndex();
-
-            if (bindless_index.has_value()) {
-                  _bindlessIndexFreeList[0].Free(bindless_index.value());
-            }
-
-            _world.destroy(buffer);
-      }
+      _world.destroy(buffer);
 }
 
 void Context::DestroyTexture(entt::entity texture) {
@@ -727,10 +748,13 @@ void Context::EndFrame() {
       auto window_count = _windowIdToWindow.size();
 
       std::vector<VkImageMemoryBarrier2> barriers{};
+      std::vector<VkImage> swap_chain_rts{};
       barriers.reserve(window_count);
+      swap_chain_rts.reserve(window_count);
 
-      _world.view<Component::Swapchain>().each([&](auto entity, auto& swapchain) {
+      _world.view<Component::Swapchain>().each([&](auto entity, Component::Swapchain& swapchain) {
             barriers.push_back(swapchain.GenerateCurrentRenderTargetBarrier());
+            swap_chain_rts.push_back(swapchain.GetCurrentRenderTarget()->GetImage());
       });
 
       VkDependencyInfoKHR window_bgin_barrier = {
@@ -739,7 +763,20 @@ void Context::EndFrame() {
            .pImageMemoryBarriers = barriers.data()
       };
 
+      const auto clear_vlaue = VkClearColorValue{ 0.0f, 0.0f, 0.0f, 1.0f };
+      VkImageSubresourceRange ImageSubresourceRange;
+      ImageSubresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+      ImageSubresourceRange.baseMipLevel   = 0;
+      ImageSubresourceRange.levelCount     = 1;
+      ImageSubresourceRange.baseArrayLayer = 0;
+      ImageSubresourceRange.layerCount     = 1;
+
       vkCmdPipelineBarrier2(cmd_buf, &window_bgin_barrier);
+
+      for(auto& i : swap_chain_rts) {
+            vkCmdClearColorImage(cmd_buf, i, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,  &clear_vlaue, 1, &ImageSubresourceRange);
+      }
+
 
       barriers.clear();
 
@@ -809,19 +846,21 @@ void Context::EndFrame() {
 
       auto res = vkQueuePresentKHR(_queue, &present_info);
       if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
-            /*for(auto& i : _windows) {
-                  i.second->Update();
-            }*/
+            _world.view<Component::Swapchain>().each([&](auto entity, auto& s) {
+                  s.CreateOrRecreateSwapChain();
+            });
       } else if (res != VK_SUCCESS) {
             std::string msg = "frame_end:Failed to present";
             MessageManager::Log(MessageType::Error, msg);
             throw std::runtime_error(msg);
       }
 
+      StageRecoveryContextResource();
+
       GoNextFrame();
 }
 
-void Context::MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t viewIndex, std::optional<uint32_t> specifyindex) {
+uint32_t Context::MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t viewIndex) {
 
       if (!_world.valid(texture)) {
             std::string msg = "Context::MakeBindlessIndexTextureForSampler - Invalid texture entity";
@@ -849,8 +888,7 @@ void Context::MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t 
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
       };
 
-
-      auto free_index = specifyindex.value_or(_bindlessIndexFreeList[2].Gen());
+      auto free_index = _bindlessIndexFreeList[2].Gen();
 
       VkWriteDescriptorSet write{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -871,9 +909,11 @@ void Context::MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t 
 
       auto str = std::format("Context::MakeBindlessIndexTextureForSampler - Texture id: {}, index: {}", (uint32_t)texture_component->GetID(), free_index);
       MessageManager::Log(MessageType::Normal, str);
+
+      return free_index;
 }
 
-void Context::MakeBindlessIndexTextureForComputeKernel(entt::entity texture, uint32_t viewIndex, std::optional<uint32_t> specifyindex) {
+uint32_t Context::MakeBindlessIndexTextureForComputeKernel(entt::entity texture, uint32_t viewIndex) {
 
       if (!_world.valid(texture)) {
             std::string msg = "Context::MakeBindlessIndexTextureForComputeKernel - Invalid texture entity";
@@ -901,7 +941,7 @@ void Context::MakeBindlessIndexTextureForComputeKernel(entt::entity texture, uin
             .imageLayout = VK_IMAGE_LAYOUT_GENERAL
       };
 
-      auto free_index = specifyindex.value_or(_bindlessIndexFreeList[1].Gen());
+      auto free_index = _bindlessIndexFreeList[1].Gen();
 
       VkWriteDescriptorSet write{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -922,9 +962,11 @@ void Context::MakeBindlessIndexTextureForComputeKernel(entt::entity texture, uin
 
       auto str = std::format("Context::MakeBindlessIndexTextureForComputeKernel - Texture id: {}, index: {}", (uint32_t)texture_component->GetID(), free_index);
       MessageManager::Log(MessageType::Normal, str);
+
+      return free_index;
 }
 
-void Context::MakeBindlessIndexBuffer(entt::entity buffer, std::optional<uint32_t> specifyindex) {
+uint32_t Context::MakeBindlessIndexBuffer(entt::entity buffer) {
 
       if (!_world.valid(buffer)) {
             std::string msg = "Context::BindBuffer - Invalid buffer entity";
@@ -946,7 +988,7 @@ void Context::MakeBindlessIndexBuffer(entt::entity buffer, std::optional<uint32_
             .range = VK_WHOLE_SIZE
       };
 
-      auto free_index = specifyindex.value_or(_bindlessIndexFreeList[0].Gen());
+      auto free_index = _bindlessIndexFreeList[0].Gen();
 
       VkWriteDescriptorSet write{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -967,6 +1009,8 @@ void Context::MakeBindlessIndexBuffer(entt::entity buffer, std::optional<uint32_
 
       auto str = std::format("Context::MakeBindlessIndexBuffer - buffer id: {}, index: {}", (uint32_t)buffer_component->GetID(), free_index);
       MessageManager::Log(MessageType::Normal, str);
+
+      return free_index;
 }
 
 
@@ -1050,4 +1094,188 @@ VkFence Context::GetCurrentFence() const {
 
 void Context::GoNextFrame() {
       _currentCommandBufferIndex = (_currentCommandBufferIndex + 1) % 3;
+}
+
+void Context::StageRecoveryContextResource() {
+
+      std::vector<ContextResourceRecoveryInfo>& current_list = _resourece_recovery_list[GetCurrentFrameIndex()];
+      if(!current_list.empty()) {
+            for (auto & i : current_list) {
+                  switch (i.Type) {
+                        case ContextResourceType::WINDOW:
+                              RecoveryContextResourceWindow(i);
+                              break;
+                        case ContextResourceType::BUFFER:
+                              RecoveryContextResourceBuffer(i);
+                              break;
+                        case ContextResourceType::BUFFERVIEW:
+                              RecoveryContextResourceBufferView(i);
+                              break;
+                        case ContextResourceType::IMAGE:
+                              RecoveryContextResourceImage(i);
+                        break; case ContextResourceType::IMAGEVIEW:
+                              RecoveryContextResourceImageView(i);
+                              break;
+                        default: break;
+                  }
+            }
+      }
+
+      current_list.clear();
+
+      ContextResourceRecoveryInfo temp{};
+      while(_resource_recovery_queue.try_dequeue(temp)) {
+           current_list.push_back(temp);
+      }
+}
+
+void Context::RecoveryAllContextResourceImmediately() {
+
+      for(size_t i = GetCurrentFrameIndex(); i < GetCurrentFrameIndex() + 3; i++) {
+            std::vector<ContextResourceRecoveryInfo>& current_list = _resourece_recovery_list[i % 3];
+            if(!current_list.empty()) {
+                  for (auto & i : current_list) {
+                        switch (i.Type) {
+                              case ContextResourceType::WINDOW:
+                                    RecoveryContextResourceWindow(i);
+                              break;
+                              case ContextResourceType::BUFFER:
+                                    RecoveryContextResourceBuffer(i);
+                              break;
+                              case ContextResourceType::BUFFERVIEW:
+                                    RecoveryContextResourceBufferView(i);
+                              break;
+                              case ContextResourceType::IMAGE:
+                                    RecoveryContextResourceImage(i);
+                              break; case ContextResourceType::IMAGEVIEW:
+                                    RecoveryContextResourceImageView(i);
+                              break;
+                              default: break;
+                        }
+                  }
+            }
+            current_list.clear();
+      }
+
+      std::vector<ContextResourceRecoveryInfo>& current_list = _resourece_recovery_list[0];
+
+      ContextResourceRecoveryInfo temp{};
+      while(_resource_recovery_queue.try_dequeue(temp)) {
+            current_list.push_back(temp);
+      }
+
+      if(!current_list.empty()) {
+            for (auto & i : current_list) {
+                  switch (i.Type) {
+                        case ContextResourceType::WINDOW:
+                              RecoveryContextResourceWindow(i);
+                        break;
+                        case ContextResourceType::BUFFER:
+                              RecoveryContextResourceBuffer(i);
+                        break;
+                        case ContextResourceType::BUFFERVIEW:
+                              RecoveryContextResourceBufferView(i);
+                        break;
+                        case ContextResourceType::IMAGE:
+                              RecoveryContextResourceImage(i);
+                        break; case ContextResourceType::IMAGEVIEW:
+                              RecoveryContextResourceImageView(i);
+                        break;
+                        default: break;
+                  }
+            }
+      }
+}
+
+void Context::RecoveryContextResourceWindow(const ContextResourceRecoveryInfo &pack) {
+      if(pack.Resource1.has_value()) { // entity
+            entt::entity entity_id = entt::null;
+
+            auto id = (uint32_t)pack.Resource1.value();
+            if (_windowIdToWindow.contains(id)) {
+                  vkDeviceWaitIdle(_device);
+                  entity_id = _windowIdToWindow[id];
+                  if ( _world.valid(entity_id) && _world.try_get<Component::Window>(entity_id)) {
+                        _world.destroy(entity_id);
+                  }
+                  _windowIdToWindow.erase(id);
+            } else {
+                  entity_id = (entt::entity)pack.Resource1.value();
+                  if ( _world.valid(entity_id) && _world.try_get<Component::Window>(entity_id)) {
+                        vkDeviceWaitIdle(_device);
+                        _world.destroy(entity_id);
+                  } else {
+                        auto str = std::format("Context::RecoveryContextResourceWindow - Invalid Window resource");
+                        MessageManager::Log(MessageType::Warning, str);
+                  }
+            }
+            auto str = std::format("Recovery Resource Window");
+            MessageManager::Log(MessageType::Warning, str);
+      }  else {
+            auto str = std::format("Context::RecoveryContextResourceWindow - Invalid Window resource");
+            MessageManager::Log(MessageType::Warning, str);
+      }
+}
+
+void Context::RecoveryContextResourceBuffer(const ContextResourceRecoveryInfo &pack) {
+      if(pack.Resource1.has_value() && pack.Resource2.has_value()) {
+            // Image allocation
+            auto buffer = (VkBuffer)pack.Resource1.value();
+            auto alloc= (VmaAllocation)pack.Resource2.value();
+            vmaDestroyBuffer(_allocator, buffer, alloc);
+
+            if(pack.Resource3.has_value())
+                  _bindlessIndexFreeList[0].Free(pack.Resource3.value());
+
+            auto str = std::format("Recovery Resource Buffer");
+            MessageManager::Log(MessageType::Warning, str);
+      } else {
+            auto str = std::format("Context::RecoveryContextResourceBuffer - Invalid Buffer resource");
+            MessageManager::Log(MessageType::Warning, str);
+      }
+}
+
+void Context::RecoveryContextResourceBufferView(const ContextResourceRecoveryInfo &pack) {
+      if(pack.Resource1 != 0) { // view
+            auto view = (VkBufferView)pack.Resource1.value();
+            vkDestroyBufferView(_device, view, nullptr);
+            auto str = std::format("Recovery Resource BufferView");
+            MessageManager::Log(MessageType::Warning, str);
+      }else {
+            auto str = std::format("Context::RecoveryContextResourceBufferView - Invalid BufferView resource");
+            MessageManager::Log(MessageType::Warning, str);
+      }
+}
+
+void Context::RecoveryContextResourceImage(const ContextResourceRecoveryInfo &pack) {
+      if(pack.Resource1.has_value() && pack.Resource2.has_value()) {  // Image allocation
+            auto image = (VkImage)pack.Resource1.value();
+            auto alloc= (VmaAllocation)pack.Resource2.value();
+            vmaDestroyImage(_allocator, image, alloc);
+
+            if(pack.Resource3.has_value())
+                  _bindlessIndexFreeList[2].Free(pack.Resource3.value());
+            if(pack.Resource4.has_value())
+                  _bindlessIndexFreeList[1].Free(pack.Resource4.value());
+
+            auto str = std::format("Recovery Resource Image");
+            MessageManager::Log(MessageType::Warning, str);
+      } else {
+            auto str = std::format("Context::RecoveryContextResourceImage - Invalid Image resource, {}, {}, {}, {}",
+                  pack.Resource1.has_value(), pack.Resource2.has_value(),  pack.Resource3.has_value(), pack.Resource4.has_value());
+            MessageManager::Log(MessageType::Warning, str);
+      }
+}
+
+void Context::RecoveryContextResourceImageView(const ContextResourceRecoveryInfo &pack) {
+      if(pack.Resource1.has_value()) { // view
+            auto view = (VkImageView)pack.Resource1.value();
+            vkDestroyImageView(_device, view, nullptr);
+            auto str = std::format("Recovery Resource imageView");
+            MessageManager::Log(MessageType::Warning, str);
+      } else {
+            auto str = std::format("Context::RecoveryContextResourceImageView - Invalid ImageView resource");
+            MessageManager::Log(MessageType::Warning, str);
+      }
+
 }

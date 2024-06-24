@@ -3,6 +3,9 @@
 //
 #pragma once
 
+#include <span>
+#include <variant>
+
 #include "Helper.h"
 #include "PhysicalDevice.h"
 
@@ -11,6 +14,7 @@
 #include "Components/Texture.h"
 #include "Components/Buffer.h"
 #include "Components/Program.h"
+#include "Components/GraphicKernel.h"
 #include "../Third/xxHash/xxh3.h"
 
 struct IDxcLibrary;
@@ -23,6 +27,22 @@ namespace LoFi {
             bool Debug = false;
       };
 
+      enum class ContextResourceType {
+            UNKONWN,
+            WINDOW,
+            IMAGE,
+            BUFFER,
+            IMAGEVIEW,
+            BUFFERVIEW
+      };
+
+      struct ContextResourceRecoveryInfo {
+            ContextResourceType Type = ContextResourceType::UNKONWN;
+            std::optional<size_t> Resource1 {};
+            std::optional<size_t> Resource2 {};
+            std::optional<size_t> Resource3 {};
+            std::optional<size_t> Resource4 {};
+      };
 
       class FreeList {
       public:
@@ -54,6 +74,8 @@ namespace LoFi {
 
             friend class Component::Buffer;
             friend class Component::Program;
+            friend class Component::GraphicKernel;
+            friend class Component::Texture;
 
             struct SamplerCIHash {
                   std::size_t operator()(const VkSamplerCreateInfo& s) const noexcept {
@@ -84,11 +106,6 @@ namespace LoFi {
 
             entt::entity CreateWindow(const char* title, int w, int h);
 
-            void DestroyWindow(uint32_t id);
-
-            void DestroyWindow(entt::entity window);
-
-
            /* [[nodiscard]] entt::entity  CreateTexture2DArray();
 
             [[nodiscard]] entt::entity  CreateTexture3D();
@@ -109,37 +126,79 @@ namespace LoFi {
 
             void DestroyTexture(entt::entity texture);
 
-            void* PollEvent();
+
+
+            void SetBufferData(entt::entity buffer, void* data, uint64_t size);
+
+            void SetTexture2DData(entt::entity texture, void* data, uint64_t size);
+
+            void SetTexture2DData(entt::entity texture, entt::entity buffer);
 
             void EnqueueCommand(const std::function<void(VkCommandBuffer)>& command);
+
+            void* PollEvent();
 
             void BeginFrame();
 
             void EndFrame();
 
+            void DestroyWindow(uint32_t id);
 
+            void DestroyWindow(entt::entity window);
 
-           // Program* CreateProgram(const char* source_code, const char* type, const char* entry = "main");
+            // void CmdBindGraphicKernel(entt::entity kernel);
+            //
+            // void CmdBindVertexBuffer(entt::entity buffer);
+            //
+            // void CmdBindIndexBuffer(entt::entity buffer);
+            //
+            // void CmdBindRenderTarget(entt::entity texture);
+            //
+            // void CmdBindDepthStencil(entt::entity texture);
+            //
+            // void CmdBindTexture(entt::entity texture, uint32_t position = 0);
+            //
+            // void CmdBindTextures(std::span<entt::entity> textures);
+            //
+            // void CmdSetPushConstant(void* data, uint32_t size);
+            //
+            // void CmdBindBuffer(entt::entity buffer, uint32_t position = 0);
 
       private:
 
-            void MakeBindlessIndexBuffer(entt::entity buffer, std::optional<uint32_t> specifyindex = {});
+            void RecoveryContextResource(const ContextResourceRecoveryInfo& pack);
 
-            void MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t viewIndex = 0, std::optional<uint32_t> specifyindex = {});
+            uint32_t MakeBindlessIndexBuffer(entt::entity buffer);
 
-            void MakeBindlessIndexTextureForComputeKernel(entt::entity texture, uint32_t viewIndex = 0, std::optional<uint32_t> specifyindex = {});
+            uint32_t MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t viewIndex = 0);
+
+            uint32_t MakeBindlessIndexTextureForComputeKernel(entt::entity texture, uint32_t viewIndex = 0);
 
             void SetTextureSampler(entt::entity image, const VkSamplerCreateInfo& sampler_ci);
 
             void PrepareWindowRenderTarget();
 
-            [[nodiscard]] uint32_t GetCurrentFrameIndex() const;
+            uint32_t GetCurrentFrameIndex() const;
 
-            [[nodiscard]] VkCommandBuffer GetCurrentCommandBuffer() const;
+            VkCommandBuffer GetCurrentCommandBuffer() const;
 
-            [[nodiscard]] VkFence GetCurrentFence() const;
+            VkFence GetCurrentFence() const;
 
             void GoNextFrame();
+
+            void StageRecoveryContextResource();
+
+            void RecoveryAllContextResourceImmediately();
+
+            void RecoveryContextResourceWindow(const ContextResourceRecoveryInfo& pack);
+
+            void RecoveryContextResourceBuffer(const ContextResourceRecoveryInfo& pack);
+
+            void RecoveryContextResourceBufferView(const ContextResourceRecoveryInfo& pack);
+
+            void RecoveryContextResourceImage(const ContextResourceRecoveryInfo& pack);
+
+            void RecoveryContextResourceImageView(const ContextResourceRecoveryInfo& pack);
 
       private:
 
@@ -182,7 +241,7 @@ namespace LoFi {
 
             entt::dense_map<VkSamplerCreateInfo, VkSampler, SamplerCIHash, SamplerCIEqual> _samplers{};
 
-            FreeList _bindlessIndexFreeList[3]{};
+            FreeList _bindlessIndexFreeList[3]{}; // buffer, texture_cs, textuure_sample
 
       private:
             std::vector<std::function<void(VkCommandBuffer)>> _commandQueue;
@@ -200,5 +259,9 @@ namespace LoFi {
             IDxcUtils* _dxcUtils{};
 
             entt::registry _world;
+
+      private:
+            moodycamel::ConcurrentQueue<ContextResourceRecoveryInfo> _resource_recovery_queue{};
+            std::vector<ContextResourceRecoveryInfo> _resourece_recovery_list[3]{};
       };
 }

@@ -68,6 +68,8 @@ namespace LoFi::Component {
 
             void SetBindlessIndexForComputeKernel(std::optional<uint32_t> index);
 
+            void DestroyTexture();
+
             friend class Swapchain;
 
             friend class ::LoFi::Context;

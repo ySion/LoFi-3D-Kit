@@ -19,7 +19,7 @@ namespace LoFi::Component {
 
             void Resize(int x, int y) const;
 
-            VkExtent2D GetSize() const { return { _w, _h }; }
+            VkExtent2D GetSize() const;
 
             SDL_Window* GetWindowPtr() const;
 
@@ -27,14 +27,9 @@ namespace LoFi::Component {
 
       public:
 
-            void Update();
 
       private:
             entt::entity _id{};
-
-            uint32_t _w {};
-
-            uint32_t _h {};
 
             SDL_Window* _window {};
 

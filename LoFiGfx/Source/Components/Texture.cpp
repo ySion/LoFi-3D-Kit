@@ -1,5 +1,6 @@
 #include "Texture.h"
 #include "../Message.h"
+#include "../Context.h"
 
 LoFi::Component::Texture::~Texture() {
       Clean();
@@ -53,7 +54,11 @@ void LoFi::Component::Texture::ClearViews() {
 
 void LoFi::Component::Texture::ReleaseAllViews() const {
       for (const auto view : _views) {
-            vkDestroyImageView(volkGetLoadedDevice(), view, nullptr);
+            ContextResourceRecoveryInfo info {
+                  .Type = ContextResourceType::IMAGEVIEW,
+                  .Resource1 = (size_t)view
+            };
+            Context::Get()->RecoveryContextResource(info);
       }
 }
 
@@ -64,7 +69,7 @@ void LoFi::Component::Texture::Clean() {
       _currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
       if (!_isBorrow) {
-            vmaDestroyImage(volkGetLoadedVmaAllocator(), _image, _memory);
+            DestroyTexture();
       }
 }
 
@@ -76,4 +81,15 @@ void LoFi::Component::Texture::SetBindlessIndexForSampler(std::optional<uint32_t
 void LoFi::Component::Texture::SetBindlessIndexForComputeKernel(std::optional<uint32_t> index)
 {
       _bindlessIndexForComputeKernel = index;
+}
+
+void LoFi::Component::Texture::DestroyTexture() {
+      ContextResourceRecoveryInfo info {
+            .Type = ContextResourceType::IMAGE,
+            .Resource1 = (size_t)_image,
+            .Resource2 = (size_t)_memory,
+            .Resource3 = _bindlessIndexForComputeKernel,
+            .Resource4 = _bindlessIndexForSampler
+      };
+      Context::Get()->RecoveryContextResource(info);
 }

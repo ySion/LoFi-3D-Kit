@@ -114,7 +114,7 @@ void LoFi::Component::Buffer::Recreate(uint64_t size) {
       Unmap();
 
       _bufferCI->size = size;
-      vmaDestroyBuffer(volkGetLoadedVmaAllocator(), _buffer, _memory);
+      DestroyBuffer();
 
       if (vmaCreateBuffer(volkGetLoadedVmaAllocator(), _bufferCI.get(), _memoryCI.get(), &_buffer, &_memory, nullptr) != VK_SUCCESS) {
             const std::string msg = "Buffer::Recreate - Failed to create buffer";
@@ -126,18 +126,21 @@ void LoFi::Component::Buffer::Recreate(uint64_t size) {
 
       RecreateAllViews();
 
-      Context::Get()->MakeBindlessIndexBuffer(_id, GetBindlessIndex());
+      if(_bindlessIndex.has_value()) {
+            _bindlessIndex =  Context::Get()->MakeBindlessIndexBuffer(_id);
+      }
 
       auto str = std::format(R"(Buffer::CreateBuffer - Recreate "{}" bytes at "{}" side)", _bufferCI->size, _isHostSide ? "Host" : "Device");
       MessageManager::Log(MessageType::Normal, str);
 }
+
 void LoFi::Component::Buffer::CreateBuffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci) {
 
       _bufferCI.reset(new VkBufferCreateInfo{ buffer_ci });
       _memoryCI.reset(new VmaAllocationCreateInfo{ alloc_ci });
 
       if (_buffer != nullptr) {
-            vmaDestroyBuffer(volkGetLoadedVmaAllocator(), _buffer, _memory);
+            DestroyBuffer();
       }
 
       if (vmaCreateBuffer(volkGetLoadedVmaAllocator(), _bufferCI.get(), _memoryCI.get(), &_buffer, &_memory, nullptr) != VK_SUCCESS) {
@@ -156,7 +159,11 @@ void LoFi::Component::Buffer::CreateBuffer(const VkBufferCreateInfo& buffer_ci, 
 
 void LoFi::Component::Buffer::ReleaseAllViews() const {
       for (const auto view : _views) {
-            vkDestroyBufferView(volkGetLoadedDevice(), view, nullptr);
+            ContextResourceRecoveryInfo info {
+                  .Type = ContextResourceType::BUFFERVIEW,
+                  .Resource1 = (size_t)view
+            };
+            Context::Get()->RecoveryContextResource(info);
       }
 }
 
@@ -180,11 +187,21 @@ void LoFi::Component::Buffer::CreateViewFromCurrentViewCIs() {
 
 void LoFi::Component::Buffer::Clean() {
       ClearViews();
-      vmaDestroyBuffer(volkGetLoadedVmaAllocator(), _buffer, _memory);
+      DestroyBuffer();
 }
 
 void LoFi::Component::Buffer::SetBindlessIndex(std::optional<uint32_t> bindless_index) {
       _bindlessIndex = bindless_index;
+}
+
+void LoFi::Component::Buffer::DestroyBuffer() {
+      ContextResourceRecoveryInfo info {
+            .Type = ContextResourceType::BUFFER,
+            .Resource1 = (size_t)_buffer,
+            .Resource2 = (size_t)_memory,
+            .Resource3 = _bindlessIndex
+      };
+      Context::Get()->RecoveryContextResource(info);
 }
 
 

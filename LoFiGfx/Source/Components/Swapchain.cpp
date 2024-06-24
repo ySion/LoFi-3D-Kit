@@ -5,36 +5,6 @@
 
 
 using namespace LoFi::Component;
-//
-//Swapchain::Swapchain(Swapchain&& other) noexcept
-//{
-//      _id = other._id;
-//      _surface = other._surface;
-//      _swapchain = other._swapchain;
-//      _currentFrameIndex = other._currentFrameIndex;
-//      _currentImageIndex = other._currentImageIndex;
-//      for (int i = 0; i < 3; i++) {
-//            _imageAvailableSemaphores[i] = other._imageAvailableSemaphores[i];
-//      }
-//      _images = std::move(other._images);
-//
-//      _id = entt::null;
-//}
-//
-//Swapchain& Swapchain::operator=(Swapchain&& other) noexcept {
-//      _id = other._id;
-//      _surface = other._surface;
-//      _swapchain = other._swapchain;
-//      _currentFrameIndex = other._currentFrameIndex;
-//      _currentImageIndex = other._currentImageIndex;
-//      for (int i = 0; i < 3; i++) {
-//            _imageAvailableSemaphores[i] = other._imageAvailableSemaphores[i];
-//      }
-//      _images = std::move(other._images);
-//
-//      _id = entt::null;
-//      return *this;
-//}
 
 Swapchain::Swapchain(entt::entity id) : _id(id) {
 
@@ -158,14 +128,38 @@ void Swapchain::CreateOrRecreateSwapChain() {
             throw std::runtime_error(str);
       }
 
-      auto window_size = res->GetSize();
+      auto current_window_size = res->GetSize();
+
+      if(current_window_size.width == 0 || current_window_size.height == 0) {
+            return;
+      }
+
+      if(current_window_size.width == _extent.width && current_window_size.height == _extent.height) {
+            return;
+      }
+
+
+      auto device = volkGetLoadedDevice();
+      auto instance = volkGetLoadedInstance();
+
+      vkDeviceWaitIdle(device);
+
+      _images.clear();
+
+      vkDestroySwapchainKHR(device, _swapchain, nullptr);
+      vkDestroySurfaceKHR(instance, _surface, nullptr);
+
       auto win_ptr = res->GetWindowPtr();
 
-      if (!SDL_Vulkan_CreateSurface(win_ptr, volkGetLoadedInstance(), nullptr, &_surface)) {
+      if (!SDL_Vulkan_CreateSurface(win_ptr, instance, nullptr, &_surface)) {
             std::string msg = "Swapchain::CreateOrRecreateSwapChain - Failed to create surface";
             MessageManager::Log(MessageType::Error, msg);
             throw std::runtime_error(msg);
       }
+
+      VkSurfaceCapabilitiesKHR surface_capabilities{};
+
+      vkGetPhysicalDeviceSurfaceCapabilitiesKHR(volkGetLoadedPhysicalDevice(), _surface, &surface_capabilities);
 
       VkSwapchainCreateInfoKHR sp_ci{};
       sp_ci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -173,7 +167,7 @@ void Swapchain::CreateOrRecreateSwapChain() {
       sp_ci.minImageCount = 3;
       sp_ci.imageFormat = VK_FORMAT_B8G8R8A8_UNORM;
       sp_ci.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-      sp_ci.imageExtent = window_size;
+      sp_ci.imageExtent = surface_capabilities.currentExtent;
       sp_ci.imageArrayLayers = 1;
       sp_ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
       sp_ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -182,7 +176,7 @@ void Swapchain::CreateOrRecreateSwapChain() {
       sp_ci.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
       sp_ci.clipped = VK_TRUE;
 
-      auto device = volkGetLoadedDevice();
+
 
       if (auto res = vkCreateSwapchainKHR(device, &sp_ci, nullptr, &_swapchain); res != VK_SUCCESS) {
             std::string msg = std::format("Swapchain::CreateOrRecreateSwapChain - Failed to create swapchain {}", (int64_t)res);
@@ -199,8 +193,8 @@ void Swapchain::CreateOrRecreateSwapChain() {
       image_ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
       image_ci.imageType = VK_IMAGE_TYPE_2D;
       image_ci.format = VK_FORMAT_B8G8R8A8_UNORM;
-      image_ci.extent.width = window_size.width;
-      image_ci.extent.height = window_size.height;
+      image_ci.extent.width = surface_capabilities.currentExtent.width;
+      image_ci.extent.height = surface_capabilities.currentExtent.height;
       image_ci.extent.depth = 1;
       image_ci.mipLevels = 1;
       image_ci.arrayLayers = 1;
@@ -229,4 +223,6 @@ void Swapchain::CreateOrRecreateSwapChain() {
             texture->CreateView(view_ci);
             _images.push_back(std::move(texture));
       }
+
+      _extent = surface_capabilities.currentExtent;
 }

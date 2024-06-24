@@ -24,11 +24,38 @@ Class& operator=(const Class&) = delete
 #include "../Third/volk/volk.h"
 #include "VmaLoader.h"
 #include "entt/entt.hpp"
+#include "Concurrent/concurrentqueue.h"
 
 VmaAllocator volkGetLoadedVmaAllocator();
+
 void volkLoadVmaAllocator(VmaAllocator allocator);
 
-entt::registry* volkGetLoadedEcsWorld();
-void volkLoadEcsWorld(entt::registry* world);
+entt::registry *volkGetLoadedEcsWorld();
+
+void volkLoadEcsWorld(entt::registry *world);
+
+VkPhysicalDevice volkGetLoadedPhysicalDevice();
+
+void volkLoadPhysicalDevice(VkPhysicalDevice device);
+
+const char *GetVkResultString(VkResult res);
+
+const char *GetVkFormatString(VkFormat format);
+
+const char *GetVkFormatStringSimpled(VkFormat format);
+
+VkFormat GetVkFormatFromString(const std::string& str);
+
+VkFormat GetVkFormatFromStringSimpled(const std::string& str);
+
+bool IsDepthOnlyFormat(VkFormat format);
+
+bool IsStencilOnlyFormat(VkFormat format);
+
+bool IsDepthStencilOnlyFormat(VkFormat format);
+
+bool IsDepthStencilFormat(VkFormat format);
+
+
 
 #endif //MARCOS_H

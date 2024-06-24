@@ -43,6 +43,8 @@ namespace LoFi::Component {
 
             friend class Window;
 
+            friend class ::LoFi::Context;
+
       private:
 
             entt::entity _id{};
@@ -58,6 +60,8 @@ namespace LoFi::Component {
             uint32_t _currentImageIndex{};
 
             std::vector<std::unique_ptr<Texture>> _images{};
+
+            VkExtent2D _extent{};
       };
 }
 

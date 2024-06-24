@@ -64,6 +64,8 @@ namespace LoFi::Component {
 
             void SetBindlessIndex(std::optional<uint32_t> bindless_index);
 
+            void DestroyBuffer();
+
             friend class ::LoFi::Context;
 
       private:
