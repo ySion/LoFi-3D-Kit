@@ -112,9 +112,9 @@ namespace LoFi {
 
             [[nodiscard]] entt::entity CreateTexture2D(VkFormat format, int w, int h, int mipMapCounts = 1);
 
-            [[nodiscard]] entt::entity CreateBuffer(uint64_t size, bool cpu_access = false);
+            [[nodiscard]] entt::entity CreateBuffer(uint64_t size, bool cpu_access = false, bool bindless = true);
 
-            [[nodiscard]] entt::entity CreateBuffer(void* data, uint64_t size, bool cpu_access = false);
+            [[nodiscard]] entt::entity CreateBuffer(void* data, uint64_t size, bool cpu_access = false, bool bindless = true);
 
             [[nodiscard]] entt::entity CreateGraphicKernel(entt::entity program);
 
@@ -138,11 +138,24 @@ namespace LoFi {
 
             void EndFrame();
 
+            void BeginRenderPass();
+
+            void EndRenderPass();
+
             void DestroyWindow(uint32_t id);
 
             void DestroyWindow(entt::entity window);
 
-            // void CmdBindGraphicKernel(entt::entity kernel);
+            void BindRenderTargetToRenderPass(entt::entity color_texture, bool clear = true, uint32_t view_index = 0);
+
+            void BindDepthStencilTargetToRenderPass(entt::entity depth_stencil_texture, bool clear = true, uint32_t view_index = 0);
+
+            void BindStencilTargetToRenderPass(entt::entity stencil_texture, bool clear = true, uint32_t view_index = 0);
+
+            void BindDepthTargetToRenderPass(entt::entity depth_texture, bool clear = true, uint32_t view_index = 0);
+
+            void BindGraphicKernelToRenderPass(entt::entity kernel);
+
             //
             // void CmdBindVertexBuffer(entt::entity buffer);
             //
@@ -255,8 +268,17 @@ namespace LoFi {
 
       private:
 
-            moodycamel::ConcurrentQueue<ContextResourceRecoveryInfo> _resource_recovery_queue{};
+            moodycamel::ConcurrentQueue<ContextResourceRecoveryInfo> _resourceRecoveryQueue{};
 
-            std::vector<ContextResourceRecoveryInfo> _resourece_recovery_list[3]{};
+            std::vector<ContextResourceRecoveryInfo> _resoureceRecoveryList[3]{};
+
+      private:
+            VkRenderingInfo _frameRenderingInfo{};
+            VkRect2D _frameRenderingRenderArea{};
+            std::vector<VkRenderingAttachmentInfo> _frameRenderingColorAttachments{};
+            std::optional<VkRenderingAttachmentInfo> _frameRenderingDepthStencilAttachment{};
+            std::optional<VkRenderingAttachmentInfo> _frameRenderingDepthAttachment{};
+            std::optional<VkRenderingAttachmentInfo> _frameRenderingStencilAttachment{};
+            bool _isRenderPassOpen = false;
       };
 }

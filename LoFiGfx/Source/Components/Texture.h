@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../Helper.h"
+#include "Buffer.h"
+
 
 namespace LoFi {
       class Context;
@@ -34,11 +36,11 @@ namespace LoFi::Component {
 
             [[nodiscard]] entt::entity GetID() const { return _id; }
 
-            [[nodiscard]] VkExtent3D GetExtent() const { return _imageCI.extent; }
+            [[nodiscard]] VkExtent3D GetExtent() const { return _imageCI->extent; }
 
-            [[nodiscard]] VkFormat GetFormat() const { return _imageCI.format; }
+            [[nodiscard]] VkFormat GetFormat() const { return _imageCI->format; }
 
-            [[nodiscard]] VkImageLayout GetLayout() const { return _currentLayout; }
+            [[nodiscard]] VkImageLayout GetCurrentLayout() const { return _currentLayout; }
 
             [[nodiscard]] VkSampler GetSampler() const { return _sampler; }
 
@@ -50,13 +52,16 @@ namespace LoFi::Component {
 
             void ClearViews();
 
+            void SetData(void* data , size_t size);
+
+            void BarrierLayout(VkCommandBuffer cmd, VkImageLayout new_layout, std::optional<VkImageLayout> src_layout = std::nullopt,
+                               std::optional<VkPipelineStageFlags2> src_stage = std::nullopt,
+                               std::optional<VkPipelineStageFlags2> dst_stage = std::nullopt);
+
+
             // [[nodiscard]] VkImageMemoryBarrier2KHR Barrier(VkImageLayout newLayout);
 
       private:
-
-            [[nodiscard]] VkPipelineStageFlags2& CurrentAccessMask() { return _currentAccessMask; }
-
-            [[nodiscard]] VkImageLayout& CurrentLayout() { return _currentLayout; }
 
             void SetSampler(VkSampler sampler) { _sampler = sampler; }
 
@@ -89,16 +94,15 @@ namespace LoFi::Component {
 
             std::vector<VkImageView> _views{};
 
-
-            VkImageCreateInfo _imageCI{};
+            std::unique_ptr<VkImageCreateInfo> _imageCI{};
 
             std::vector<VkImageViewCreateInfo> _viewCIs{};
 
             VkSampler _sampler{};
 
-
-            VkAccessFlags2 _currentAccessMask;
-
             VkImageLayout _currentLayout;
+
+            std::unique_ptr<Buffer> _intermediateBuffer{};
+
       };
 }

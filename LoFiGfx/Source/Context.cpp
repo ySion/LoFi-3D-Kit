@@ -125,18 +125,31 @@ void Context::Init() {
       }
 
       {
-            std::vector needed_device_extensions{ // 必要的
-                  "VK_KHR_dynamic_rendering",
-                  "VK_EXT_descriptor_indexing",
-                  "VK_KHR_maintenance2",
-                  "VK_GOOGLE_hlsl_functionality1", //hlsl
-                  "VK_GOOGLE_user_type", //hlsl
+            std::vector needed_device_extensions{
 
-                  "VK_KHR_swapchain",
+                  "VK_KHR_dynamic_rendering",   // 必要
+                  "VK_EXT_descriptor_indexing", // bindless
+
+                  "VK_KHR_maintenance2",
+                  "VK_GOOGLE_hlsl_functionality1",    //hlsl
+                  "VK_GOOGLE_user_type",              //hlsl
+
+                  "VK_KHR_swapchain",           // 必要
                   "VK_KHR_get_memory_requirements2",
                   "VK_KHR_dedicated_allocation",
                   "VK_KHR_bind_memory2",
-                  "VK_KHR_spirv_1_4"
+                  "VK_KHR_spirv_1_4",
+
+                  //ray tracing
+                  "VK_KHR_deferred_host_operations",
+                  "VK_KHR_acceleration_structure",
+                  "VK_KHR_ray_tracing_pipeline",
+
+                  //vrs
+                  "VK_KHR_fragment_shading_rate",
+
+                  //mesh shader
+                  "VK_EXT_mesh_shader",
             };
 
             uint32_t count = 0;
@@ -497,7 +510,7 @@ entt::entity Context::CreateWindow(const char* title, int w, int h) {
 }
 
 void Context::RecoveryContextResource(const ContextResourceRecoveryInfo &pack) {
-      _resource_recovery_queue.enqueue(pack);
+      _resourceRecoveryQueue.enqueue(pack);
 }
 
 void Context::DestroyWindow(uint32_t id) {
@@ -516,11 +529,168 @@ void Context::DestroyWindow(entt::entity window) {
       RecoveryContextResource(info);
 }
 
+void Context::BindRenderTargetToRenderPass(entt::entity color_texture, bool clear, uint32_t view_index) {
+      if(_world.valid(color_texture)) {
+            auto& tex = _world.get<Component::Texture>(color_texture);
+
+            if(_frameRenderingRenderArea.extent.width == 0 || _frameRenderingRenderArea.extent.height == 0) {
+                  auto extent = tex.GetExtent();
+                  _frameRenderingRenderArea = {0, 0, extent.width, extent.height};
+            } else {
+                  auto extent = tex.GetExtent();
+                  if(extent.width != _frameRenderingRenderArea.extent.width  || extent.height != _frameRenderingRenderArea.extent.height) {
+                        auto str = std::format("Context::CmdBindRenderTarget - Color texture size mismatch, expected {}x{}, got {}x{}", _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height, extent.width, extent.height);
+                        MessageManager::Log(MessageType::Error, str);
+                        throw std::runtime_error(str);
+                  }
+            }
+
+            auto layout = tex.GetCurrentLayout();
+            if(layout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL){
+                  tex.BarrierLayout(GetCurrentCommandBuffer(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
+            }
+
+            const VkRenderingAttachmentInfo info {
+                  .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                  .imageView = tex.GetView(view_index),
+                  .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                  .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+                  .storeOp = VK_ATTACHMENT_STORE_OP_STORE ,
+                  .clearValue = { .color = {0.0f, 0.0f, 0.0f, 1.0f} }
+            };
+
+            _frameRenderingColorAttachments.push_back(info);
+      }
+}
+
+
+void Context::BindDepthStencilTargetToRenderPass(entt::entity depth_stencil_texture, bool clear, uint32_t view_index) {
+      if(_world.valid(depth_stencil_texture)) {
+            auto& tex = _world.get<Component::Texture>(depth_stencil_texture);
+            if(!IsDepthStencilOnlyFormat(tex.GetFormat())) {
+                  auto errr = std::format("Context::CmdBindDepthStencil - Depth stencil texture is not a depth stencil format, error format {}.", GetVkFormatString(tex.GetFormat()));
+                  MessageManager::Log(MessageType::Error, errr);
+                  throw std::runtime_error(errr);
+            }
+
+            if(_frameRenderingRenderArea.extent.width == 0 || _frameRenderingRenderArea.extent.height == 0) {
+                  auto extent = tex.GetExtent();
+                  _frameRenderingRenderArea = {0, 0, extent.width, extent.height};
+            } else {
+                  auto extent = tex.GetExtent();
+                  if(extent.width != _frameRenderingRenderArea.extent.width || extent.height != _frameRenderingRenderArea.extent.height) {
+                        auto str = std::format("Context::CmdBindDepthStencil - Depth stencil texture size mismatch, expected {}x{}, got {}x{}", _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height, extent.width, extent.height);
+                        MessageManager::Log(MessageType::Error, str);
+                        throw std::runtime_error(str);
+                  }
+            }
+            auto layout = tex.GetCurrentLayout();
+            if(layout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL){
+                  tex.BarrierLayout(GetCurrentCommandBuffer(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT);
+            }
+
+            _frameRenderingDepthStencilAttachment = VkRenderingAttachmentInfo {
+                  .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                  .imageView = tex.GetView(view_index),
+                  .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                  .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+                  .storeOp = VK_ATTACHMENT_STORE_OP_STORE ,
+                  .clearValue = { .depthStencil = {1.0f, 0} }
+            };
+
+            _frameRenderingDepthAttachment = std::nullopt;
+            _frameRenderingStencilAttachment = std::nullopt;
+      }
+}
+
+void Context::BindStencilTargetToRenderPass(entt::entity stencil_texture, bool clear, uint32_t view_index) {
+      if(_world.valid(stencil_texture)) {
+            auto& tex = _world.get<Component::Texture>(stencil_texture);
+            if(!IsStencilOnlyFormat(tex.GetFormat())) {
+                  auto err = std::format("Context::CmdBindStencilTarget - Stencil texture is not a stencil format, error format {}.", GetVkFormatString(tex.GetFormat()));
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
+            }
+
+            if(_frameRenderingRenderArea.extent.width == 0 || _frameRenderingRenderArea.extent.height == 0) {
+                  auto extent = tex.GetExtent();
+                  _frameRenderingRenderArea = {0, 0, extent.width, extent.height};
+            } else {
+                  auto extent = tex.GetExtent();
+                  if(extent.width != _frameRenderingRenderArea.extent.width || extent.height != _frameRenderingRenderArea.extent.height) {
+                        auto str = std::format("Context::CmdBindStencilTarget - Stencil texture size mismatch, expected {}x{}, got {}x{}", _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height, extent.width, extent.height);
+                        MessageManager::Log(MessageType::Error, str);
+                        throw std::runtime_error(str);
+                  }
+            }
+            auto layout = tex.GetCurrentLayout();
+            if(layout != VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL){
+                  tex.BarrierLayout(GetCurrentCommandBuffer(), VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT);
+            }
+
+            _frameRenderingStencilAttachment = VkRenderingAttachmentInfo {
+                  .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                  .imageView = tex.GetView(view_index),
+                  .imageLayout = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL,
+                  .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+                  .storeOp = VK_ATTACHMENT_STORE_OP_STORE ,
+                  .clearValue = { .depthStencil = {1.0f, 0} }
+            };
+
+            _frameRenderingDepthStencilAttachment = std::nullopt;
+      }
+}
+
+void Context::BindDepthTargetToRenderPass(entt::entity depth_texture, bool clear, uint32_t view_index) {
+      if(_world.valid(depth_texture)) {
+            auto& tex = _world.get<Component::Texture>(depth_texture);
+            if(!IsDepthOnlyFormat(tex.GetFormat())) {
+                  const auto err = std::format("Context::CmdBindDepthTarget - Depth texture is not a depth format, error format {}.", GetVkFormatString(tex.GetFormat()));
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
+            }
+
+            if(_frameRenderingRenderArea.extent.width == 0 || _frameRenderingRenderArea.extent.height == 0) {
+                  auto extent = tex.GetExtent();
+                  _frameRenderingRenderArea = {0, 0, extent.width, extent.height};
+            } else {
+                  auto extent = tex.GetExtent();
+                  if(extent.width != _frameRenderingRenderArea.extent.width || extent.height != _frameRenderingRenderArea.extent.height) {
+                        auto str = std::format("Context::CmdBindDepthTarget - Depth texture size mismatch, expected {}x{}, got {}x{}", _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height, extent.width, extent.height);
+                        MessageManager::Log(MessageType::Error, str);
+                        throw std::runtime_error(str);
+                  }
+            }
+            auto layout = tex.GetCurrentLayout();
+            if(layout != VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL){
+                  tex.BarrierLayout(GetCurrentCommandBuffer(), VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT);
+            }
+
+            _frameRenderingDepthAttachment = VkRenderingAttachmentInfo {
+                  .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                  .imageView = tex.GetView(view_index),
+                  .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+                  .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+                  .storeOp = VK_ATTACHMENT_STORE_OP_STORE ,
+                  .clearValue = { .depthStencil = {1.0f, 0} }
+            };
+
+            _frameRenderingDepthStencilAttachment = std::nullopt;
+      }
+}
+
 entt::entity Context::CreateTexture2D(VkFormat format, int w, int h, int mipMapCounts) {
+
+      if(w == 0 || h == 0) {
+            const auto err = std::format("Context::CreateTexture2D - Invalid texture size, w = {}, h = {}, create texture failed, return null.", w, h);
+            MessageManager::Log(MessageType::Error, err);
+            return entt::null;
+      }
+
       auto id = _world.create();
 
       bool is_depth_stencil = false;
-     
+
       switch (format) {
             case VK_FORMAT_D32_SFLOAT:
             case VK_FORMAT_D24_UNORM_S8_UINT:
@@ -553,6 +723,18 @@ entt::entity Context::CreateTexture2D(VkFormat format, int w, int h, int mipMapC
             image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
       }
 
+
+
+      VkImageAspectFlags as_flag = VK_IMAGE_ASPECT_COLOR_BIT;
+
+      if(IsDepthStencilOnlyFormat(format)){
+            as_flag = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+      }else if(IsDepthOnlyFormat(format)){
+            as_flag = VK_IMAGE_ASPECT_DEPTH_BIT;
+      }else if(IsStencilOnlyFormat(format)){
+            as_flag = VK_IMAGE_ASPECT_STENCIL_BIT;
+      }
+
       VkImageViewCreateInfo view_ci{};
       view_ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
       view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -561,7 +743,7 @@ entt::entity Context::CreateTexture2D(VkFormat format, int w, int h, int mipMapC
       view_ci.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
       view_ci.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
       view_ci.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-      view_ci.subresourceRange.aspectMask = is_depth_stencil ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+      view_ci.subresourceRange.aspectMask = as_flag;
       view_ci.subresourceRange.baseMipLevel = 0;
       view_ci.subresourceRange.levelCount = 1;
       view_ci.subresourceRange.baseArrayLayer = 0;
@@ -585,7 +767,12 @@ entt::entity Context::CreateTexture2D(VkFormat format, int w, int h, int mipMapC
 }
 
 
-entt::entity Context::CreateBuffer(uint64_t size, bool cpu_access) {
+entt::entity Context::CreateBuffer(uint64_t size, bool cpu_access, bool bindless) {
+      if(size == 0) {
+            MessageManager::Log(MessageType::Error, "Context::CreateBuffer - Invalid buffer size, size = 0, create buffer failed, return null.");
+            return entt::null;
+      }
+
       auto id = _world.create();
 
       VkBufferCreateInfo buffer_ci{};
@@ -599,12 +786,24 @@ entt::entity Context::CreateBuffer(uint64_t size, bool cpu_access) {
 
       _world.emplace<Component::Buffer>(id, id, buffer_ci, alloc_ci);
 
-      MakeBindlessIndexBuffer(id);
+      if(bindless) {
+            MakeBindlessIndexBuffer(id);
+      }
+
       return id;
 }
 
-entt::entity Context::CreateBuffer(void* data, uint64_t size, bool cpu_access) {
-      auto id = CreateBuffer(size, cpu_access);
+entt::entity Context::CreateBuffer(void* data, uint64_t size, bool cpu_access, bool bindless) {
+      if(data == nullptr){
+            MessageManager::Log(MessageType::Error, "Context::CreateBuffer - Invalid data pointer, data = nullptr, create buffer failed, return null.");
+            return entt::null;
+      }
+      if(size == 0) {
+            MessageManager::Log(MessageType::Error, "Context::CreateBuffer - Invalid buffer size, size = 0, create buffer failed, return null.");
+            return entt::null;
+      }
+
+      auto id = CreateBuffer(size, cpu_access, bindless);
       auto& buffer = _world.get<Component::Buffer>(id);
       buffer.SetData(data, size);
       return id;
@@ -615,8 +814,7 @@ entt::entity Context::CreateGraphicKernel(entt::entity program) {
       auto& kernel = _world.emplace<Component::GraphicKernel>(id, id);
       bool success = kernel.CreateFromProgram(program);
       if(!success) {
-            auto str = std::format("Context::CreateGraphicKernel - Failed to create graphic kernel from program, return a empty kernel");
-            MessageManager::Log(MessageType::Warning, str);
+            MessageManager::Log(MessageType::Warning, "Context::CreateGraphicKernel - Failed to create graphic kernel from program, return a empty kernel, please compile it again later.");
       }
       return id;
 }
@@ -633,9 +831,7 @@ void Context::DestroyBuffer(entt::entity buffer) {
       if (_world.valid(buffer) && _world.any_of<Component::Buffer>(buffer)) {
             _world.destroy(buffer);
       }else {
-            auto msg = "Context::DestroyBuffer - Invalid buffer entity, ignore it.";
-            MessageManager::Log(MessageType::Warning, msg);
-            return;
+            MessageManager::Log(MessageType::Warning, "Context::DestroyBuffer - Invalid buffer entity, ignore it.");
       }
 }
 
@@ -644,9 +840,7 @@ void Context::DestroyTexture(entt::entity texture) {
       if (_world.valid(texture) && _world.any_of<Component::Texture>(texture)) {
             _world.destroy(texture);
       }else {
-            auto msg = "Context::DestroyTexture - Invalid buffer entity, ignore it.";
-            MessageManager::Log(MessageType::Warning, msg);
-            return;
+            MessageManager::Log(MessageType::Warning, "Context::DestroyTexture - Invalid buffer entity, ignore it.");
       }
 }
 
@@ -699,55 +893,27 @@ void Context::BeginFrame() {
       }
 
       _commandQueue.clear();
-
-      //VkRenderingAttachmentInfoKHR color_attachment_info = vkb::initializers::rendering_attachment_info();
-      //color_attachment_info.imageView = swapchain_buffers[i].view;        // color_attachment.image_view;
-
-
-      //VkRenderingAttachmentInfoKHR depth_attachment_info = vkb::initializers::rendering_attachment_info();
-      //depth_attachment_info.imageView = depth_stencil.view;
-
-
-      auto render_area = VkRect2D{ VkOffset2D{}, VkExtent2D{3, 5} };
-      VkRenderingInfoKHR render_info = {
-            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
-            .pNext = nullptr,
-            .flags = 0,
-            .renderArea = render_area,
-            .layerCount = 1,
-            .viewMask = 0,
-            .colorAttachmentCount = 0,
-            .pColorAttachments = nullptr,
-            .pDepthAttachment = nullptr,
-            .pStencilAttachment = nullptr
-      };
-
-      vkCmdBeginRenderingKHR(cmd, &render_info);
-
-      vkCmdEndRendering(cmd);
 }
 
 void Context::EndFrame() {
+
+      if(_isRenderPassOpen) {
+            auto err = "Context::EndFrame - Render pass is still open, close RenderPass before EndFrame!";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
 
       auto cmd_buf = GetCurrentCommandBuffer();
 
       auto window_count = _windowIdToWindow.size();
 
-      std::vector<VkImageMemoryBarrier2> barriers{};
       std::vector<VkImage> swap_chain_rts{};
-      barriers.reserve(window_count);
       swap_chain_rts.reserve(window_count);
 
       _world.view<Component::Swapchain>().each([&](auto entity, Component::Swapchain& swapchain) {
-            barriers.push_back(swapchain.GenerateCurrentRenderTargetBarrier());
+            swapchain.BarrierCurrentRenderTarget(cmd_buf);
             swap_chain_rts.push_back(swapchain.GetCurrentRenderTarget()->GetImage());
       });
-
-      VkDependencyInfoKHR window_bgin_barrier = {
-           .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR,
-           .imageMemoryBarrierCount = (uint32_t)barriers.size(),
-           .pImageMemoryBarriers = barriers.data()
-      };
 
       const auto clear_vlaue = VkClearColorValue{ 0.0f, 0.0f, 0.0f, 1.0f };
       VkImageSubresourceRange ImageSubresourceRange;
@@ -757,26 +923,13 @@ void Context::EndFrame() {
       ImageSubresourceRange.baseArrayLayer = 0;
       ImageSubresourceRange.layerCount     = 1;
 
-      vkCmdPipelineBarrier2(cmd_buf, &window_bgin_barrier);
-
       for(auto& i : swap_chain_rts) {
             vkCmdClearColorImage(cmd_buf, i, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,  &clear_vlaue, 1, &ImageSubresourceRange);
       }
 
-
-      barriers.clear();
-
       _world.view<Component::Swapchain>().each([&](auto entity, const auto& swapchain) {
-            barriers.push_back(swapchain.GenerateCurrentRenderTargetBarrier());
+            swapchain.BarrierCurrentRenderTarget(cmd_buf);
       });
-
-      VkDependencyInfo window_end_barrier = {
-           .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR,
-           .imageMemoryBarrierCount = (uint32_t)barriers.size(),
-           .pImageMemoryBarriers = barriers.data()
-      };
-
-      vkCmdPipelineBarrier2(cmd_buf, &window_end_barrier);
 
       if (vkEndCommandBuffer(cmd_buf) != VK_SUCCESS) {
             std::string msg = "Context::EndFrame Failed to end command buffer";
@@ -844,6 +997,61 @@ void Context::EndFrame() {
       StageRecoveryContextResource();
 
       GoNextFrame();
+}
+
+void Context::BeginRenderPass() {
+
+      if(_isRenderPassOpen) {
+            auto msg = "Context::BeginRenderPass - Render pass already open";
+            MessageManager::Log(MessageType::Error, msg);
+            throw std::runtime_error(msg);
+      }
+
+      auto cmd = GetCurrentCommandBuffer();
+
+      VkRenderingInfoKHR render_info = {
+            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
+            .pNext = nullptr,
+            .flags = 0,
+            .renderArea = _frameRenderingRenderArea,
+            .layerCount = 1,
+            .viewMask = 0,
+            .colorAttachmentCount = (uint32_t)_frameRenderingColorAttachments.size(),
+            .pColorAttachments = _frameRenderingColorAttachments.data(),
+      };
+
+      if(_frameRenderingDepthStencilAttachment.has_value()){
+            render_info.pDepthAttachment = &_frameRenderingDepthStencilAttachment.value();
+            render_info.pStencilAttachment = &_frameRenderingDepthStencilAttachment.value();
+      } else {
+            if(_frameRenderingDepthAttachment.has_value()){
+                  render_info.pDepthAttachment = &_frameRenderingDepthAttachment.value();
+            }
+            if(_frameRenderingStencilAttachment.has_value()){
+                  render_info.pStencilAttachment = &_frameRenderingStencilAttachment.value();
+            }
+      }
+
+      if(_frameRenderingRenderArea.extent.width == 0 || _frameRenderingRenderArea.extent.height == 0) {
+            const auto err = std::format("Context::BeginRenderPass - Invalid render area size, w = {}, h = {}, create render pass failed.", _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height);
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      vkCmdBeginRenderingKHR(cmd, &render_info);
+      _isRenderPassOpen = true;
+
+      _frameRenderingDepthAttachment = {};
+      _frameRenderingStencilAttachment = {};
+      _frameRenderingColorAttachments.clear();
+      _frameRenderingRenderArea = {};
+}
+
+void Context::EndRenderPass() {
+      if(_isRenderPassOpen){
+            _isRenderPassOpen = false;
+            vkCmdEndRendering(GetCurrentCommandBuffer());
+      }
 }
 
 uint32_t Context::MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t viewIndex) {
@@ -999,38 +1207,6 @@ uint32_t Context::MakeBindlessIndexBuffer(entt::entity buffer) {
       return free_index;
 }
 
-
-//Program* Context::CreateProgram(const char* source_code, const char* type, const char* entry)
-//{
-//      std::string_view code{ source_code };
-//
-//      std::vector<uint8_t> sbuffer(code.size() + 1);
-//      std::ranges::copy(code, sbuffer.begin());
-//      sbuffer.back() = '\0';
-//
-//      DxcBuffer buffer = {
-//            .Ptr = sbuffer.data(),
-//            .Size = (uint32_t)sbuffer.size(),
-//            .Encoding = 0
-//      };
-//
-//
-//      std::vector<LPCWSTR> args{};
-//      args.push_back(L"-Zpc");
-//      args.push_back(L"-auto-binding-space");
-//      args.push_back(L"0");
-//      args.push_back(L"-HV");
-//      args.push_back(L"2021");
-//      args.push_back(L"-T");
-//      args.push_back(L"-E");
-//      args.push_back(L"main");
-//      args.push_back(L"-spirv");
-//      args.push_back(L"-fspv-target-env=vulkan1.3");
-//      ComPtr<IDxcResult> compiled_shader{};
-//      _dxcCompiler->Compile(&buffer, args.data(), (uint32_t)(args.size()), nullptr, IID_PPV_ARGS(&compiled_shader));
-//      return nullptr;
-//}
-
 void Context::SetTextureSampler(entt::entity image, const VkSamplerCreateInfo& sampler_ci) {
       auto texture = _world.try_get<Component::Texture>(image);
 
@@ -1084,7 +1260,7 @@ void Context::GoNextFrame() {
 
 void Context::StageRecoveryContextResource() {
 
-      std::vector<ContextResourceRecoveryInfo>& current_list = _resourece_recovery_list[GetCurrentFrameIndex()];
+      std::vector<ContextResourceRecoveryInfo>& current_list = _resoureceRecoveryList[GetCurrentFrameIndex()];
       if(!current_list.empty()) {
             for (auto & i : current_list) {
                   switch (i.Type) {
@@ -1110,7 +1286,7 @@ void Context::StageRecoveryContextResource() {
       current_list.clear();
 
       ContextResourceRecoveryInfo temp{};
-      while(_resource_recovery_queue.try_dequeue(temp)) {
+      while(_resourceRecoveryQueue.try_dequeue(temp)) {
            current_list.push_back(temp);
       }
 }
@@ -1118,7 +1294,7 @@ void Context::StageRecoveryContextResource() {
 void Context::RecoveryAllContextResourceImmediately() {
 
       for(size_t i = GetCurrentFrameIndex(); i < GetCurrentFrameIndex() + 3; i++) {
-            std::vector<ContextResourceRecoveryInfo>& current_list = _resourece_recovery_list[i % 3];
+            std::vector<ContextResourceRecoveryInfo>& current_list = _resoureceRecoveryList[i % 3];
             if(!current_list.empty()) {
                   for (auto & i : current_list) {
                         switch (i.Type) {
@@ -1143,10 +1319,10 @@ void Context::RecoveryAllContextResourceImmediately() {
             current_list.clear();
       }
 
-      std::vector<ContextResourceRecoveryInfo>& current_list = _resourece_recovery_list[0];
+      std::vector<ContextResourceRecoveryInfo>& current_list = _resoureceRecoveryList[0];
 
       ContextResourceRecoveryInfo temp{};
-      while(_resource_recovery_queue.try_dequeue(temp)) {
+      while(_resourceRecoveryQueue.try_dequeue(temp)) {
             current_list.push_back(temp);
       }
 

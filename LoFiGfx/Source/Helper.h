@@ -56,6 +56,8 @@ bool IsDepthStencilOnlyFormat(VkFormat format);
 
 bool IsDepthStencilFormat(VkFormat format);
 
+const char* GetImageLayoutString(VkImageLayout layout);
+
 
 
 #endif //MARCOS_H

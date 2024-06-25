@@ -101,14 +101,15 @@ void GStart()
       //ctx->CreateWindow("hello world2", 800, 600);
 
       auto renderTexture = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 800, 600);
-      auto renderTexture2 = ctx->CreateTexture2D(VK_FORMAT_D32_SFLOAT_S8_UINT, 800, 600);
-      auto vertex_buffer = ctx->CreateBuffer(4 * 512);
-      auto vertex_buffer2 = ctx->CreateBuffer(4 * 512, true);
-      auto vertex_buffer3 = ctx->CreateBuffer(cube.data(), cube.size() * sizeof(float), true);
-      auto vertex_buffer4 = ctx->CreateBuffer(cube.data(), cube.size() * sizeof(float));
+      auto ds_texture = ctx->CreateTexture2D(VK_FORMAT_D32_SFLOAT_S8_UINT, 800, 600);
 
-      ctx->DestroyBuffer(vertex_buffer3);
-      ctx->DestroyTexture(renderTexture2);
+      //auto vertex_buffer = ctx->CreateBuffer(4 * 512);
+      //auto vertex_buffer2 = ctx->CreateBuffer(4 * 512, true);
+      //auto vertex_buffer3 = ctx->CreateBuffer(cube.data(), cube.size() * sizeof(float), true);
+      //auto vertex_buffer4 = ctx->CreateBuffer(cube.data(), cube.size() * sizeof(float));
+
+      //ctx->DestroyBuffer(vertex_buffer3);
+      //ctx->DestroyTexture(renderTexture2);
 
       auto program = ctx->CreateProgram(hlsl_str);
       auto kernel = ctx->CreateGraphicKernel(program);
@@ -119,6 +120,11 @@ void GStart()
             while (!should_close) {
                   ctx->BeginFrame();
 
+                  ctx->BindRenderTargetToRenderPass(renderTexture);
+                  ctx->BindDepthStencilTargetToRenderPass(ds_texture);
+                  ctx->BeginRenderPass();
+
+                  ctx->EndRenderPass();
                   ctx->EndFrame();
             }
       });

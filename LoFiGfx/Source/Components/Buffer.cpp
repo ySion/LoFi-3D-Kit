@@ -72,7 +72,7 @@ void LoFi::Component::Buffer::SetData(void* p, uint64_t size) {
       } else {
             if (_intermediateBuffer == nullptr) { // create a upload buffer
 
-                  auto str = std::format(R"(Buffer::CreateBuffer - Try UpLoad To device, using Intermediate Buffer)");
+                  auto str = std::format(R"(Buffer::SetData - Try UpLoad To device buffer, using Intermediate Buffer)");
                   MessageManager::Log(MessageType::Normal, str);
 
                   _intermediateBuffer = std::make_unique<Buffer>(VkBufferCreateInfo{
@@ -89,23 +89,22 @@ void LoFi::Component::Buffer::SetData(void* p, uint64_t size) {
                         .requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                   });
 
-
-                  _intermediateBuffer->SetData(p, size);
-                  auto imm_buffer = _intermediateBuffer->GetBuffer();
-                  auto trans_size = size;
-                  LoFi::Context::Get()->EnqueueCommand([=](VkCommandBuffer cmd) {
-                        const VkBufferCopy copyinfo{
-                              .srcOffset = 0,
-                              .dstOffset = 0,
-                              .size = trans_size
-                        };
-                        vkCmdCopyBuffer(cmd, imm_buffer, _buffer, 1, &copyinfo);
-                  });
-
-                  //Create Command Copy
-            } else {
-                  _intermediateBuffer->SetData(p, size);
             }
+
+            _intermediateBuffer->SetData(p, size);
+
+            auto imm_buffer = _intermediateBuffer->GetBuffer();
+            auto trans_size = size;
+
+            const VkBufferCopy copyinfo{
+                  .srcOffset = 0,
+                  .dstOffset = 0,
+                  .size = trans_size
+            };
+
+            LoFi::Context::Get()->EnqueueCommand([=](VkCommandBuffer cmd) {
+                  vkCmdCopyBuffer(cmd, imm_buffer, _buffer, 1, &copyinfo);
+            });
       }
 }
 

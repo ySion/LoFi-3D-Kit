@@ -26,56 +26,20 @@ Swapchain::Swapchain(entt::entity id) : _id(id) {
       CreateOrRecreateSwapChain();
 }
 
-VkImageMemoryBarrier2 Swapchain::GenerateCurrentRenderTargetBarrier() const
-{
-      auto& current_access_mask = GetCurrentRenderTarget()->CurrentAccessMask();
-      auto& current_layout = GetCurrentRenderTarget()->CurrentLayout();
-      auto image = GetCurrentRenderTarget()->GetImage();
+void Swapchain::BarrierCurrentRenderTarget(VkCommandBuffer cmd) const {
+      auto render_traget = GetCurrentRenderTarget();
+      auto current_layout = render_traget->GetCurrentLayout();
 
-      VkImageMemoryBarrier2 barrier = {};
-      barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2_KHR;
-      barrier.pNext = nullptr;
-      barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      barrier.subresourceRange.baseMipLevel = 0;
-      barrier.subresourceRange.levelCount = 1;
-      barrier.subresourceRange.baseArrayLayer = 0;
-      barrier.subresourceRange.layerCount = 1;
-      barrier.srcQueueFamilyIndex = 0;
-      barrier.dstQueueFamilyIndex = 0;
-      barrier.image = image;
-
-      if (current_layout == VK_IMAGE_LAYOUT_UNDEFINED || current_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
-            barrier.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
-            barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-
-            barrier.oldLayout = current_layout;
-            barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-
-            current_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            current_access_mask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-
-      } else if (current_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-            barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-            barrier.dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
-
-            barrier.srcAccessMask = current_access_mask;
-            barrier.dstAccessMask = 0;
-
-            barrier.oldLayout = current_layout;
-            barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-            current_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-            current_access_mask = 0;
+      if(current_layout == VK_IMAGE_LAYOUT_UNDEFINED || current_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+            render_traget->BarrierLayout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+      } else if(current_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+            render_traget->BarrierLayout(cmd, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, std::nullopt, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
       } else {
-            std::string msg = "Swapchain::GenerateCurrentRenderTargetBarrier - Invalid layout";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+            //err
+            auto str = std::format("Swapchain::BarrierCurrentRenderTarget - Invalid layout {}", GetImageLayoutString(current_layout));
+            MessageManager::Log(MessageType::Error, str);
       }
 
-      return barrier;
 }
 
 void Swapchain::AcquireNextImage() {

@@ -28,7 +28,7 @@ namespace LoFi::Component {
 
             [[nodiscard]] uint32_t GetCurrentRenderTargetIndex() const { return _currentImageIndex; }
 
-            [[nodiscard]] VkImageMemoryBarrier2 GenerateCurrentRenderTargetBarrier() const;
+            void BarrierCurrentRenderTarget(VkCommandBuffer cmd) const;
 
             void AcquireNextImage();
 
