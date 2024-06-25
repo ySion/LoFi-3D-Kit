@@ -1,3 +1,6 @@
 [submodule "Third/entt"]
 	path = Third/entt
 	url = https://github.com/skypjack/entt.git
+[submodule "Third/SDL"]
+	path = Third/SDL
+	url = https://github.com/libsdl-org/SDL.git
