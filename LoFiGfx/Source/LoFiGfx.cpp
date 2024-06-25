@@ -107,6 +107,9 @@ void GStart()
       auto vertex_buffer3 = ctx->CreateBuffer(cube.data(), cube.size() * sizeof(float), true);
       auto vertex_buffer4 = ctx->CreateBuffer(cube.data(), cube.size() * sizeof(float));
 
+      ctx->DestroyBuffer(vertex_buffer3);
+      ctx->DestroyTexture(renderTexture2);
+
       auto program = ctx->CreateProgram(hlsl_str);
       auto kernel = ctx->CreateGraphicKernel(program);
 

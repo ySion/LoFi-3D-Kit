@@ -630,37 +630,23 @@ entt::entity Context::CreateProgram(std::string_view source_code) {
 }
 
 void Context::DestroyBuffer(entt::entity buffer) {
-
-      if (!_world.valid(buffer)) {
+      if (_world.valid(buffer) && _world.any_of<Component::Buffer>(buffer)) {
+            _world.destroy(buffer);
+      }else {
             auto msg = "Context::DestroyBuffer - Invalid buffer entity, ignore it.";
             MessageManager::Log(MessageType::Warning, msg);
             return;
       }
-
-      _world.destroy(buffer);
 }
 
 void Context::DestroyTexture(entt::entity texture) {
 
-      if (!_world.valid(texture)) {
+      if (_world.valid(texture) && _world.any_of<Component::Texture>(texture)) {
+            _world.destroy(texture);
+      }else {
             auto msg = "Context::DestroyTexture - Invalid buffer entity, ignore it.";
             MessageManager::Log(MessageType::Warning, msg);
             return;
-      }
-
-      if (auto comp = _world.try_get<Component::Texture>(texture); comp) {
-            auto bindless_index_for_sampler = comp->GetBindlessIndexForSampler();
-            auto bindless_index_for_compute_kernel = comp->GetBindlessIndexForComputeKernel();
-
-            if (bindless_index_for_sampler.has_value()) {
-                  _bindlessIndexFreeList[2].Free(bindless_index_for_sampler.value());
-            }
-
-            if (bindless_index_for_compute_kernel.has_value()) {
-                  _bindlessIndexFreeList[1].Free(bindless_index_for_compute_kernel.value());
-            }
-
-            _world.destroy(texture);
       }
 }
 
@@ -1209,8 +1195,7 @@ void Context::RecoveryContextResourceWindow(const ContextResourceRecoveryInfo &p
                         MessageManager::Log(MessageType::Warning, str);
                   }
             }
-            auto str = std::format("Recovery Resource Window");
-            MessageManager::Log(MessageType::Warning, str);
+            MessageManager::Log(MessageType::Normal, "Recovery Resource Window");
       }  else {
             auto str = std::format("Context::RecoveryContextResourceWindow - Invalid Window resource");
             MessageManager::Log(MessageType::Warning, str);
@@ -1227,8 +1212,8 @@ void Context::RecoveryContextResourceBuffer(const ContextResourceRecoveryInfo &p
             if(pack.Resource3.has_value())
                   _bindlessIndexFreeList[0].Free(pack.Resource3.value());
 
-            auto str = std::format("Recovery Resource Buffer");
-            MessageManager::Log(MessageType::Warning, str);
+            MessageManager::Log(MessageType::Normal, "Recovery Resource Buffer");
+
       } else {
             auto str = std::format("Context::RecoveryContextResourceBuffer - Invalid Buffer resource");
             MessageManager::Log(MessageType::Warning, str);
@@ -1239,8 +1224,8 @@ void Context::RecoveryContextResourceBufferView(const ContextResourceRecoveryInf
       if(pack.Resource1 != 0) { // view
             auto view = (VkBufferView)pack.Resource1.value();
             vkDestroyBufferView(_device, view, nullptr);
-            auto str = std::format("Recovery Resource BufferView");
-            MessageManager::Log(MessageType::Warning, str);
+
+            MessageManager::Log(MessageType::Normal, "Recovery Resource BufferView");
       }else {
             auto str = std::format("Context::RecoveryContextResourceBufferView - Invalid BufferView resource");
             MessageManager::Log(MessageType::Warning, str);
@@ -1258,8 +1243,7 @@ void Context::RecoveryContextResourceImage(const ContextResourceRecoveryInfo &pa
             if(pack.Resource4.has_value())
                   _bindlessIndexFreeList[1].Free(pack.Resource4.value());
 
-            auto str = std::format("Recovery Resource Image");
-            MessageManager::Log(MessageType::Warning, str);
+            MessageManager::Log(MessageType::Normal, "Recovery Resource Image");
       } else {
             auto str = std::format("Context::RecoveryContextResourceImage - Invalid Image resource, {}, {}, {}, {}",
                   pack.Resource1.has_value(), pack.Resource2.has_value(),  pack.Resource3.has_value(), pack.Resource4.has_value());
@@ -1271,8 +1255,8 @@ void Context::RecoveryContextResourceImageView(const ContextResourceRecoveryInfo
       if(pack.Resource1.has_value()) { // view
             auto view = (VkImageView)pack.Resource1.value();
             vkDestroyImageView(_device, view, nullptr);
-            auto str = std::format("Recovery Resource imageView");
-            MessageManager::Log(MessageType::Warning, str);
+
+            MessageManager::Log(MessageType::Normal, "Recovery Resource ImageView");
       } else {
             auto str = std::format("Context::RecoveryContextResourceImageView - Invalid ImageView resource");
             MessageManager::Log(MessageType::Warning, str);

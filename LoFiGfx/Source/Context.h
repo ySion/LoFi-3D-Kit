@@ -102,8 +102,6 @@ namespace LoFi {
 
             void Init();
 
-            void Shutdown();
-
             entt::entity CreateWindow(const char* title, int w, int h);
 
            /* [[nodiscard]] entt::entity  CreateTexture2DArray();
@@ -125,7 +123,6 @@ namespace LoFi {
             void DestroyBuffer(entt::entity buffer);
 
             void DestroyTexture(entt::entity texture);
-
 
 
             void SetBufferData(entt::entity buffer, void* data, uint64_t size);
@@ -165,6 +162,7 @@ namespace LoFi {
             // void CmdBindBuffer(entt::entity buffer, uint32_t position = 0);
 
       private:
+            void Shutdown();
 
             void RecoveryContextResource(const ContextResourceRecoveryInfo& pack);
 

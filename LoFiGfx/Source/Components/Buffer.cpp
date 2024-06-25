@@ -91,14 +91,15 @@ void LoFi::Component::Buffer::SetData(void* p, uint64_t size) {
 
 
                   _intermediateBuffer->SetData(p, size);
-
-                  LoFi::Context::Get()->EnqueueCommand([&](VkCommandBuffer cmd) {
+                  auto imm_buffer = _intermediateBuffer->GetBuffer();
+                  auto trans_size = size;
+                  LoFi::Context::Get()->EnqueueCommand([=](VkCommandBuffer cmd) {
                         const VkBufferCopy copyinfo{
                               .srcOffset = 0,
                               .dstOffset = 0,
-                              .size = this->GetSize()
+                              .size = trans_size
                         };
-                        vkCmdCopyBuffer(cmd, _intermediateBuffer->GetBuffer(), _buffer, 1, &copyinfo);
+                        vkCmdCopyBuffer(cmd, imm_buffer, _buffer, 1, &copyinfo);
                   });
 
                   //Create Command Copy
