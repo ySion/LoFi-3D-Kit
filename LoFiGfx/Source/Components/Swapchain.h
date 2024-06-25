@@ -10,10 +10,6 @@ namespace LoFi::Component {
 
             NO_COPY_MOVE_CONS(Swapchain);
 
-            //Swapchain(Swapchain&& other) noexcept;
-
-           // Swapchain& operator=(Swapchain&& other) noexcept;
-
             Swapchain(entt::entity id);
 
             ~Swapchain();
@@ -32,7 +28,7 @@ namespace LoFi::Component {
 
             [[nodiscard]] uint32_t GetCurrentRenderTargetIndex() const { return _currentImageIndex; }
 
-            VkImageMemoryBarrier2 GenerateCurrentRenderTargetBarrier() const;
+            [[nodiscard]] VkImageMemoryBarrier2 GenerateCurrentRenderTargetBarrier() const;
 
             void AcquireNextImage();
 
@@ -53,7 +49,7 @@ namespace LoFi::Component {
 
             VkSwapchainKHR _swapchain{};
 
-            VkSemaphore _imageAvailableSemaphores[3];
+            VkSemaphore _imageAvailableSemaphores[3]{};
 
             uint8_t _currentFrameIndex{};
 

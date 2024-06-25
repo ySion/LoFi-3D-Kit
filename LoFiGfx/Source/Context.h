@@ -124,7 +124,6 @@ namespace LoFi {
 
             void DestroyTexture(entt::entity texture);
 
-
             void SetBufferData(entt::entity buffer, void* data, uint64_t size);
 
             void SetTexture2DData(entt::entity texture, void* data, uint64_t size);
@@ -244,10 +243,6 @@ namespace LoFi {
       private:
             std::vector<std::function<void(VkCommandBuffer)>> _commandQueue;
 
-           /* std::unordered_map<Texture*, std::unique_ptr<Texture>> _textures;
-            std::unordered_map<Buffer*, std::unique_ptr<Buffer>> _buffers;
-            std::unordered_map<uint32_t, std::unique_ptr<Window>> _windows{};*/
-
             entt::dense_map<uint32_t, entt::entity> _windowIdToWindow{};
 
             IDxcLibrary* _dxcLibrary {};
@@ -259,7 +254,9 @@ namespace LoFi {
             entt::registry _world;
 
       private:
+
             moodycamel::ConcurrentQueue<ContextResourceRecoveryInfo> _resource_recovery_queue{};
+
             std::vector<ContextResourceRecoveryInfo> _resourece_recovery_list[3]{};
       };
 }
