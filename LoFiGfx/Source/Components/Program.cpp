@@ -1102,32 +1102,19 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
       } else if (key == "ds") {
             if(values.size() == 1) {
                   VkFormat vk_format = GetVkFormatFromStringSimpled(values[0]);
-                  if(!IsDepthStencilOnlyFormat(vk_format)) {
-                        error_msg = std::format("Invalid argument {} for key \"{}\". Expected a vaild format, got \"{}\", vaild format:[d16_unorm_s8_uint, d24_unorm_s8_uint, d32_sfloat_s8_uint].", 0, key, values[0]);
+                  if(IsDepthStencilOnlyFormat(vk_format)) {
+                        _renderingCreateInfo_temp.depthAttachmentFormat = vk_format;
+                        _renderingCreateInfo_temp.stencilAttachmentFormat = vk_format;
+
+                  }else if(IsDepthOnlyFormat(vk_format)) {
+                        _renderingCreateInfo_temp.depthAttachmentFormat = vk_format;
+                        _renderingCreateInfo_temp.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
+                  } else {
+                        error_msg = std::format("Invalid argument {} for key \"{}\". Expected a vaild format, got \"{}\", vaild format:[d16_unorm_s8_uint, d24_unorm_s8_uint, d32_sfloat_s8_uint, d16_unorm, d32_sfloat].", 0, key, values[0]);
                         return false;
                   }
-
-                  _renderingCreateInfo_temp.depthAttachmentFormat = vk_format;
-                  _renderingCreateInfo_temp.stencilAttachmentFormat = vk_format;
-
-            } else if(values.size() == 2) {
-                  VkFormat depth_format = GetVkFormatFromStringSimpled(values[0]);
-                  VkFormat stencil_format = GetVkFormatFromStringSimpled(values[1]);
-
-                  if(!IsDepthOnlyFormat(depth_format)) {
-                        error_msg = std::format("Invalid argument 1 for key \"{}\". Expected a vaild format, got \"{}\", vaild format:[d16_unorm, d32_sfloat].", key, values[0]);
-                        return false;
-                  }
-
-                  if(!IsStencilOnlyFormat(stencil_format)) {
-                        error_msg = std::format("Invalid argument 2 for key \"{}\". Expected a vaild format, got \"{}\", vaild format:[s8_uint].", key, values[1]);
-                        return false;
-                  }
-
-                  _renderingCreateInfo_temp.depthAttachmentFormat = depth_format;
-                  _renderingCreateInfo_temp.stencilAttachmentFormat = stencil_format;
             } else {
-                  error_msg = std::format("Invalid argument count for key \"{}\". Expected 1 or 2, got {}, format: (using depth_stencil (depth_format) or depth, stencil (depth_format, stencil_format)).", key, values.size());
+                  error_msg = std::format("Invalid argument count for key \"{}\". Expected 1 , got {}, format: (depth_(stencil)_format, vaild format:[d16_unorm_s8_uint, d24_unorm_s8_uint, d32_sfloat_s8_uint, d16_unorm, d32_sfloat]).", key, values.size());
                   return false;
             }
       } else {

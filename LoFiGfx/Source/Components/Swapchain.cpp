@@ -45,19 +45,21 @@ void Swapchain::BarrierCurrentRenderTarget(VkCommandBuffer cmd) const {
 void Swapchain::AcquireNextImage() {
       _currentFrameIndex = (_currentFrameIndex + 1) % 3;
 
+      if (_preAccquireResult == VK_ERROR_OUT_OF_DATE_KHR || _preAccquireResult == VK_SUBOPTIMAL_KHR) {
+            CreateOrRecreateSwapChain();
+      }
+
       auto res = vkAcquireNextImageKHR(volkGetLoadedDevice(), _swapchain, UINT64_MAX, _imageAvailableSemaphores[_currentFrameIndex], nullptr, &_currentImageIndex);
 
       if (res != VK_SUCCESS) {
-            if (res == VK_ERROR_OUT_OF_DATE_KHR) {
-                  CreateOrRecreateSwapChain();
-                  res = vkAcquireNextImageKHR(volkGetLoadedDevice(), _swapchain, UINT64_MAX, _imageAvailableSemaphores[_currentFrameIndex], nullptr, &_currentImageIndex);
-                  if (res != VK_SUCCESS) {
-                        std::string msg = "Swapchain::AcquireNextImage - Failed to acquire next image";
-                        MessageManager::Log(MessageType::Error, msg);
-                        throw std::runtime_error(msg);
-                  }
+            if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
+                  // will recreate swapchain in next frame
+            } else {
+                  auto err = std::format("Swapchain::AcquireNextImage - Failed to acquire next image {}", GetVkResultString(res));
+                  MessageManager::Log(MessageType::Error, err);
             }
       }
+      _preAccquireResult = res;
 }
 
 Swapchain::~Swapchain() {
@@ -189,4 +191,6 @@ void Swapchain::CreateOrRecreateSwapChain() {
       }
 
       _extent = surface_capabilities.currentExtent;
+
+      _preAccquireResult = VK_SUCCESS;
 }

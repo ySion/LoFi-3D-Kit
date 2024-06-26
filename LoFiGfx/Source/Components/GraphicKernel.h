@@ -6,6 +6,10 @@
 
 #include "../Helper.h"
 
+namespace LoFi {
+      class Context;
+}
+
 namespace LoFi::Component {
 
       class GraphicKernel {
@@ -19,6 +23,11 @@ namespace LoFi::Component {
 
             bool CreateFromProgram(entt::entity program) ;
 
+            [[nodiscard]] VkPipeline GetPipeline() const { return _pipeline; }
+
+      private:
+
+            friend class ::LoFi::Context;
       private:
 
             entt::entity _id = entt::null;

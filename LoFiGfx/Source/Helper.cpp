@@ -1164,7 +1164,7 @@ bool IsDepthStencilOnlyFormat(VkFormat format) {
 }
 
 bool IsDepthStencilFormat(VkFormat format) {
-      return IsDepthOnlyFormat(format) || IsStencilOnlyFormat(format) || IsDepthStencilOnlyFormat(format);
+      return IsDepthOnlyFormat(format) || IsDepthStencilOnlyFormat(format);
 }
 
 const char* GetImageLayoutString(VkImageLayout layout) {

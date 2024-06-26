@@ -58,6 +58,8 @@ namespace LoFi::Component {
             std::vector<std::unique_ptr<Texture>> _images{};
 
             VkExtent2D _extent{};
+
+            VkResult _preAccquireResult = VK_SUCCESS;
       };
 }
 

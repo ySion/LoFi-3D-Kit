@@ -146,9 +146,9 @@ namespace LoFi {
 
             void DestroyWindow(entt::entity window);
 
-            void BindRenderTargetToRenderPass(entt::entity color_texture, bool clear = true, uint32_t view_index = 0);
+            void BindRenderTargetBeforeRenderPass(entt::entity color_texture, bool clear = true, uint32_t view_index = 0);
 
-            void BindDepthStencilTargetToRenderPass(entt::entity depth_stencil_texture, bool clear = true, uint32_t view_index = 0);
+            void BindDepthStencilTargetBeforeRenderPass(entt::entity depth_stencil_texture, bool clear = true, uint32_t view_index = 0);
 
             void BindStencilTargetToRenderPass(entt::entity stencil_texture, bool clear = true, uint32_t view_index = 0);
 
@@ -278,7 +278,6 @@ namespace LoFi {
             std::vector<VkRenderingAttachmentInfo> _frameRenderingColorAttachments{};
             std::optional<VkRenderingAttachmentInfo> _frameRenderingDepthStencilAttachment{};
             std::optional<VkRenderingAttachmentInfo> _frameRenderingDepthAttachment{};
-            std::optional<VkRenderingAttachmentInfo> _frameRenderingStencilAttachment{};
             bool _isRenderPassOpen = false;
       };
 }

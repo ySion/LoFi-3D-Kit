@@ -96,20 +96,26 @@ void GStart()
 
 
       ctx->Init();
+
       ctx->CreateWindow("hello world", 800, 600);
-     // ctx->CreateWindow("hello world1", 800, 600);
-      //ctx->CreateWindow("hello world2", 800, 600);
+      ctx->CreateWindow("hello world1", 800, 600);
+      ctx->CreateWindow("hello world2", 800, 600);
 
       auto renderTexture = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 800, 600);
       auto ds_texture = ctx->CreateTexture2D(VK_FORMAT_D32_SFLOAT_S8_UINT, 800, 600);
 
-      //auto vertex_buffer = ctx->CreateBuffer(4 * 512);
-      //auto vertex_buffer2 = ctx->CreateBuffer(4 * 512, true);
-      //auto vertex_buffer3 = ctx->CreateBuffer(cube.data(), cube.size() * sizeof(float), true);
-      //auto vertex_buffer4 = ctx->CreateBuffer(cube.data(), cube.size() * sizeof(float));
 
-      //ctx->DestroyBuffer(vertex_buffer3);
-      //ctx->DestroyTexture(renderTexture2);
+      auto d_texture = ctx->CreateTexture2D(VK_FORMAT_D32_SFLOAT, 800, 600);
+
+
+      //auto s_texture = ctx->CreateTexture2D(VK_FORMAT_S8_UINT, 800, 600);
+
+      auto vertex_buffer = ctx->CreateBuffer(4 * 512);
+      auto vertex_buffer2 = ctx->CreateBuffer(4 * 512, true);
+      auto vertex_buffer3 = ctx->CreateBuffer(cube.data(), cube.size() * sizeof(float), true);
+      auto vertex_buffer4 = ctx->CreateBuffer(cube.data(), cube.size() * sizeof(float));
+
+      ctx->DestroyBuffer(vertex_buffer3);
 
       auto program = ctx->CreateProgram(hlsl_str);
       auto kernel = ctx->CreateGraphicKernel(program);
@@ -120,18 +126,19 @@ void GStart()
             while (!should_close) {
                   ctx->BeginFrame();
 
-                  ctx->BindRenderTargetToRenderPass(renderTexture);
-                  ctx->BindDepthStencilTargetToRenderPass(ds_texture);
+                  ctx->BindRenderTargetBeforeRenderPass(renderTexture);
+                  ctx->BindDepthStencilTargetBeforeRenderPass(ds_texture);
                   ctx->BeginRenderPass();
+                  ctx->BindGraphicKernelToRenderPass(kernel);
 
                   ctx->EndRenderPass();
                   ctx->EndFrame();
             }
       });
 
-      while (ctx->PollEvent()) {
+      while (ctx->PollEvent()) {}
 
-      }
+
       should_close = true;
 
       func.wait();

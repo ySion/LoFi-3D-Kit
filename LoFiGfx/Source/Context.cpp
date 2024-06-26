@@ -529,7 +529,7 @@ void Context::DestroyWindow(entt::entity window) {
       RecoveryContextResource(info);
 }
 
-void Context::BindRenderTargetToRenderPass(entt::entity color_texture, bool clear, uint32_t view_index) {
+void Context::BindRenderTargetBeforeRenderPass(entt::entity color_texture, bool clear, uint32_t view_index) {
       if(_world.valid(color_texture)) {
             auto& tex = _world.get<Component::Texture>(color_texture);
 
@@ -564,7 +564,7 @@ void Context::BindRenderTargetToRenderPass(entt::entity color_texture, bool clea
 }
 
 
-void Context::BindDepthStencilTargetToRenderPass(entt::entity depth_stencil_texture, bool clear, uint32_t view_index) {
+void Context::BindDepthStencilTargetBeforeRenderPass(entt::entity depth_stencil_texture, bool clear, uint32_t view_index) {
       if(_world.valid(depth_stencil_texture)) {
             auto& tex = _world.get<Component::Texture>(depth_stencil_texture);
             if(!IsDepthStencilOnlyFormat(tex.GetFormat())) {
@@ -599,45 +599,6 @@ void Context::BindDepthStencilTargetToRenderPass(entt::entity depth_stencil_text
             };
 
             _frameRenderingDepthAttachment = std::nullopt;
-            _frameRenderingStencilAttachment = std::nullopt;
-      }
-}
-
-void Context::BindStencilTargetToRenderPass(entt::entity stencil_texture, bool clear, uint32_t view_index) {
-      if(_world.valid(stencil_texture)) {
-            auto& tex = _world.get<Component::Texture>(stencil_texture);
-            if(!IsStencilOnlyFormat(tex.GetFormat())) {
-                  auto err = std::format("Context::CmdBindStencilTarget - Stencil texture is not a stencil format, error format {}.", GetVkFormatString(tex.GetFormat()));
-                  MessageManager::Log(MessageType::Error, err);
-                  throw std::runtime_error(err);
-            }
-
-            if(_frameRenderingRenderArea.extent.width == 0 || _frameRenderingRenderArea.extent.height == 0) {
-                  auto extent = tex.GetExtent();
-                  _frameRenderingRenderArea = {0, 0, extent.width, extent.height};
-            } else {
-                  auto extent = tex.GetExtent();
-                  if(extent.width != _frameRenderingRenderArea.extent.width || extent.height != _frameRenderingRenderArea.extent.height) {
-                        auto str = std::format("Context::CmdBindStencilTarget - Stencil texture size mismatch, expected {}x{}, got {}x{}", _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height, extent.width, extent.height);
-                        MessageManager::Log(MessageType::Error, str);
-                        throw std::runtime_error(str);
-                  }
-            }
-            auto layout = tex.GetCurrentLayout();
-            if(layout != VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL){
-                  tex.BarrierLayout(GetCurrentCommandBuffer(), VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT);
-            }
-
-            _frameRenderingStencilAttachment = VkRenderingAttachmentInfo {
-                  .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                  .imageView = tex.GetView(view_index),
-                  .imageLayout = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL,
-                  .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
-                  .storeOp = VK_ATTACHMENT_STORE_OP_STORE ,
-                  .clearValue = { .depthStencil = {1.0f, 0} }
-            };
-
-            _frameRenderingDepthStencilAttachment = std::nullopt;
       }
 }
 
@@ -679,6 +640,24 @@ void Context::BindDepthTargetToRenderPass(entt::entity depth_texture, bool clear
       }
 }
 
+void Context::BindGraphicKernelToRenderPass(entt::entity kernel)
+{
+      if(!_world.valid(kernel)) {
+            auto err = "Context::CmdBindGraphicKernel - Invalid kernel entity";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      auto k = _world.try_get<Component::GraphicKernel>(kernel);
+      if(!k) {
+            auto err = "Context::CmdBindGraphicKernel - Invalid kernel";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, k->GetPipeline());
+}
+
 entt::entity Context::CreateTexture2D(VkFormat format, int w, int h, int mipMapCounts) {
 
       if(w == 0 || h == 0) {
@@ -688,22 +667,7 @@ entt::entity Context::CreateTexture2D(VkFormat format, int w, int h, int mipMapC
       }
 
       auto id = _world.create();
-
-      bool is_depth_stencil = false;
-
-      switch (format) {
-            case VK_FORMAT_D32_SFLOAT:
-            case VK_FORMAT_D24_UNORM_S8_UINT:
-            case VK_FORMAT_D16_UNORM:
-            case VK_FORMAT_D16_UNORM_S8_UINT:
-            case VK_FORMAT_D32_SFLOAT_S8_UINT:
-                  is_depth_stencil = true;
-                  break;
-            default:
-                  is_depth_stencil = false;
-                  break;
-      }
-
+      auto is_depth_stencil = IsDepthStencilFormat(format);
       VkImageCreateInfo image_ci{};
       image_ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
       image_ci.imageType = VK_IMAGE_TYPE_2D;
@@ -723,16 +687,12 @@ entt::entity Context::CreateTexture2D(VkFormat format, int w, int h, int mipMapC
             image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
       }
 
-
-
       VkImageAspectFlags as_flag = VK_IMAGE_ASPECT_COLOR_BIT;
 
       if(IsDepthStencilOnlyFormat(format)){
             as_flag = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
       }else if(IsDepthOnlyFormat(format)){
             as_flag = VK_IMAGE_ASPECT_DEPTH_BIT;
-      }else if(IsStencilOnlyFormat(format)){
-            as_flag = VK_IMAGE_ASPECT_STENCIL_BIT;
       }
 
       VkImageViewCreateInfo view_ci{};
@@ -856,6 +816,7 @@ void* Context::PollEvent() {
 
       if (event.type == SDL_EVENT_WINDOW_RESIZED) {
             const auto id = event.window.windowID;
+            printf("REsized");
       }
 
       if (_windowIdToWindow.empty()) {
@@ -1023,13 +984,9 @@ void Context::BeginRenderPass() {
       if(_frameRenderingDepthStencilAttachment.has_value()){
             render_info.pDepthAttachment = &_frameRenderingDepthStencilAttachment.value();
             render_info.pStencilAttachment = &_frameRenderingDepthStencilAttachment.value();
-      } else {
-            if(_frameRenderingDepthAttachment.has_value()){
-                  render_info.pDepthAttachment = &_frameRenderingDepthAttachment.value();
-            }
-            if(_frameRenderingStencilAttachment.has_value()){
-                  render_info.pStencilAttachment = &_frameRenderingStencilAttachment.value();
-            }
+      } else if(_frameRenderingDepthAttachment.has_value()){
+            render_info.pDepthAttachment = &_frameRenderingDepthAttachment.value();
+            render_info.pStencilAttachment = nullptr;
       }
 
       if(_frameRenderingRenderArea.extent.width == 0 || _frameRenderingRenderArea.extent.height == 0) {
@@ -1042,7 +999,6 @@ void Context::BeginRenderPass() {
       _isRenderPassOpen = true;
 
       _frameRenderingDepthAttachment = {};
-      _frameRenderingStencilAttachment = {};
       _frameRenderingColorAttachments.clear();
       _frameRenderingRenderArea = {};
 }

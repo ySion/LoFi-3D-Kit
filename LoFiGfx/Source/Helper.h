@@ -50,8 +50,6 @@ VkFormat GetVkFormatFromStringSimpled(const std::string& str);
 
 bool IsDepthOnlyFormat(VkFormat format);
 
-bool IsStencilOnlyFormat(VkFormat format);
-
 bool IsDepthStencilOnlyFormat(VkFormat format);
 
 bool IsDepthStencilFormat(VkFormat format);
