@@ -25,9 +25,6 @@ namespace LoFi::Component {
 
             uint32_t GetWindowID() const;
 
-      public:
-
-
       private:
             entt::entity _id{};
 

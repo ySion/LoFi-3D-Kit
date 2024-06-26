@@ -30,7 +30,9 @@ namespace LoFi::Component {
 
             [[nodiscard]] VkBufferView* GetViewPtr(uint32_t idx) { return &_views.at(idx); }
 
-            [[nodiscard]] VkDeviceSize GetSize() const { return _bufferCI->size; }
+            [[nodiscard]] VkDeviceSize GetSize() const { return _vaildSize; }
+
+            [[nodiscard]] VkDeviceSize GetCapacity() const { return _bufferCI->size; }
 
             [[nodiscard]] bool IsHostSide() const { return _isHostSide; }
 
@@ -71,6 +73,8 @@ namespace LoFi::Component {
       private:
 
             entt::entity _id = entt::null;
+
+            size_t _vaildSize{};
 
             bool _isHostSide = false;
 

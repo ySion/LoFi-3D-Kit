@@ -63,12 +63,13 @@ void LoFi::Component::Buffer::SetData(void* p, uint64_t size) {
             throw std::runtime_error(msg);
       }
 
-      if (size > _bufferCI->size) {
+      if (size > GetCapacity()) {
             Recreate(size);
       }
 
       if (IsHostSide()) {
             memcpy(Map(), p, size);
+            _vaildSize = size;
       } else {
             if (_intermediateBuffer == nullptr) { // create a upload buffer
 
@@ -105,16 +106,19 @@ void LoFi::Component::Buffer::SetData(void* p, uint64_t size) {
             LoFi::Context::Get()->EnqueueCommand([=](VkCommandBuffer cmd) {
                   vkCmdCopyBuffer(cmd, imm_buffer, _buffer, 1, &copyinfo);
             });
+
+            _vaildSize = size;
       }
 }
 
 void LoFi::Component::Buffer::Recreate(uint64_t size) {
-      if (_bufferCI->size >= size) return;
+      if (GetCapacity() >= size) return;
 
       Unmap();
+      DestroyBuffer();
 
       _bufferCI->size = size;
-      DestroyBuffer();
+      _vaildSize = 0;
 
       if (vmaCreateBuffer(volkGetLoadedVmaAllocator(), _bufferCI.get(), _memoryCI.get(), &_buffer, &_memory, nullptr) != VK_SUCCESS) {
             const std::string msg = "Buffer::Recreate - Failed to create buffer";
@@ -153,6 +157,8 @@ void LoFi::Component::Buffer::CreateBuffer(const VkBufferCreateInfo& buffer_ci, 
       vmaGetAllocationMemoryProperties(volkGetLoadedVmaAllocator(), _memory, &fgs);
       _isHostSide = (fgs & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
 
+      _vaildSize = 0;
+
       auto str = std::format(R"(Buffer::CreateBuffer - Emplace "{}" bytes at "{}" side)", _bufferCI->size, _isHostSide ? "Host" : "Device");
       MessageManager::Log(MessageType::Normal, str);
 }
@@ -188,6 +194,7 @@ void LoFi::Component::Buffer::CreateViewFromCurrentViewCIs() {
 void LoFi::Component::Buffer::Clean() {
       ClearViews();
       DestroyBuffer();
+      _vaildSize = 0;
 }
 
 void LoFi::Component::Buffer::SetBindlessIndex(std::optional<uint32_t> bindless_index) {

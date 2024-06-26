@@ -25,6 +25,10 @@ namespace LoFi::Component {
 
             [[nodiscard]] VkPipeline GetPipeline() const { return _pipeline; }
 
+            [[nodiscard]] VkPipelineLayout GetPipelineLayout() const { return _pipelineLayout; }
+
+            [[nodiscard]] VkPipelineLayout* GetPipelineLayoutPtr() { return &_pipelineLayout; }
+
       private:
 
             friend class ::LoFi::Context;

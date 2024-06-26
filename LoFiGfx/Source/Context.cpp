@@ -1,20 +1,10 @@
 ﻿#include "Context.h"
-
-#include <ranges>
-
 #include "Message.h"
 #include "PhysicalDevice.h"
 
-#include <wrl/client.h>
-
+#include <ranges>
 #include "SDL3/SDL.h"
 
-#include "../Third/dxc/dxcapi.h"
-
-#undef CreateWindow
-#undef GetWindowID
-
-template<class T>using ComPtr = Microsoft::WRL::ComPtr<T>;
 using namespace LoFi;
 
 Context* Context::GlobalContext = nullptr;
@@ -141,15 +131,15 @@ void Context::Init() {
                   "VK_KHR_spirv_1_4",
 
                   //ray tracing
-                  "VK_KHR_deferred_host_operations",
-                  "VK_KHR_acceleration_structure",
-                  "VK_KHR_ray_tracing_pipeline",
+                 // "VK_KHR_deferred_host_operations",
+                  //"VK_KHR_acceleration_structure",
+                  //"VK_KHR_ray_tracing_pipeline",
 
                   //vrs
-                  "VK_KHR_fragment_shading_rate",
+                  //"VK_KHR_fragment_shading_rate",
 
                   //mesh shader
-                  "VK_EXT_mesh_shader",
+                  //"VK_EXT_mesh_shader",
             };
 
             uint32_t count = 0;
@@ -184,9 +174,137 @@ void Context::Init() {
             float queue_priority = 1.0f;
             queue_ci.pQueuePriorities = &queue_priority;
 
+            //_physicalDeviceAbility
+
+            VkPhysicalDeviceMeshShaderFeaturesEXT mesh_shader_features = {
+                  .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT,
+                  .pNext = nullptr,
+                  .taskShader = false,
+                  .meshShader = false,
+                  .multiviewMeshShader = false,
+                  .primitiveFragmentShadingRateMeshShader = false,
+                  .meshShaderQueries = false
+            };
+
+            VkPhysicalDeviceSynchronization2FeaturesKHR synchronization2_features {
+                  .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR,
+                  .pNext = nullptr,
+                  .synchronization2 = true,
+            };
+
+            VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_features = {
+                  .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+                  .pNext = &synchronization2_features,
+                  .dynamicRendering = true
+            };
+
+            VkPhysicalDeviceVulkan11Features vulkan11_features = {
+                  .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+                  .pNext = &dynamic_rendering_features,
+                  .storageBuffer16BitAccess = false,
+                  .uniformAndStorageBuffer16BitAccess = false,
+                  .storagePushConstant16 = false,
+                  .storageInputOutput16 = false,
+                  .multiview = false,
+                  .multiviewGeometryShader = false,
+                  .multiviewTessellationShader = false,
+                  .variablePointersStorageBuffer = false,
+                  .variablePointers = false,
+                  .protectedMemory = false,
+                  .samplerYcbcrConversion = false,
+                  .shaderDrawParameters = true
+            };
+
+            VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing_features = {
+                  .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
+                  .pNext = &vulkan11_features,
+                  .shaderInputAttachmentArrayDynamicIndexing = true,
+                  .shaderUniformTexelBufferArrayDynamicIndexing = true,
+                  .shaderStorageTexelBufferArrayDynamicIndexing = true,
+                  .shaderUniformBufferArrayNonUniformIndexing = true,
+                  .shaderSampledImageArrayNonUniformIndexing = true,
+                  .shaderStorageBufferArrayNonUniformIndexing = true,
+                  .shaderStorageImageArrayNonUniformIndexing = true,
+                  .shaderInputAttachmentArrayNonUniformIndexing = true,
+                  .shaderUniformTexelBufferArrayNonUniformIndexing = true,
+                  .shaderStorageTexelBufferArrayNonUniformIndexing = true,
+                  .descriptorBindingUniformBufferUpdateAfterBind = true,
+                  .descriptorBindingSampledImageUpdateAfterBind = true,
+                  .descriptorBindingStorageImageUpdateAfterBind = true,
+                  .descriptorBindingStorageBufferUpdateAfterBind = true,
+                  .descriptorBindingUniformTexelBufferUpdateAfterBind = true,
+                  .descriptorBindingStorageTexelBufferUpdateAfterBind = true,
+                  .descriptorBindingUpdateUnusedWhilePending = true,
+                  .descriptorBindingPartiallyBound = true,
+                  .descriptorBindingVariableDescriptorCount = true,
+                  .runtimeDescriptorArray = true
+            };
+
+            VkPhysicalDeviceFeatures2 features2 {
+                  .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+                  .pNext = &descriptor_indexing_features,
+                  .features = {
+                        .robustBufferAccess = false,
+                        .fullDrawIndexUint32 = false,
+                        .imageCubeArray = false,
+                        .independentBlend = false,
+                        .geometryShader = true,
+                        .tessellationShader = true,
+                        .sampleRateShading = false,
+                        .dualSrcBlend = false,
+                        .logicOp = false,
+                        .multiDrawIndirect = false,
+                        .drawIndirectFirstInstance = false,
+                        .depthClamp = false,
+                        .depthBiasClamp = false,
+                        .fillModeNonSolid = false,
+                        .depthBounds = false,
+                        .wideLines = false,
+                        .largePoints = false,
+                        .alphaToOne = false,
+                        .multiViewport = false,
+                        .samplerAnisotropy = true,
+                        .textureCompressionETC2 = false,
+                        .textureCompressionASTC_LDR = false,
+                        .textureCompressionBC = false,
+                        .occlusionQueryPrecise = false,
+                        .pipelineStatisticsQuery = false,
+                        .vertexPipelineStoresAndAtomics = false,
+                        .fragmentStoresAndAtomics = false,
+                        .shaderTessellationAndGeometryPointSize = false,
+                        .shaderImageGatherExtended = false,
+                        .shaderStorageImageExtendedFormats = false,
+                        .shaderStorageImageMultisample = false,
+                        .shaderStorageImageReadWithoutFormat = false,
+                        .shaderStorageImageWriteWithoutFormat = false,
+                        .shaderUniformBufferArrayDynamicIndexing = false,
+                        .shaderSampledImageArrayDynamicIndexing = false,
+                        .shaderStorageBufferArrayDynamicIndexing = false,
+                        .shaderStorageImageArrayDynamicIndexing = false,
+                        .shaderClipDistance = false,
+                        .shaderCullDistance = false,
+                        .shaderFloat64 = false,
+                        .shaderInt64 = false,
+                        .shaderInt16 = false,
+                        .shaderResourceResidency = false,
+                        .shaderResourceMinLod = false,
+                        .sparseBinding = false,
+                        .sparseResidencyBuffer = false,
+                        .sparseResidencyImage2D = false,
+                        .sparseResidencyImage3D = false,
+                        .sparseResidency2Samples = false,
+                        .sparseResidency4Samples = false,
+                        .sparseResidency8Samples = false,
+                        .sparseResidency16Samples = false,
+                        .sparseResidencyAliased = false,
+                        .variableMultisampleRate = false,
+                        .inheritedQueries = false
+                  }
+            };
+
             VkDeviceCreateInfo device_ci{};
             device_ci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-            device_ci.pNext = &_physicalDeviceAbility._features2;
+            device_ci.pNext = &features2;
             device_ci.enabledExtensionCount = needed_device_extensions.size();
             device_ci.ppEnabledExtensionNames = needed_device_extensions.data();
             device_ci.queueCreateInfoCount = 1;
@@ -289,21 +407,6 @@ void Context::Init() {
                         throw std::runtime_error(msg);
                   }
             }
-      }
-
-      if (FAILED(DxcCreateInstance(CLSID_DxcLibrary, IID_PPV_ARGS(&_dxcLibrary)))) {
-            MessageManager::Log(MessageType::Error, "Failed to create DXC library");
-            throw std::runtime_error("Failed to create DXC library");
-      }
-
-      if (FAILED(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&_dxcCompiler)))) {
-            MessageManager::Log(MessageType::Error, "Failed to create DXC compiler");
-            throw std::runtime_error("Failed to create DXC compiler");
-      }
-
-      if (FAILED(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&_dxcUtils)))) {
-            MessageManager::Log(MessageType::Error, "Failed to create DXC utils");
-            throw std::runtime_error("Failed to create DXC utils");
       }
 
       volkLoadEcsWorld(&_world);
@@ -486,10 +589,6 @@ void Context::Shutdown() {
       vmaDestroyAllocator(_allocator);
       vkDestroyDevice(_device, nullptr);
       vkDestroyInstance(_instance, nullptr);
-
-      _dxcUtils->Release();
-      _dxcLibrary->Release();
-      _dxcCompiler->Release();
 }
 
 entt::entity Context::CreateWindow(const char* title, int w, int h) {
@@ -529,7 +628,38 @@ void Context::DestroyWindow(entt::entity window) {
       RecoveryContextResource(info);
 }
 
-void Context::BindRenderTargetBeforeRenderPass(entt::entity color_texture, bool clear, uint32_t view_index) {
+void Context::MapRenderTargetToWindow(entt::entity texture, entt::entity window) {
+
+      if(!_world.valid(texture)) {
+            auto err = std::format("Context::MapRenderTargetToWindow - Invalid texture entity.");
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      if(!_world.valid(window)) {
+            auto err = std::format("Context::MapRenderTargetToWindow - Invalid window entity.");
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      auto tex = _world.try_get<Component::Texture>(texture);
+      if(!tex) {
+            auto err = std::format("Context::MapRenderTargetToWindow - thie entity is not texture entity.");
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      auto sp = _world.try_get<Component::Swapchain>(window);
+      if(!sp) {
+            auto err = std::format("Context::MapRenderTargetToWindow - thie entity is not a renderable window entity.");
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      sp->SetMappedRenderTarget(texture);
+}
+
+void Context::CmdBindRenderTargetBeforeRenderPass(entt::entity color_texture, bool clear, uint32_t view_index) {
       if(_world.valid(color_texture)) {
             auto& tex = _world.get<Component::Texture>(color_texture);
 
@@ -555,7 +685,7 @@ void Context::BindRenderTargetBeforeRenderPass(entt::entity color_texture, bool 
                   .imageView = tex.GetView(view_index),
                   .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                   .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
-                  .storeOp = VK_ATTACHMENT_STORE_OP_STORE ,
+                  .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
                   .clearValue = { .color = {0.0f, 0.0f, 0.0f, 1.0f} }
             };
 
@@ -564,7 +694,7 @@ void Context::BindRenderTargetBeforeRenderPass(entt::entity color_texture, bool 
 }
 
 
-void Context::BindDepthStencilTargetBeforeRenderPass(entt::entity depth_stencil_texture, bool clear, uint32_t view_index) {
+void Context::CmdBindDepthStencilTargetBeforeRenderPass(entt::entity depth_stencil_texture, bool clear, uint32_t view_index) {
       if(_world.valid(depth_stencil_texture)) {
             auto& tex = _world.get<Component::Texture>(depth_stencil_texture);
             if(!IsDepthStencilOnlyFormat(tex.GetFormat())) {
@@ -602,7 +732,7 @@ void Context::BindDepthStencilTargetBeforeRenderPass(entt::entity depth_stencil_
       }
 }
 
-void Context::BindDepthTargetToRenderPass(entt::entity depth_texture, bool clear, uint32_t view_index) {
+void Context::CmdBindDepthOnlyTargetToRenderPass(entt::entity depth_texture, bool clear, uint32_t view_index) {
       if(_world.valid(depth_texture)) {
             auto& tex = _world.get<Component::Texture>(depth_texture);
             if(!IsDepthOnlyFormat(tex.GetFormat())) {
@@ -640,25 +770,81 @@ void Context::BindDepthTargetToRenderPass(entt::entity depth_texture, bool clear
       }
 }
 
-void Context::BindGraphicKernelToRenderPass(entt::entity kernel)
-{
+void Context::CmdBindGraphicKernelToRenderPass(entt::entity kernel) {
+
       if(!_world.valid(kernel)) {
-            auto err = "Context::CmdBindGraphicKernel - Invalid kernel entity";
+            auto err = "Context::CmdBindGraphicKernel - Invalid graphics kernel entity";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       auto k = _world.try_get<Component::GraphicKernel>(kernel);
       if(!k) {
-            auto err = "Context::CmdBindGraphicKernel - Invalid kernel";
+            auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, k->GetPipeline());
+      vkCmdBindDescriptorSets(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, k->GetPipelineLayout(), 0, 1, &_bindlessDescriptorSet, 0, nullptr);
+      const VkViewport viewport = VkViewport {0, (float)_frameRenderingRenderArea.extent.height, (float)_frameRenderingRenderArea.extent.width, -(float)_frameRenderingRenderArea.extent.height, 0, 1};
+      vkCmdSetViewport(GetCurrentCommandBuffer(), 0, 1, &viewport);
+      const VkRect2D scissor = VkRect2D {0, 0, _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height};
+      vkCmdSetScissor(GetCurrentCommandBuffer(), 0, 1, &scissor);
 }
 
-entt::entity Context::CreateTexture2D(VkFormat format, int w, int h, int mipMapCounts) {
+void Context::CmdBindVertexBuffer(entt::entity buffer, size_t offset) {
+      if(!_world.valid(buffer)) {
+            auto err = "Context::CmdBindVertexBuffer - Invalid buffer entity";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      auto buf = _world.try_get<Component::Buffer>(buffer);
+      if(!buf) {
+            auto err = "Context::CmdBindVertexBuffer - this enity is not a buffer";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      vkCmdBindVertexBuffers(GetCurrentCommandBuffer(), 0, 1, buf->GetBufferPtr(), &offset);
+}
+
+void Context::CmdDraw()
+{
+      vkCmdDraw(GetCurrentCommandBuffer(), 3, 1, 0, 0);
+}
+
+
+void Context::CmdDrawIndex(entt::entity index_buffer, size_t offset, std::optional<uint32_t> index_count)
+{
+      if(!_world.valid(index_buffer)) {
+            auto err = "Context::CmdDrawIndex - Invalid buffer entity";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      auto ib = _world.try_get<Component::Buffer>(index_buffer);
+      if(!ib) {
+            auto err = "Context::CmdDrawIndex - this entity is not a buffer";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      vkCmdBindIndexBuffer(GetCurrentCommandBuffer(), ib->GetBuffer(), offset, VK_INDEX_TYPE_UINT32);
+
+      VkBuffer index = ib->GetBuffer();
+
+      uint32_t max_vaild_idx_count = ib->GetSize() / sizeof(uint32_t);
+      uint32_t idx_count = max_vaild_idx_count;
+
+      if(index_count.has_value()) {
+            index_count = std::min(index_count.value(), max_vaild_idx_count);
+      }
+      vkCmdDrawIndexed(GetCurrentCommandBuffer(),idx_count, 1, 0, 0, 0);
+}
+
+entt::entity Context::CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts) {
 
       if(w == 0 || h == 0) {
             const auto err = std::format("Context::CreateTexture2D - Invalid texture size, w = {}, h = {}, create texture failed, return null.", w, h);
@@ -699,10 +885,10 @@ entt::entity Context::CreateTexture2D(VkFormat format, int w, int h, int mipMapC
       view_ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
       view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
       view_ci.format = format;
-      view_ci.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-      view_ci.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-      view_ci.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-      view_ci.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+      view_ci.components.r = VK_COMPONENT_SWIZZLE_R;
+      view_ci.components.g = VK_COMPONENT_SWIZZLE_G;
+      view_ci.components.b = VK_COMPONENT_SWIZZLE_B;
+      view_ci.components.a = VK_COMPONENT_SWIZZLE_A;
       view_ci.subresourceRange.aspectMask = as_flag;
       view_ci.subresourceRange.baseMipLevel = 0;
       view_ci.subresourceRange.levelCount = 1;
@@ -773,34 +959,35 @@ entt::entity Context::CreateGraphicKernel(entt::entity program) {
       auto id = _world.create();
       auto& kernel = _world.emplace<Component::GraphicKernel>(id, id);
       bool success = kernel.CreateFromProgram(program);
+
       if(!success) {
-            MessageManager::Log(MessageType::Warning, "Context::CreateGraphicKernel - Failed to create graphic kernel from program, return a empty kernel, please compile it again later.");
+            const auto err = "Context::CreateGraphicKernel - Failed to create graphic kernel from program";
+            MessageManager::Log(MessageType::Warning, err);
+            throw std::runtime_error(err);
       }
+
       return id;
 }
 
-entt::entity Context::CreateProgram(std::string_view source_code) {
-
+entt::entity Context::CreateProgram(const std::vector<std::string_view>& source_code) {
       auto id = _world.create();
       auto& comp = _world.emplace<Component::Program>(id, id);
-      comp.CompileFromSourceCode("hello", source_code);
+      if(!comp.CompileFromSourceCode("hello", source_code)) {
+            _world.destroy(id);
+            return entt::null;
+      }
       return id;
 }
 
 void Context::DestroyBuffer(entt::entity buffer) {
       if (_world.valid(buffer) && _world.any_of<Component::Buffer>(buffer)) {
             _world.destroy(buffer);
-      }else {
-            MessageManager::Log(MessageType::Warning, "Context::DestroyBuffer - Invalid buffer entity, ignore it.");
       }
 }
 
 void Context::DestroyTexture(entt::entity texture) {
-
       if (_world.valid(texture) && _world.any_of<Component::Texture>(texture)) {
             _world.destroy(texture);
-      }else {
-            MessageManager::Log(MessageType::Warning, "Context::DestroyTexture - Invalid buffer entity, ignore it.");
       }
 }
 
@@ -854,6 +1041,10 @@ void Context::BeginFrame() {
       }
 
       _commandQueue.clear();
+
+      _world.view<Component::Swapchain>().each([&](auto entity, Component::Swapchain& swapchain) {
+            swapchain.BeginFrame(cmd);
+      });
 }
 
 void Context::EndFrame() {
@@ -868,28 +1059,24 @@ void Context::EndFrame() {
 
       auto window_count = _windowIdToWindow.size();
 
-      std::vector<VkImage> swap_chain_rts{};
-      swap_chain_rts.reserve(window_count);
+      std::vector<VkSemaphore> semaphores_wait_for{};
+      std::vector<VkPipelineStageFlags> dst_stage_wait_for{};
+      std::vector<VkSwapchainKHR> swap_chains{};
+      std::vector<uint32_t> present_image_index{};
 
-      _world.view<Component::Swapchain>().each([&](auto entity, Component::Swapchain& swapchain) {
-            swapchain.BarrierCurrentRenderTarget(cmd_buf);
-            swap_chain_rts.push_back(swapchain.GetCurrentRenderTarget()->GetImage());
-      });
+      semaphores_wait_for.reserve(window_count);
+      dst_stage_wait_for.reserve(window_count);
+      swap_chains.reserve(window_count);
+      present_image_index.reserve(window_count);
 
-      const auto clear_vlaue = VkClearColorValue{ 0.0f, 0.0f, 0.0f, 1.0f };
-      VkImageSubresourceRange ImageSubresourceRange;
-      ImageSubresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-      ImageSubresourceRange.baseMipLevel   = 0;
-      ImageSubresourceRange.levelCount     = 1;
-      ImageSubresourceRange.baseArrayLayer = 0;
-      ImageSubresourceRange.layerCount     = 1;
+      _world.view<Component::Swapchain>().each([&](auto entity, auto& swapchain) {
+            swapchain.EndFrame(cmd_buf);
 
-      for(auto& i : swap_chain_rts) {
-            vkCmdClearColorImage(cmd_buf, i, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,  &clear_vlaue, 1, &ImageSubresourceRange);
-      }
+            semaphores_wait_for.push_back(swapchain.GetCurrentSemaphore());
+            dst_stage_wait_for.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
-      _world.view<Component::Swapchain>().each([&](auto entity, const auto& swapchain) {
-            swapchain.BarrierCurrentRenderTarget(cmd_buf);
+            swap_chains.push_back(swapchain.GetSwapchain());
+            present_image_index.push_back(swapchain.GetCurrentRenderTargetIndex());
       });
 
       if (vkEndCommandBuffer(cmd_buf) != VK_SUCCESS) {
@@ -897,16 +1084,6 @@ void Context::EndFrame() {
             MessageManager::Log(MessageType::Error, msg);
             throw std::runtime_error(msg);
       }
-
-      std::vector<VkSemaphore> semaphores_wait_for{};
-      std::vector<VkPipelineStageFlags> dst_stage_wait_for{};
-      semaphores_wait_for.reserve(window_count);
-      dst_stage_wait_for.reserve(window_count);
-
-      _world.view<Component::Swapchain>().each([&](auto entity, auto& swapchain) {
-            semaphores_wait_for.push_back(swapchain.GetCurrentSemaphore());
-            dst_stage_wait_for.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-      });
 
       VkSubmitInfo vk_submit_info{};
       VkCommandBuffer buffers[] = { cmd_buf };
@@ -925,30 +1102,19 @@ void Context::EndFrame() {
             throw std::runtime_error(msg);
       }
 
-      //Present
-      std::vector<VkSwapchainKHR> swap_chains{};
-      std::vector<uint32_t> present_images{};
-      swap_chains.reserve(window_count);
-      present_images.reserve(window_count);
-
-      _world.view<Component::Swapchain>().each([&](auto entity, const Component::Swapchain& swapchain) {
-            swap_chains.push_back(swapchain.GetSwapchain());
-            present_images.push_back(swapchain.GetCurrentRenderTargetIndex());
-      });
-
       VkPresentInfoKHR present_info{};
       present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
       present_info.waitSemaphoreCount = 1;
       present_info.pWaitSemaphores = &_mainCommandQueueSemaphore[GetCurrentFrameIndex()];
-      present_info.pImageIndices = present_images.data();
+      present_info.pImageIndices = present_image_index.data();
       present_info.pSwapchains = swap_chains.data();
       present_info.swapchainCount = (uint32_t)swap_chains.size();
 
       auto res = vkQueuePresentKHR(_queue, &present_info);
       if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
-            _world.view<Component::Swapchain>().each([&](auto entity, auto& s) {
-                  s.CreateOrRecreateSwapChain();
-            });
+            // _world.view<Component::Swapchain>().each([&](auto entity, auto& s) {
+            //       s.CreateOrRecreateSwapChain();
+            // });
       } else if (res != VK_SUCCESS) {
             std::string msg = "frame_end:Failed to present";
             MessageManager::Log(MessageType::Error, msg);
@@ -960,7 +1126,7 @@ void Context::EndFrame() {
       GoNextFrame();
 }
 
-void Context::BeginRenderPass() {
+void Context::CmdBeginRenderPass() {
 
       if(_isRenderPassOpen) {
             auto msg = "Context::BeginRenderPass - Render pass already open";
@@ -969,7 +1135,6 @@ void Context::BeginRenderPass() {
       }
 
       auto cmd = GetCurrentCommandBuffer();
-
       VkRenderingInfoKHR render_info = {
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
             .pNext = nullptr,
@@ -997,16 +1162,15 @@ void Context::BeginRenderPass() {
 
       vkCmdBeginRenderingKHR(cmd, &render_info);
       _isRenderPassOpen = true;
-
-      _frameRenderingDepthAttachment = {};
-      _frameRenderingColorAttachments.clear();
-      _frameRenderingRenderArea = {};
 }
 
-void Context::EndRenderPass() {
-      if(_isRenderPassOpen){
-            _isRenderPassOpen = false;
+void Context::CmdEndRenderPass() {
+      if(_isRenderPassOpen) {
             vkCmdEndRendering(GetCurrentCommandBuffer());
+            _isRenderPassOpen = false;
+            _frameRenderingColorAttachments.clear();
+            _frameRenderingDepthAttachment.reset();
+            _frameRenderingRenderArea = {};
       }
 }
 

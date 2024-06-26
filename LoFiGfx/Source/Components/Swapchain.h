@@ -28,18 +28,23 @@ namespace LoFi::Component {
 
             [[nodiscard]] uint32_t GetCurrentRenderTargetIndex() const { return _currentImageIndex; }
 
-            void BarrierCurrentRenderTarget(VkCommandBuffer cmd) const;
-
             void AcquireNextImage();
 
+            void SetMappedRenderTarget(entt::entity texture);
+
+            void BeginFrame(VkCommandBuffer cmd);
+
+            void EndFrame(VkCommandBuffer cmd);
 
       private:
 
+            void MapRenderTarget(VkCommandBuffer cmd);
+
             void CreateOrRecreateSwapChain();
 
-            friend class Window;
+            //friend class Window;
 
-            friend class ::LoFi::Context;
+            //friend class ::LoFi::Context;
 
       private:
 
@@ -60,6 +65,8 @@ namespace LoFi::Component {
             VkExtent2D _extent{};
 
             VkResult _preAccquireResult = VK_SUCCESS;
+
+            entt::entity _mappedRenderTarget = entt::null;
       };
 }
 

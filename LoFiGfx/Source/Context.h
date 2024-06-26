@@ -17,10 +17,6 @@
 #include "Components/GraphicKernel.h"
 #include "../Third/xxHash/xxh3.h"
 
-struct IDxcLibrary;
-struct IDxcCompiler3;
-struct IDxcUtils;
-
 namespace LoFi {
 
       struct ContextSetupParam {
@@ -110,7 +106,7 @@ namespace LoFi {
 
             [[nodiscard]] entt::entity  CreateTextureCube();*/
 
-            [[nodiscard]] entt::entity CreateTexture2D(VkFormat format, int w, int h, int mipMapCounts = 1);
+            [[nodiscard]] entt::entity CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts = 1);
 
             [[nodiscard]] entt::entity CreateBuffer(uint64_t size, bool cpu_access = false, bool bindless = true);
 
@@ -118,7 +114,7 @@ namespace LoFi {
 
             [[nodiscard]] entt::entity CreateGraphicKernel(entt::entity program);
 
-            [[nodiscard]] entt::entity CreateProgram(std::string_view source_code);
+            [[nodiscard]] entt::entity CreateProgram(const std::vector<std::string_view>& source_code);
 
             void DestroyBuffer(entt::entity buffer);
 
@@ -138,32 +134,32 @@ namespace LoFi {
 
             void EndFrame();
 
-            void BeginRenderPass();
+            void CmdBeginRenderPass();
 
-            void EndRenderPass();
+            void CmdEndRenderPass();
 
             void DestroyWindow(uint32_t id);
 
             void DestroyWindow(entt::entity window);
 
-            void BindRenderTargetBeforeRenderPass(entt::entity color_texture, bool clear = true, uint32_t view_index = 0);
+            void MapRenderTargetToWindow(entt::entity texture, entt::entity window);
 
-            void BindDepthStencilTargetBeforeRenderPass(entt::entity depth_stencil_texture, bool clear = true, uint32_t view_index = 0);
+            void CmdBindRenderTargetBeforeRenderPass(entt::entity color_texture, bool clear = true, uint32_t view_index = 0);
 
-            void BindStencilTargetToRenderPass(entt::entity stencil_texture, bool clear = true, uint32_t view_index = 0);
+            void CmdBindDepthStencilTargetBeforeRenderPass(entt::entity depth_stencil_texture, bool clear = true, uint32_t view_index = 0);
 
-            void BindDepthTargetToRenderPass(entt::entity depth_texture, bool clear = true, uint32_t view_index = 0);
+            void CmdBindDepthOnlyTargetToRenderPass(entt::entity depth_texture, bool clear = true, uint32_t view_index = 0);
 
-            void BindGraphicKernelToRenderPass(entt::entity kernel);
+            void CmdBindGraphicKernelToRenderPass(entt::entity kernel);
 
-            //
-            // void CmdBindVertexBuffer(entt::entity buffer);
-            //
-            // void CmdBindIndexBuffer(entt::entity buffer);
-            //
-            // void CmdBindRenderTarget(entt::entity texture);
-            //
-            // void CmdBindDepthStencil(entt::entity texture);
+            void CmdBindVertexBuffer(entt::entity buffer, size_t offset = 0);
+
+            void CmdDraw();
+
+            void CmdDraw(entt::entity vertex_buffer);
+
+            void CmdDrawIndex(entt::entity index_buffer, size_t offset = 0, std::optional<uint32_t> index_count = {});
+
             //
             // void CmdBindTexture(entt::entity texture, uint32_t position = 0);
             //
@@ -258,12 +254,6 @@ namespace LoFi {
 
             entt::dense_map<uint32_t, entt::entity> _windowIdToWindow{};
 
-            IDxcLibrary* _dxcLibrary {};
-
-            IDxcCompiler3* _dxcCompiler {};
-
-            IDxcUtils* _dxcUtils{};
-
             entt::registry _world;
 
       private:
@@ -274,10 +264,15 @@ namespace LoFi {
 
       private:
             VkRenderingInfo _frameRenderingInfo{};
+
             VkRect2D _frameRenderingRenderArea{};
+
             std::vector<VkRenderingAttachmentInfo> _frameRenderingColorAttachments{};
+
             std::optional<VkRenderingAttachmentInfo> _frameRenderingDepthStencilAttachment{};
+
             std::optional<VkRenderingAttachmentInfo> _frameRenderingDepthAttachment{};
+
             bool _isRenderPassOpen = false;
       };
 }

@@ -26,22 +26,6 @@ Swapchain::Swapchain(entt::entity id) : _id(id) {
       CreateOrRecreateSwapChain();
 }
 
-void Swapchain::BarrierCurrentRenderTarget(VkCommandBuffer cmd) const {
-      auto render_traget = GetCurrentRenderTarget();
-      auto current_layout = render_traget->GetCurrentLayout();
-
-      if(current_layout == VK_IMAGE_LAYOUT_UNDEFINED || current_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
-            render_traget->BarrierLayout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-      } else if(current_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-            render_traget->BarrierLayout(cmd, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, std::nullopt, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
-      } else {
-            //err
-            auto str = std::format("Swapchain::BarrierCurrentRenderTarget - Invalid layout {}", GetImageLayoutString(current_layout));
-            MessageManager::Log(MessageType::Error, str);
-      }
-
-}
-
 void Swapchain::AcquireNextImage() {
       _currentFrameIndex = (_currentFrameIndex + 1) % 3;
 
@@ -62,6 +46,76 @@ void Swapchain::AcquireNextImage() {
       _preAccquireResult = res;
 }
 
+void Swapchain::SetMappedRenderTarget(entt::entity texture) {
+      auto& world = *volkGetLoadedEcsWorld();
+      if(world.valid(texture) && world.all_of<Texture>(texture)){
+            _mappedRenderTarget = texture;
+      }
+}
+
+void Swapchain::BeginFrame(VkCommandBuffer cmd) {
+      auto render_traget = GetCurrentRenderTarget();
+      auto current_layout = render_traget->GetCurrentLayout();
+      if(_mappedRenderTarget == entt::null) {
+            if(current_layout != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+                  render_traget->BarrierLayout(cmd, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+            }
+      }
+}
+
+void Swapchain::EndFrame(VkCommandBuffer cmd) {
+      if(_mappedRenderTarget != entt::null) {
+            MapRenderTarget(cmd);
+      }
+}
+
+void Swapchain::MapRenderTarget(VkCommandBuffer cmd) {
+      auto& world = *volkGetLoadedEcsWorld();
+      auto current_rt = GetCurrentRenderTarget();
+
+      if(world.valid(_mappedRenderTarget)) {
+            auto tex = world.try_get<Texture>(_mappedRenderTarget);
+            if(tex) {
+                  const auto src = std::bit_cast<VkOffset3D>(tex->GetExtent());
+                  const auto dst = std::bit_cast<VkOffset3D>(current_rt->GetExtent());
+                  constexpr VkOffset3D zero = {0, 0, 0};
+
+                  const VkImageBlit blit {
+                        .srcSubresource = {
+                              .aspectMask = tex->GetViewCI().subresourceRange.aspectMask,
+                              .mipLevel = 0,
+                              .baseArrayLayer = 0,
+                              .layerCount = 1
+                        },
+                        .srcOffsets = {zero, src},
+                        .dstSubresource = {
+                              .aspectMask = current_rt->GetViewCI().subresourceRange.aspectMask,
+                              .mipLevel = 0,
+                              .baseArrayLayer = 0,
+                              .layerCount = 1
+                        },
+                        .dstOffsets = {zero, dst}
+                  };
+
+                  tex->BarrierLayout(cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BLIT_BIT);
+                  current_rt->BarrierLayout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_2_BLIT_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT);
+
+                  vkCmdBlitImage(cmd, tex->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, current_rt->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+
+                  tex->BarrierLayout(cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_2_BLIT_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
+                  current_rt->BarrierLayout(cmd, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, std::nullopt, VK_PIPELINE_STAGE_2_BLIT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
+
+            } else {
+                  if(current_rt->GetCurrentLayout() != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+                        current_rt->BarrierLayout(cmd, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, std::nullopt, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+                  }
+            }
+      } else {
+            if(current_rt->GetCurrentLayout() != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+                  current_rt->BarrierLayout(cmd, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, std::nullopt, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+            }
+      }
+}
 Swapchain::~Swapchain() {
 
       const auto device = volkGetLoadedDevice();

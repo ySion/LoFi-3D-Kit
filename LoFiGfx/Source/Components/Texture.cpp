@@ -35,11 +35,13 @@ VkImageView LoFi::Component::Texture::CreateView(VkImageViewCreateInfo view_ci) 
       view_ci.image = _image;
 
       VkImageView view{};
+
       if (vkCreateImageView(volkGetLoadedDevice(), &view_ci, nullptr, &view) != VK_SUCCESS) {
             const std::string msg = "Failed to create image view";
             MessageManager::Log(MessageType::Error, msg);
             throw std::runtime_error(msg);
       }
+
       _views.push_back(view);
       _viewCIs.push_back(view_ci);
 

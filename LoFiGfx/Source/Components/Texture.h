@@ -48,6 +48,10 @@ namespace LoFi::Component {
 
             [[nodiscard]] std::optional<uint32_t> GetBindlessIndexForComputeKernel() const { return _bindlessIndexForComputeKernel; }
 
+            [[nodiscard]] const VkImageViewCreateInfo& GetViewCI() const {return _viewCIs.at(0); }
+
+            [[nodiscard]] const VkImageViewCreateInfo& GetViewCI(uint32_t idx) const {return _viewCIs.at(idx); }
+
             VkImageView CreateView(VkImageViewCreateInfo view_ci);
 
             void ClearViews();

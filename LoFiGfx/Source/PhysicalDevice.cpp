@@ -48,6 +48,17 @@ PhysicalDevice::PhysicalDevice(VkPhysicalDevice physicalDevice) {
 
 	vkGetPhysicalDeviceFeatures2(physicalDevice, &_features2);
 
+	_features2.pNext = nullptr;
+	_rayTracingFeatures.pNext = nullptr;
+	_accelerationStructureFeatures.pNext = nullptr;
+	_bufferDeviceAddressFeatures.pNext = nullptr;
+	_descriptorIndexingFeatures.pNext = nullptr;
+	_vulkan11Features.pNext = nullptr;
+	_dynamicRenderingFeatures.pNext = nullptr;
+	_synchronization2Features.pNext = nullptr;
+	_meshShaderFeatures.pNext = nullptr;
+	_fragmentShadingRateFeatures.pNext = nullptr;
+
 	//Get Properties
 
 	_properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;

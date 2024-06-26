@@ -3,6 +3,8 @@
 #include "../Helper.h"
 #include <any>
 
+#include "glslang/Include/glslang_c_interface.h"
+
 namespace LoFi::Component {
 
       class GraphicKernel;
@@ -13,7 +15,26 @@ namespace LoFi::Component {
             uint32_t Size;
       };
 
+      struct ProgramCompilerGroup {
+
+            ProgramCompilerGroup();
+
+            ~ProgramCompilerGroup();
+
+            static ProgramCompilerGroup* TryInit() {
+                  static ProgramCompilerGroup group {};
+                  return &group;
+            }
+      };
+
       class Program {
+            static inline std::map<std::string, glslang_stage_t> ShaderTypeMap {
+                  {"VSMain", glslang_stage_t::GLSLANG_STAGE_VERTEX},
+                  {"FSMain", glslang_stage_t::GLSLANG_STAGE_FRAGMENT},
+                  {"TSMain", glslang_stage_t::GLSLANG_STAGE_TASK},
+                  {"MSMain", glslang_stage_t::GLSLANG_STAGE_MESH},
+                  {"CSMain", glslang_stage_t::GLSLANG_STAGE_COMPUTE},
+            };
       public:
 
             NO_COPY_MOVE_CONS(Program);
@@ -22,90 +43,65 @@ namespace LoFi::Component {
 
             explicit Program(entt::entity id);
 
-            bool CompileFromSourceCode(std::string_view name, std::string_view source);
+            [[nodiscard]] bool CompileFromSourceCode(std::string_view name, const std::vector<std::string_view>& sources);
+
+            [[nodiscard]] bool IsCompiled() const { return _isCompiled; }
+
+            // TODO: LoadFromCache
 
       private:
+            static bool CompileFromCode(const char* source, glslang_stage_t shader_type, std::vector<uint32_t>& spv, std::string& err_msg);
 
-            bool CompileFromCode(const wchar_t* entry_point, const wchar_t* shader_type, std::vector<uint32_t>& spv);
-
-            bool ParseSetters(std::string_view codes, entt::dense_map<std::string, std::vector<std::string>> &_setters, std::string& output_codes, std::string& error_message);
+            bool ParseSetters(std::string_view codes, entt::dense_map<std::string, std::vector<std::string>> &_setters, std::string& output_codes, std::string& error_message, glslang_stage_t shader_type);
 
             bool VaildateSetter(std::string_view key, std::string_view value);
 
-            bool ParseVS();
+            bool ParseVS(const std::vector<uint32_t>& spv);
 
-            bool ParsePS();
+            bool ParseFS(const std::vector<uint32_t>& spv);
 
             friend class GraphicKernel;
       private:
 
-            bool AnalyzeSetter(const std::pair<std::string, std::vector<std::string>>& setter, std::string& error_msg);
+            bool AnalyzeSetter(const std::pair<std::string, std::vector<std::string>>& setter, std::string& error_msg, glslang_stage_t shader_type);
+
+            entt::dense_map<glslang_stage_t, std::pair<std::vector<uint32_t>, VkShaderModule>>& GetShaderModules() { return _shaderModules; }
 
       private:
 
-            entt::dense_map<std::string, std::vector<std::string>> _setters{};
+            //entt::dense_map<std::string, std::vector<std::string>> _setters{};
+            bool _isCompiled {};
 
             std::vector<std::string> _sampleTexture{};
+
+            entt::dense_map<glslang_stage_t, std::pair<std::vector<uint32_t>, VkShaderModule>> _shaderModules {};
 
             entt::entity _id {};
 
             std::string _programName {};
 
-            std::string _codes {};
-
-            VkShaderModule _vs {};
-
-            VkShaderModule _ps {};
-
-            VkShaderModule _cs {};
-
-            VkShaderModule _ms {};
-
-            VkShaderModule _as {};
-
-            std::vector<uint32_t> _spvVS {};
-
-            std::vector<uint32_t> _spvPS {};
-
-            std::vector<uint32_t> _spvCS {};
-
-            std::vector<uint32_t> _spvMS {};
-
-            std::vector<uint32_t> _spvAS {};
-
       private:
 
-            VkPipelineInputAssemblyStateCreateInfo _inputAssemblyStateCreateInfo_prepared { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
-            VkPipelineInputAssemblyStateCreateInfo _inputAssemblyStateCreateInfo_temp { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
+            VkPipelineInputAssemblyStateCreateInfo _inputAssemblyStateCreateInfo {};
 
-            VkPipelineRasterizationStateCreateInfo _rasterizationStateCreateInfo_prepared { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
-            VkPipelineRasterizationStateCreateInfo _rasterizationStateCreateInfo_temp { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+            VkPipelineRasterizationStateCreateInfo _rasterizationStateCreateInfo {};
 
-            VkPipelineVertexInputStateCreateInfo _vertexInputStateCreateInfo_prepared { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-            VkPipelineVertexInputStateCreateInfo _vertexInputStateCreateInfo_temp { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+            VkPipelineVertexInputStateCreateInfo _vertexInputStateCreateInfo {};
 
-            VkPipelineDepthStencilStateCreateInfo _depthStencilStateCreateInfo_prepared { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
-            VkPipelineDepthStencilStateCreateInfo _depthStencilStateCreateInfo_temp { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+            VkPipelineDepthStencilStateCreateInfo _depthStencilStateCreateInfo {};
 
-            std::vector<VkVertexInputAttributeDescription> _vertexInputAttributeDescription_prepared {};
-            std::vector<VkVertexInputAttributeDescription> _vertexInputAttributeDescription_temp {};
+            std::vector<VkVertexInputAttributeDescription> _vertexInputAttributeDescription {};
 
-            std::vector<VkVertexInputBindingDescription> _vertexInputBindingDescription_prepared {};
-            std::vector<VkVertexInputBindingDescription> _vertexInputBindingDescription_temp {};
+            std::vector<VkVertexInputBindingDescription> _vertexInputBindingDescription {};
 
-            VkPipelineColorBlendStateCreateInfo _colorBlendStateCreateInfo_prepared { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
-            VkPipelineColorBlendStateCreateInfo _colorBlendStateCreateInfo_temp { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+            VkPipelineColorBlendStateCreateInfo _colorBlendStateCreateInfo {};
 
-            std::vector<VkPipelineColorBlendAttachmentState> _colorBlendAttachmentState_prepared {};
-            std::vector<VkPipelineColorBlendAttachmentState> _colorBlendAttachmentState_temp {};
+            std::vector<VkPipelineColorBlendAttachmentState> _colorBlendAttachmentState {};
 
-            VkPipelineRenderingCreateInfoKHR _renderingCreateInfo_prepared { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR };
-            VkPipelineRenderingCreateInfoKHR _renderingCreateInfo_temp { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR };
+            VkPipelineRenderingCreateInfoKHR _renderingCreateInfo {};
 
-            std::vector<VkFormat> _renderTargetFormat_prepared {};
-            std::vector<VkFormat> _renderTargetFormat_temp {};
+            std::vector<VkFormat> _renderTargetFormat {};
 
-            VkPushConstantRange _pushConstantRange_prepared {};
-            VkPushConstantRange _pushConstantRange_temp {};
+            VkPushConstantRange _pushConstantRange {};
       };
 }
