@@ -4,7 +4,6 @@
 #include "../Context.h"
 #include "../Message.h"
 
-#include "../Third/dxc/dxcapi.h"
 #include "../Third/spirv-cross/spirv_cross.hpp"
 #include "../Third/spirv-cross/spirv_hlsl.hpp"
 
