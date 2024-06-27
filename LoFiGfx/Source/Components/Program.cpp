@@ -56,6 +56,7 @@ bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std
       std::string backup_name = _programName;
       _programName = name;
       _shaderModules.clear();
+      _shaderPushConstantMap_BindlessLayoutVariableInfo.clear();
 
       //Init Pipeline CIs, use default profile
       _inputAssemblyStateCreateInfo = VkPipelineInputAssemblyStateCreateInfo{
@@ -553,6 +554,14 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
                   auto str = std::format("PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
                   std::printf("%s\n", str.c_str());
 
+                  if(_shaderPushConstantMap_BindlessLayoutVariableInfo.contains(member_name)) {
+                        const auto err = std::format("Program::ParseVS - Type name conflict in shader, name: {}.", member_name);
+                        MessageManager::Log(MessageType::Warning, err);
+                        return false;
+                  } else {
+                        _shaderPushConstantMap_BindlessLayoutVariableInfo.emplace(member_name, BindlessLayoutVariableInfo{(uint32_t)member_size, (uint32_t)offset});
+                  }
+
                   if (i == member_count - 1) {
                         _pushConstantRange.offset = 0;
                         _pushConstantRange.size = offset + member_size;
@@ -564,11 +573,13 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
 }
 
 bool Program::ParseFS(const std::vector<uint32_t>& spv) {
-      MessageManager::Log(MessageType::Normal, "Program::ParsePS - Parsing Pixel Shader");
+      MessageManager::Log(MessageType::Normal, "Program::ParseFS - Parsing Pixel Shader");
       spirv_cross::Compiler comp(spv);
       spirv_cross::ShaderResources resources = comp.get_shader_resources();
 
       auto output_target_count = resources.stage_outputs.size();
+
+      //PushConstants 1 TODO
 
       for (auto& resource : resources.stage_outputs) {
             const auto& name = comp.get_name(resource.id);
@@ -579,7 +590,7 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
       }
 
       if (_colorBlendAttachmentState.size() != output_target_count) {
-            auto str = std::format("Program::ParsePS - Output target count mismatch, expected {}, got {}, please add or move #set color_blend in shader source code.", output_target_count,
+            auto str = std::format("Program::ParseFS - Output target count mismatch, expected {}, got {}, please add or move #set color_blend in shader source code.", output_target_count,
             _colorBlendAttachmentState.size());
             MessageManager::Log(MessageType::Warning, str);
             return false;

@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "../Helper.h"
-#include <any>
+#include "GraphicKernel.h"
 
 #include "glslang/Include/glslang_c_interface.h"
 
@@ -73,6 +73,8 @@ namespace LoFi::Component {
             std::vector<std::string> _sampleTexture{};
 
             entt::dense_map<glslang_stage_t, std::pair<std::vector<uint32_t>, VkShaderModule>> _shaderModules{};
+
+            entt::dense_map<std::string, BindlessLayoutVariableInfo> _shaderPushConstantMap_BindlessLayoutVariableInfo{};
 
             entt::entity _id{};
 

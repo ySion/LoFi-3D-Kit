@@ -9,9 +9,23 @@
 
 #include "Context.h"
 #include "entt/entt.hpp"
+#include "SDL3/SDL.h"
 
 void GStart() {
       const char* vs = R"(
+                  #extension GL_EXT_nonuniform_qualifier : enable
+                  #define BindlessStorageBinding 0
+                  #define BindlessSamplerBinding 1
+
+                  #define GetLayoutVariableName(Name) _bindless##Name
+                  #define GetVar(Name) GetLayoutVariableName(Name)[nonuniformEXT(uint(_bindlessIndexInfo.Name))]
+
+                  #define LayoutVariable1(Name, Vars) \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name Vars GetLayoutVariableName(Name)[]; \
+                  layout(push_constant) uniform _BindlessPushConstant { \
+                           uint Name; \
+                  } _bindlessIndexInfo;
+
                   #set topology   = triangle_list
                   #set polygon_mode = fill
                   #set cull_mode   = none
@@ -28,9 +42,14 @@ void GStart() {
 
                   layout(location = 0) out vec3 out_color;
 
+                  LayoutVariable1(Info, {
+                           float time;
+                  })
+
                   void VSMain() {
-                        gl_Position = vec4(pos, 0.0f, 1.0f);
-                        out_color = color;
+                        gl_Position = vec4(pos, 0, 1.0f);
+                        float t = sin(GetVar(Info).time * 10.0f) / 2.0f;
+                        out_color = color + vec3(t,t,t);
                   }
       )";
 
@@ -92,13 +111,30 @@ void GStart() {
       const auto kernel = ctx->CreateGraphicKernel(program);
 
       std::atomic<bool> should_close = false;
+
+      struct InfoData {
+            float time;
+      };
+
+      InfoData info_data{
+            0.2
+      };
+
+      const auto InfoBuffer = ctx->CreateBuffer(&info_data, sizeof(InfoData), true);
+
       auto func = std::async(std::launch::async, [&] {
             while (!should_close) {
-                  ctx->BeginFrame();
+                  info_data.time =  (float)((SDL_GetTicks() * 1000.0) / SDL_GetPerformanceFrequency());
+                  ctx->SetBufferData(InfoBuffer, &info_data, sizeof(InfoData));
 
+                  ctx->BeginFrame();
                   //Pass 1
                   ctx->CmdBeginRenderPass({{rt1}});
                   ctx->CmdBindGraphicKernelToRenderPass(kernel);
+
+                  ctx->CmdBindLayoutVariable({{"Info", InfoBuffer}});
+
+
                   ctx->CmdBindVertexBuffer(triangle_vert);
                   ctx->CmdDrawIndex(triangle_index);
                   ctx->CmdEndRenderPass();
@@ -106,6 +142,7 @@ void GStart() {
                   //Pass 2
                   ctx->CmdBeginRenderPass({{rt2}});
                   ctx->CmdBindGraphicKernelToRenderPass(kernel);
+                  ctx->CmdBindLayoutVariable({{"Info", InfoBuffer}});
                   ctx->CmdBindVertexBuffer(square_vert);
                   ctx->CmdDrawIndex(square_index);
                   ctx->CmdEndRenderPass();
@@ -113,6 +150,7 @@ void GStart() {
                   //Pass 3
                   ctx->CmdBeginRenderPass({{rt3}, {ds}});
                   ctx->CmdBindGraphicKernelToRenderPass(kernel);
+                  ctx->CmdBindLayoutVariable({{"Info", InfoBuffer}});
                   ctx->CmdBindVertexBuffer(triangle_vert);
                   ctx->CmdDrawIndex(triangle_index);
                   ctx->CmdBindVertexBuffer(square_vert);

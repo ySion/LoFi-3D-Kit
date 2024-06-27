@@ -54,7 +54,7 @@ void Context::Init() {
                         missing_extensions += ext;
                         missing_extensions += "\n";
                   }
-                  auto error_message = std::format("Missing instance extensions: \n{}", missing_extensions);
+                  const auto error_message = std::format("Missing instance extensions: \n{}", missing_extensions);
                   MessageManager::Log(MessageType::Error, error_message);
                   throw std::runtime_error(error_message);
             }
@@ -628,27 +628,27 @@ void Context::DestroyWindow(entt::entity window) {
 
 void Context::MapRenderTargetToWindow(entt::entity texture, entt::entity window) {
       if (!_world.valid(texture)) {
-            auto err = std::format("Context::MapRenderTargetToWindow - Invalid texture entity.");
+            const auto err = std::format("Context::MapRenderTargetToWindow - Invalid texture entity.");
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       if (!_world.valid(window)) {
-            auto err = std::format("Context::MapRenderTargetToWindow - Invalid window entity.");
+            const auto err = std::format("Context::MapRenderTargetToWindow - Invalid window entity.");
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       auto tex = _world.try_get<Component::Texture>(texture);
       if (!tex) {
-            auto err = std::format("Context::MapRenderTargetToWindow - thie entity is not texture entity.");
+            const auto err = std::format("Context::MapRenderTargetToWindow - thie entity is not texture entity.");
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       auto sp = _world.try_get<Component::Swapchain>(window);
       if (!sp) {
-            auto err = std::format("Context::MapRenderTargetToWindow - thie entity is not a renderable window entity.");
+            const auto err = std::format("Context::MapRenderTargetToWindow - thie entity is not a renderable window entity.");
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
@@ -658,14 +658,14 @@ void Context::MapRenderTargetToWindow(entt::entity texture, entt::entity window)
 
 void Context::CmdBindGraphicKernelToRenderPass(entt::entity kernel) {
       if (!_world.valid(kernel)) {
-            auto err = "Context::CmdBindGraphicKernel - Invalid graphics kernel entity";
+            const auto err = "Context::CmdBindGraphicKernel - Invalid graphics kernel entity";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       auto k = _world.try_get<Component::GraphicKernel>(kernel);
       if (!k) {
-            auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel";
+            const auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
@@ -676,18 +676,73 @@ void Context::CmdBindGraphicKernelToRenderPass(entt::entity kernel) {
       vkCmdSetViewport(GetCurrentCommandBuffer(), 0, 1, &viewport);
       const VkRect2D scissor = VkRect2D{0, 0, _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height};
       vkCmdSetScissor(GetCurrentCommandBuffer(), 0, 1, &scissor);
+
+      _currentGraphicsKernel = kernel;
+}
+
+void Context::CmdBindLayoutVariable(const std::vector<LayoutVariableBindInfo>& layout_variable_info) {
+
+      if(layout_variable_info.empty()) return;
+
+      auto kernel = _world.try_get<Component::GraphicKernel>(_currentGraphicsKernel);
+      if(!kernel) {
+            const auto err = "Context::CmdBindResourceBuffer - No graphics kernel binded";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      auto success = false;
+      for(const auto& info : layout_variable_info) {
+            auto buffer = info.Buffer;
+            const std::string& layout_variable_name = info.Name;
+
+            if (!_world.valid(buffer)) {
+                  const auto err =  std::format("Context::CmdBindResourceBuffer - Set Layout Varialbe {} failed, Invalid buffer entity", layout_variable_name);
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
+            }
+
+            auto buf = _world.try_get<Component::Buffer>(buffer);
+            if (!buf) {
+                  const auto err = std::format("Context::CmdBindResourceBuffer - Set Layout Varialbe {} failed, entity {} is not buffer.", layout_variable_name, (uint32_t)buffer);
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
+            }
+            auto bindless_index = buf->GetBindlessIndex();
+
+            if(!bindless_index.has_value()) {
+                  const auto err = std::format("Context::CmdBindResourceBuffer - Set Layout Varialbe {} failed, Buffer {} is not a binless buffer", layout_variable_name, (uint32_t)buffer);
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
+            }
+
+            uint32_t bit32_index = bindless_index.value();
+            if(kernel->SetBindlessLayoutVariable(layout_variable_name, (void*)&bit32_index)) {
+                  success = true;
+            } else {
+                  const auto err = std::format("Context::CmdBindResourceBuffer - Set Layout Varialbe \"{}\" failed, this variable is not exist.", layout_variable_name);
+                  MessageManager::Log(MessageType::Error, err);
+
+                  const auto& layout_variable_names = kernel->GetBindlessLayoutVariableMap();
+                  for(const auto& i : layout_variable_names) {
+                        printf("\t\t\tVailed Name: \"%s\"\n", i.first.c_str());
+                  }
+            }
+      }
+
+      kernel->PushConstantBindlessLayoutVariableInfo(GetCurrentCommandBuffer());
 }
 
 void Context::CmdBindVertexBuffer(entt::entity buffer, size_t offset) {
       if (!_world.valid(buffer)) {
-            auto err = "Context::CmdBindVertexBuffer - Invalid buffer entity";
+            const auto err = "Context::CmdBindVertexBuffer - Invalid buffer entity";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       auto buf = _world.try_get<Component::Buffer>(buffer);
       if (!buf) {
-            auto err = "Context::CmdBindVertexBuffer - this enity is not a buffer";
+            const auto err = "Context::CmdBindVertexBuffer - this enity is not a buffer";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
@@ -839,6 +894,11 @@ entt::entity Context::CreateGraphicKernel(entt::entity program) {
       auto id = _world.create();
       auto& kernel = _world.emplace<Component::GraphicKernel>(id, id);
       bool success = kernel.CreateFromProgram(program);
+      const auto& map = kernel.GetBindlessLayoutVariableMap();
+
+      for(const auto& i : map) {
+            printf("%s - %u, %u\n", i.first.c_str(), i.second.offset, i.second.size);
+      }
 
       if (!success) {
             const auto err = "Context::CreateGraphicKernel - Failed to create graphic kernel from program";
@@ -869,6 +929,24 @@ void Context::DestroyTexture(entt::entity texture) {
       if (_world.valid(texture) && _world.any_of<Component::Texture>(texture)) {
             _world.destroy(texture);
       }
+}
+
+void Context::SetBufferData(entt::entity buffer, void* data, uint64_t size) {
+      if (!_world.valid(buffer)) {
+            const auto err = "Context::SetBufferData - Invalid buffer entity";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      auto buffer_component = _world.try_get<Component::Buffer>(buffer);
+
+      if (!buffer_component) {
+            const auto err = "Context::SetBufferData - this entity is not a buffer";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      buffer_component->SetData(data, size);
 }
 
 void* Context::PollEvent() {
@@ -928,7 +1006,7 @@ void Context::BeginFrame() {
 
 void Context::EndFrame() {
       if (_isRenderPassOpen) {
-            auto err = "Context::EndFrame - Render pass is still open, close RenderPass before EndFrame!";
+            const auto err = "Context::EndFrame - Render pass is still open, close RenderPass before EndFrame!";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
@@ -1043,14 +1121,14 @@ void Context::CmdBeginRenderPass(const std::vector<RenderPassBeginArgument>& tex
             uint32_t view_index = entity.ViewIndex;
             bool clear = entity.ClearBeforeRendering;
             if (!_world.valid(handle)) {
-                  auto err = std::format("Context::CmdBindRenderTarget - Invalid texture entity.");
+                  const auto err = std::format("Context::CmdBindRenderTarget - Invalid texture entity.");
                   MessageManager::Log(MessageType::Error, err);
                   throw std::runtime_error(err);
             }
 
             auto texture = _world.try_get<Component::Texture>(handle);
             if (!texture) {
-                  auto err = std::format("Context::CmdBindRenderTarget - this entity is not a texture entity.");
+                  const auto err = std::format("Context::CmdBindRenderTarget - this entity is not a texture entity.");
                   MessageManager::Log(MessageType::Error, err);
                   throw std::runtime_error(err);
             }
@@ -1060,7 +1138,7 @@ void Context::CmdBeginRenderPass(const std::vector<RenderPassBeginArgument>& tex
                   _frameRenderingRenderArea = {0, 0, extent.width, extent.height};
             } else {
                   if (extent.width != _frameRenderingRenderArea.extent.width || extent.height != _frameRenderingRenderArea.extent.height) {
-                        auto str = std::format("Context::CmdBindRenderTarget - Texture size mismatch, expected {}x{}, got {}x{}", _frameRenderingRenderArea.extent.width,
+                        const auto str = std::format("Context::CmdBindRenderTarget - Texture size mismatch, expected {}x{}, got {}x{}", _frameRenderingRenderArea.extent.width,
                         _frameRenderingRenderArea.extent.height, extent.width, extent.height);
                         MessageManager::Log(MessageType::Error, str);
                         throw std::runtime_error(str);
@@ -1138,6 +1216,7 @@ void Context::CmdEndRenderPass() {
       if (_isRenderPassOpen) {
             vkCmdEndRendering(GetCurrentCommandBuffer());
             _isRenderPassOpen = false;
+            _currentGraphicsKernel = entt::null;
       }
 }
 

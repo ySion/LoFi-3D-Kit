@@ -65,6 +65,11 @@ namespace LoFi {
             bool Debug = false;
       };
 
+      struct LayoutVariableBindInfo {
+            std::string Name;
+            entt::entity Buffer;
+      };
+
       struct RenderPassBeginArgument {
             entt::entity TextureHandle = entt::null;
             bool ClearBeforeRendering = true;
@@ -159,6 +164,8 @@ namespace LoFi {
             void MapRenderTargetToWindow(entt::entity texture, entt::entity window);
 
             void CmdBindGraphicKernelToRenderPass(entt::entity kernel);
+
+            void CmdBindLayoutVariable(const std::vector<LayoutVariableBindInfo>& layout_variable_info);
 
             void CmdBindVertexBuffer(entt::entity buffer, size_t offset = 0);
 
@@ -268,6 +275,8 @@ namespace LoFi {
 
       private:
             VkRect2D _frameRenderingRenderArea{};
+
+            entt::entity _currentGraphicsKernel{};
 
             bool _isRenderPassOpen = false;
       };

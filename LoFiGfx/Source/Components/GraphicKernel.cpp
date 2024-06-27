@@ -24,6 +24,25 @@ GraphicKernel::~GraphicKernel() {
       }
 }
 
+std::optional<BindlessLayoutVariableInfo> GraphicKernel::SetBindlessLayoutVariable(const std::string& name) const {
+      if(const auto find = _pushConstantBufferVariableMap.find(name); find != _pushConstantBufferVariableMap.end())
+            return find->second;
+      return std::nullopt;
+}
+
+bool GraphicKernel::SetBindlessLayoutVariable(const std::string& name, const void* data) const {
+      if(const auto find = _pushConstantBufferVariableMap.find(name); find != _pushConstantBufferVariableMap.end()) {
+            const uint8_t* p = _pushConstantBuffer.data() + find->second.offset;
+            memcpy((void*)p, data, find->second.size);
+            return true;
+      }
+      return false;
+}
+
+void GraphicKernel::PushConstantBindlessLayoutVariableInfo(VkCommandBuffer cmd) const {
+      vkCmdPushConstants(cmd, _pipelineLayout, VK_SHADER_STAGE_ALL, 0, (uint32_t)_pushConstantBuffer.size(), _pushConstantBuffer.data());
+}
+
 bool GraphicKernel::CreateFromProgram(entt::entity program) {
       auto& world = *volkGetLoadedEcsWorld();
 
@@ -73,23 +92,10 @@ bool GraphicKernel::CreateFromProgram(entt::entity program) {
             }
       };
 
-      // VkViewport default_viewport = {
-      //       .width = 1.f,
-      //       .height = 1.0f,
-      //       .minDepth = 0.0f,
-      //       .maxDepth = 1.0f
-      // };
-      // VkRect2D default_scissor = {
-      //       .offset = {0, 0},
-      //       .extent = {1, 1}
-      // };
-
       VkPipelineViewportStateCreateInfo viewport_ci{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
             .viewportCount = 1,
-            //.pViewports = &default_viewport,
             .scissorCount = 1,
-            // .pScissors = &default_scissor
       };
 
       VkPipelineMultisampleStateCreateInfo multisample_ci{
@@ -131,51 +137,6 @@ bool GraphicKernel::CreateFromProgram(entt::entity program) {
             return false;
       }
 
-      //empty ter:
-
-      // std::vector<VkFormat> ff = {VK_FORMAT_R8G8B8A8_UNORM};
-      //
-      // VkPipelineRenderingCreateInfoKHR t1 {
-      //       .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
-      //       .pNext = nullptr,
-      //       .viewMask = 0,
-      //       .colorAttachmentCount = 1,
-      //       .pColorAttachmentFormats = ff.data(),
-      // };
-      //
-      // VkPipelineInputAssemblyStateCreateInfo vk_pipeline_input_assembly_state_create_info{};
-      // vk_pipeline_input_assembly_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-      // vk_pipeline_input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-      //
-      // VkPipelineRasterizationStateCreateInfo vk_pipeline_rasterization_state_create_info{};
-      // vk_pipeline_rasterization_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-      // vk_pipeline_rasterization_state_create_info.cullMode = VK_CULL_MODE_NONE;
-      // vk_pipeline_rasterization_state_create_info.lineWidth = 1.0f;
-      // vk_pipeline_rasterization_state_create_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-      //
-      // VkPipelineColorBlendAttachmentState vk_pipeline_color_blend_attachment_state{};
-      // vk_pipeline_color_blend_attachment_state.blendEnable = false;
-      // vk_pipeline_color_blend_attachment_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-      // vk_pipeline_color_blend_attachment_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-      // vk_pipeline_color_blend_attachment_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-      // vk_pipeline_color_blend_attachment_state.colorBlendOp = VK_BLEND_OP_ADD;
-      // vk_pipeline_color_blend_attachment_state.alphaBlendOp = VK_BLEND_OP_ADD;
-      //
-      // VkPipelineColorBlendStateCreateInfo vk_pipeline_color_blend_state_create_info{};
-      // vk_pipeline_color_blend_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-      // vk_pipeline_color_blend_state_create_info.attachmentCount = 1;
-      // vk_pipeline_color_blend_state_create_info.pAttachments = &vk_pipeline_color_blend_attachment_state;
-      //
-      // VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-      // vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-      // vertexInputInfo.vertexBindingDescriptionCount = 0;
-      // vertexInputInfo.vertexAttributeDescriptionCount = 0;
-      //
-      // VkPipelineMultisampleStateCreateInfo multisampling{};
-      // multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-      // multisampling.sampleShadingEnable = VK_FALSE;
-      // multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
       VkGraphicsPipelineCreateInfo pipeline_ci{
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             .pNext = &prog->_renderingCreateInfo,
@@ -203,6 +164,9 @@ bool GraphicKernel::CreateFromProgram(entt::entity program) {
             MessageManager::Log(MessageType::Error, str);
             return false;
       }
+
+      _pushConstantBufferVariableMap = prog->_shaderPushConstantMap_BindlessLayoutVariableInfo;
+      _pushConstantBuffer.resize(prog->_pushConstantRange.size);
 
       return true;
 }
