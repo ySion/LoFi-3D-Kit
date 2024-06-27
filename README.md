@@ -127,7 +127,7 @@
       func.wait();
 ```
 
-![0c3821d0251d2c4aee7c429b19555ee5](https://github.com/ySion/LoFi-3D-Kit/assets/39912009/2d556724-f78a-4b8e-8c85-512899ee45b2)
+![image](https://github.com/ySion/LoFi-3D-Kit/assets/39912009/f7defe0b-1da2-41aa-a614-5191097aed3b)
 
 ----
 
