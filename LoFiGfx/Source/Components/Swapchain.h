@@ -4,10 +4,8 @@
 #include "Texture.h"
 
 namespace LoFi::Component {
-
       class Swapchain {
       public:
-
             NO_COPY_MOVE_CONS(Swapchain);
 
             Swapchain(entt::entity id);
@@ -37,7 +35,6 @@ namespace LoFi::Component {
             void EndFrame(VkCommandBuffer cmd);
 
       private:
-
             void MapRenderTarget(VkCommandBuffer cmd);
 
             void CreateOrRecreateSwapChain();
@@ -47,7 +44,6 @@ namespace LoFi::Component {
             //friend class ::LoFi::Context;
 
       private:
-
             entt::entity _id{};
 
             VkSurfaceKHR _surface{};
@@ -69,5 +65,3 @@ namespace LoFi::Component {
             entt::entity _mappedRenderTarget = entt::null;
       };
 }
-
-

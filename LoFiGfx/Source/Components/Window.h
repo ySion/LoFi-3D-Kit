@@ -10,7 +10,6 @@ namespace LoFi {
 }
 
 namespace LoFi::Component {
-
       class Window {
       public:
             NO_COPY_MOVE_CONS(Window);
@@ -32,7 +31,7 @@ namespace LoFi::Component {
       private:
             entt::entity _id{};
 
-            SDL_Window* _window {};
+            SDL_Window* _window{};
 
       private:
             friend class ::LoFi::Context;

@@ -1060,7 +1060,7 @@ void Context::CmdBeginRenderPass(const std::vector<RenderPassBeginArgument>& tex
             } else {
                   if (extent.width != _frameRenderingRenderArea.extent.width || extent.height != _frameRenderingRenderArea.extent.height) {
                         auto str = std::format("Context::CmdBindRenderTarget - Texture size mismatch, expected {}x{}, got {}x{}", _frameRenderingRenderArea.extent.width,
-                                               _frameRenderingRenderArea.extent.height, extent.width, extent.height);
+                        _frameRenderingRenderArea.extent.height, extent.width, extent.height);
                         MessageManager::Log(MessageType::Error, str);
                         throw std::runtime_error(str);
                   }
@@ -1346,22 +1346,22 @@ void Context::StageRecoveryContextResource() {
       if (!current_list.empty()) {
             for (auto& i : current_list) {
                   switch (i.Type) {
-                  case ContextResourceType::WINDOW:
-                        RecoveryContextResourceWindow(i);
-                        break;
-                  case ContextResourceType::BUFFER:
-                        RecoveryContextResourceBuffer(i);
-                        break;
-                  case ContextResourceType::BUFFERVIEW:
-                        RecoveryContextResourceBufferView(i);
-                        break;
-                  case ContextResourceType::IMAGE:
-                        RecoveryContextResourceImage(i);
-                        break;
-                  case ContextResourceType::IMAGEVIEW:
-                        RecoveryContextResourceImageView(i);
-                        break;
-                  default: break;
+                        case ContextResourceType::WINDOW:
+                              RecoveryContextResourceWindow(i);
+                              break;
+                        case ContextResourceType::BUFFER:
+                              RecoveryContextResourceBuffer(i);
+                              break;
+                        case ContextResourceType::BUFFERVIEW:
+                              RecoveryContextResourceBufferView(i);
+                              break;
+                        case ContextResourceType::IMAGE:
+                              RecoveryContextResourceImage(i);
+                              break;
+                        case ContextResourceType::IMAGEVIEW:
+                              RecoveryContextResourceImageView(i);
+                              break;
+                        default: break;
                   }
             }
       }
@@ -1380,22 +1380,22 @@ void Context::RecoveryAllContextResourceImmediately() {
             if (!current_list.empty()) {
                   for (auto& resource : current_list) {
                         switch (resource.Type) {
-                        case ContextResourceType::WINDOW:
-                              RecoveryContextResourceWindow(resource);
-                              break;
-                        case ContextResourceType::BUFFER:
-                              RecoveryContextResourceBuffer(resource);
-                              break;
-                        case ContextResourceType::BUFFERVIEW:
-                              RecoveryContextResourceBufferView(resource);
-                              break;
-                        case ContextResourceType::IMAGE:
-                              RecoveryContextResourceImage(resource);
-                              break;
-                        case ContextResourceType::IMAGEVIEW:
-                              RecoveryContextResourceImageView(resource);
-                              break;
-                        default: break;
+                              case ContextResourceType::WINDOW:
+                                    RecoveryContextResourceWindow(resource);
+                                    break;
+                              case ContextResourceType::BUFFER:
+                                    RecoveryContextResourceBuffer(resource);
+                                    break;
+                              case ContextResourceType::BUFFERVIEW:
+                                    RecoveryContextResourceBufferView(resource);
+                                    break;
+                              case ContextResourceType::IMAGE:
+                                    RecoveryContextResourceImage(resource);
+                                    break;
+                              case ContextResourceType::IMAGEVIEW:
+                                    RecoveryContextResourceImageView(resource);
+                                    break;
+                              default: break;
                         }
                   }
             }
@@ -1412,22 +1412,22 @@ void Context::RecoveryAllContextResourceImmediately() {
       if (!current_list.empty()) {
             for (auto& i : current_list) {
                   switch (i.Type) {
-                  case ContextResourceType::WINDOW:
-                        RecoveryContextResourceWindow(i);
-                        break;
-                  case ContextResourceType::BUFFER:
-                        RecoveryContextResourceBuffer(i);
-                        break;
-                  case ContextResourceType::BUFFERVIEW:
-                        RecoveryContextResourceBufferView(i);
-                        break;
-                  case ContextResourceType::IMAGE:
-                        RecoveryContextResourceImage(i);
-                        break;
-                  case ContextResourceType::IMAGEVIEW:
-                        RecoveryContextResourceImageView(i);
-                        break;
-                  default: break;
+                        case ContextResourceType::WINDOW:
+                              RecoveryContextResourceWindow(i);
+                              break;
+                        case ContextResourceType::BUFFER:
+                              RecoveryContextResourceBuffer(i);
+                              break;
+                        case ContextResourceType::BUFFERVIEW:
+                              RecoveryContextResourceBufferView(i);
+                              break;
+                        case ContextResourceType::IMAGE:
+                              RecoveryContextResourceImage(i);
+                              break;
+                        case ContextResourceType::IMAGEVIEW:
+                              RecoveryContextResourceImageView(i);
+                              break;
+                        default: break;
                   }
             }
       }
@@ -1508,7 +1508,7 @@ void Context::RecoveryContextResourceImage(const ContextResourceRecoveryInfo& pa
             MessageManager::Log(MessageType::Normal, "Recovery Resource Image");
       } else {
             auto str = std::format("Context::RecoveryContextResourceImage - Invalid Image resource, {}, {}, {}, {}",
-                                   pack.Resource1.has_value(), pack.Resource2.has_value(), pack.Resource3.has_value(), pack.Resource4.has_value());
+            pack.Resource1.has_value(), pack.Resource2.has_value(), pack.Resource3.has_value(), pack.Resource4.has_value());
             MessageManager::Log(MessageType::Warning, str);
       }
 }

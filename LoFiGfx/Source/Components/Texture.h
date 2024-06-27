@@ -9,7 +9,6 @@ namespace LoFi {
 }
 
 namespace LoFi::Component {
-
       class Texture {
       public:
             NO_COPY_MOVE_CONS(Texture);
@@ -54,25 +53,24 @@ namespace LoFi::Component {
 
             [[nodiscard]] std::optional<uint32_t> GetBindlessIndexForComputeKernel() const { return _bindlessIndexForComputeKernel; }
 
-            [[nodiscard]] const VkImageViewCreateInfo& GetViewCI() const {return _viewCIs.at(0); }
+            [[nodiscard]] const VkImageViewCreateInfo& GetViewCI() const { return _viewCIs.at(0); }
 
-            [[nodiscard]] const VkImageViewCreateInfo& GetViewCI(uint32_t idx) const {return _viewCIs.at(idx); }
+            [[nodiscard]] const VkImageViewCreateInfo& GetViewCI(uint32_t idx) const { return _viewCIs.at(idx); }
 
             VkImageView CreateView(VkImageViewCreateInfo view_ci);
 
             void ClearViews();
 
-            void SetData(void* data , size_t size);
+            void SetData(void* data, size_t size);
 
             void BarrierLayout(VkCommandBuffer cmd, VkImageLayout new_layout, std::optional<VkImageLayout> src_layout = std::nullopt,
-                               std::optional<VkPipelineStageFlags2> src_stage = std::nullopt,
-                               std::optional<VkPipelineStageFlags2> dst_stage = std::nullopt);
+            std::optional<VkPipelineStageFlags2> src_stage = std::nullopt,
+            std::optional<VkPipelineStageFlags2> dst_stage = std::nullopt);
 
 
             // [[nodiscard]] VkImageMemoryBarrier2KHR Barrier(VkImageLayout newLayout);
 
       private:
-
             void SetSampler(VkSampler sampler) { _sampler = sampler; }
 
             void ReleaseAllViews() const;
@@ -113,6 +111,5 @@ namespace LoFi::Component {
             VkImageLayout _currentLayout;
 
             std::unique_ptr<Buffer> _intermediateBuffer{};
-
       };
 }

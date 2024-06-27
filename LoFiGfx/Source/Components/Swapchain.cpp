@@ -7,7 +7,6 @@
 using namespace LoFi::Component;
 
 Swapchain::Swapchain(entt::entity id) : _id(id) {
-
       auto device = volkGetLoadedDevice();
 
       VkSemaphoreCreateInfo semaphore_ci{};
@@ -48,7 +47,7 @@ void Swapchain::AcquireNextImage() {
 
 void Swapchain::SetMappedRenderTarget(entt::entity texture) {
       auto& world = *volkGetLoadedEcsWorld();
-      if(world.valid(texture) && world.all_of<Texture>(texture)){
+      if (world.valid(texture) && world.all_of<Texture>(texture)) {
             _mappedRenderTarget = texture;
       }
 }
@@ -56,15 +55,15 @@ void Swapchain::SetMappedRenderTarget(entt::entity texture) {
 void Swapchain::BeginFrame(VkCommandBuffer cmd) {
       auto render_traget = GetCurrentRenderTarget();
       auto current_layout = render_traget->GetCurrentLayout();
-      if(_mappedRenderTarget == entt::null) {
-            if(current_layout != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+      if (_mappedRenderTarget == entt::null) {
+            if (current_layout != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
                   render_traget->BarrierLayout(cmd, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
             }
       }
 }
 
 void Swapchain::EndFrame(VkCommandBuffer cmd) {
-      if(_mappedRenderTarget != entt::null) {
+      if (_mappedRenderTarget != entt::null) {
             MapRenderTarget(cmd);
       }
 }
@@ -73,14 +72,14 @@ void Swapchain::MapRenderTarget(VkCommandBuffer cmd) {
       auto& world = *volkGetLoadedEcsWorld();
       auto current_rt = GetCurrentRenderTarget();
 
-      if(world.valid(_mappedRenderTarget)) {
+      if (world.valid(_mappedRenderTarget)) {
             auto tex = world.try_get<Texture>(_mappedRenderTarget);
-            if(tex) {
+            if (tex) {
                   const auto src = std::bit_cast<VkOffset3D>(tex->GetExtent());
                   const auto dst = std::bit_cast<VkOffset3D>(current_rt->GetExtent());
                   constexpr VkOffset3D zero = {0, 0, 0};
 
-                  const VkImageBlit blit {
+                  const VkImageBlit blit{
                         .srcSubresource = {
                               .aspectMask = tex->GetViewCI().subresourceRange.aspectMask,
                               .mipLevel = 0,
@@ -104,20 +103,19 @@ void Swapchain::MapRenderTarget(VkCommandBuffer cmd) {
 
                   tex->BarrierLayout(cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_2_BLIT_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
                   current_rt->BarrierLayout(cmd, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, std::nullopt, VK_PIPELINE_STAGE_2_BLIT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
-
             } else {
-                  if(current_rt->GetCurrentLayout() != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+                  if (current_rt->GetCurrentLayout() != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
                         current_rt->BarrierLayout(cmd, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, std::nullopt, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
                   }
             }
       } else {
-            if(current_rt->GetCurrentLayout() != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+            if (current_rt->GetCurrentLayout() != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
                   current_rt->BarrierLayout(cmd, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, std::nullopt, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
             }
       }
 }
-Swapchain::~Swapchain() {
 
+Swapchain::~Swapchain() {
       const auto device = volkGetLoadedDevice();
       const auto instance = volkGetLoadedInstance();
 
@@ -150,11 +148,11 @@ void Swapchain::CreateOrRecreateSwapChain() {
 
       auto current_window_size = res->GetSize();
 
-      if(current_window_size.width == 0 || current_window_size.height == 0) {
+      if (current_window_size.width == 0 || current_window_size.height == 0) {
             return;
       }
 
-      if(current_window_size.width == _extent.width && current_window_size.height == _extent.height) {
+      if (current_window_size.width == _extent.width && current_window_size.height == _extent.height) {
             return;
       }
 
@@ -195,7 +193,6 @@ void Swapchain::CreateOrRecreateSwapChain() {
       sp_ci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
       sp_ci.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
       sp_ci.clipped = VK_TRUE;
-
 
 
       if (auto res = vkCreateSwapchainKHR(device, &sp_ci, nullptr, &_swapchain); res != VK_SUCCESS) {

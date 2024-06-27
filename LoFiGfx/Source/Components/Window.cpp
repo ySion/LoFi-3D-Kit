@@ -5,17 +5,17 @@
 
 using namespace LoFi::Component;
 
-Window::Window(entt::entity id, const char *title, int w, int h) : _id(id) {
+Window::Window(entt::entity id, const char* title, int w, int h) : _id(id) {
       _window = SDL_CreateWindow(title, w, h, SDL_WINDOW_VULKAN);
       SDL_SetWindowMinimumSize(_window, 64, 64);
       SDL_SetWindowResizable(_window, true);
 
-      entt::registry &reg = *volkGetLoadedEcsWorld();
+      entt::registry& reg = *volkGetLoadedEcsWorld();
       reg.emplace<Swapchain>(_id, _id);
 }
 
 Window::~Window() {
-      entt::registry &reg = *volkGetLoadedEcsWorld();
+      entt::registry& reg = *volkGetLoadedEcsWorld();
 
       if (reg.try_get<Swapchain>(_id)) {
             reg.remove<Swapchain>(_id);
@@ -34,7 +34,7 @@ VkExtent2D Window::GetSize() const {
       return {(uint32_t)x, (uint32_t)y};
 }
 
-SDL_Window *Window::GetWindowPtr() const {
+SDL_Window* Window::GetWindowPtr() const {
       return _window;
 }
 

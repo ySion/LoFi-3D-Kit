@@ -10,50 +10,49 @@
 
 class PhysicalDevice {
 public:
-	PhysicalDevice() = default;
+      PhysicalDevice() = default;
 
-	explicit PhysicalDevice(VkPhysicalDevice physicalDevice);
+      explicit PhysicalDevice(VkPhysicalDevice physicalDevice);
 
-	bool isQueueFamily0SupportAllQueue() const;
+      bool isQueueFamily0SupportAllQueue() const;
 
-	std::vector<VkQueueFamilyProperties> _queueFamilyProperties{};
+      std::vector<VkQueueFamilyProperties> _queueFamilyProperties{};
 
-	VkPhysicalDeviceFeatures2 _features2{};
+      VkPhysicalDeviceFeatures2 _features2{};
 
-	VkPhysicalDeviceProperties2 _properties2{};
+      VkPhysicalDeviceProperties2 _properties2{};
 
-	VkPhysicalDeviceMemoryProperties2 _memoryProperties2{};
+      VkPhysicalDeviceMemoryProperties2 _memoryProperties2{};
 
-	VkPhysicalDeviceRayTracingPipelinePropertiesKHR _rayTracingPipelineProperties{};
+      VkPhysicalDeviceRayTracingPipelinePropertiesKHR _rayTracingPipelineProperties{};
 
-	VkPhysicalDeviceAccelerationStructurePropertiesKHR _accelerationStructureProperties{};
+      VkPhysicalDeviceAccelerationStructurePropertiesKHR _accelerationStructureProperties{};
 
-	VkPhysicalDeviceRayTracingPipelineFeaturesKHR _rayTracingFeatures{};
+      VkPhysicalDeviceRayTracingPipelineFeaturesKHR _rayTracingFeatures{};
 
-	VkPhysicalDeviceAccelerationStructureFeaturesKHR _accelerationStructureFeatures{};
+      VkPhysicalDeviceAccelerationStructureFeaturesKHR _accelerationStructureFeatures{};
 
-	VkPhysicalDeviceBufferDeviceAddressFeatures _bufferDeviceAddressFeatures{};
+      VkPhysicalDeviceBufferDeviceAddressFeatures _bufferDeviceAddressFeatures{};
 
-	VkPhysicalDeviceDescriptorIndexingFeatures _descriptorIndexingFeatures{};
+      VkPhysicalDeviceDescriptorIndexingFeatures _descriptorIndexingFeatures{};
 
-	VkPhysicalDeviceDescriptorIndexingProperties _descriptorIndexingProperties{};
+      VkPhysicalDeviceDescriptorIndexingProperties _descriptorIndexingProperties{};
 
-	VkPhysicalDeviceVulkan11Features _vulkan11Features{};
+      VkPhysicalDeviceVulkan11Features _vulkan11Features{};
 
-	VkPhysicalDeviceVulkan11Properties _vulkan11Properties{};
+      VkPhysicalDeviceVulkan11Properties _vulkan11Properties{};
 
-	VkPhysicalDeviceDynamicRenderingFeaturesKHR _dynamicRenderingFeatures{};
+      VkPhysicalDeviceDynamicRenderingFeaturesKHR _dynamicRenderingFeatures{};
 
-	VkPhysicalDeviceSynchronization2FeaturesKHR _synchronization2Features{};
+      VkPhysicalDeviceSynchronization2FeaturesKHR _synchronization2Features{};
 
-	VkPhysicalDeviceMeshShaderFeaturesEXT _meshShaderFeatures{};
+      VkPhysicalDeviceMeshShaderFeaturesEXT _meshShaderFeatures{};
 
-	VkPhysicalDeviceMeshShaderPropertiesEXT _meshShaderProperties{};
+      VkPhysicalDeviceMeshShaderPropertiesEXT _meshShaderProperties{};
 
-	VkPhysicalDeviceFragmentShadingRateFeaturesKHR _fragmentShadingRateFeatures{};
+      VkPhysicalDeviceFragmentShadingRateFeaturesKHR _fragmentShadingRateFeatures{};
 
-	VkPhysicalDeviceFragmentShadingRatePropertiesKHR _fragmentShadingRateProperties{};
-
+      VkPhysicalDeviceFragmentShadingRatePropertiesKHR _fragmentShadingRateProperties{};
 };
 
 #endif //PHYSICALDEVICE_H

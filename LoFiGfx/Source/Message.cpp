@@ -9,20 +9,20 @@
 using namespace LoFi;
 
 void MessageManager::Log(MessageType type, std::string_view content) {
-      switch(type) {
+      switch (type) {
             case MessageType::Normal:
                   NormalCount++;
-            std::printf("[Normal]: %s\n", content.data());
-            break;
+                  std::printf("[Normal]: %s\n", content.data());
+                  break;
             case MessageType::Warning:
                   WarningCount++;
-            std::printf("[Warning]: %s\n", content.data());
+                  std::printf("[Warning]: %s\n", content.data());
 
-            break;
+                  break;
             case MessageType::Error:
                   ErrorCount++;
-            std::printf("[Error]: %s\n", content.data());
-            break;
+                  std::printf("[Error]: %s\n", content.data());
+                  break;
             default: return;
       }
 
@@ -30,15 +30,15 @@ void MessageManager::Log(MessageType type, std::string_view content) {
 }
 
 void MessageManager::Clear() {
-            Messages.clear();
+      Messages.clear();
 }
 
 std::string MessageManager::Get(int MessageCount) {
-      std::string result {};
+      std::string result{};
       for (const auto& msg : Messages) {
             MessageCount--;
             result += msg.Content + "\n";
-            if(MessageCount == 0) {
+            if (MessageCount == 0) {
                   break;
             }
       }

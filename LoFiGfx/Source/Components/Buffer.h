@@ -7,7 +7,6 @@ namespace LoFi {
 }
 
 namespace LoFi::Component {
-
       class Buffer {
       public:
             NO_COPY_MOVE_CONS(Buffer);
@@ -53,7 +52,6 @@ namespace LoFi::Component {
             void Recreate(uint64_t size);
 
       private:
-
             void CreateBuffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci);
 
             void ReleaseAllViews() const;
@@ -71,7 +69,6 @@ namespace LoFi::Component {
             friend class ::LoFi::Context;
 
       private:
-
             entt::entity _id = entt::null;
 
             size_t _vaildSize{};

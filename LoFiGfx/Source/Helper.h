@@ -31,24 +31,23 @@ Class& operator=(const Class&) = delete
 #include "Concurrent/concurrentqueue.h"
 
 namespace LoFi {
-
       VmaAllocator volkGetLoadedVmaAllocator();
 
       void volkLoadVmaAllocator(VmaAllocator allocator);
 
-      entt::registry *volkGetLoadedEcsWorld();
+      entt::registry* volkGetLoadedEcsWorld();
 
-      void volkLoadEcsWorld(entt::registry *world);
+      void volkLoadEcsWorld(entt::registry* world);
 
       VkPhysicalDevice volkGetLoadedPhysicalDevice();
 
       void volkLoadPhysicalDevice(VkPhysicalDevice device);
 
-      const char *GetVkResultString(VkResult res);
+      const char* GetVkResultString(VkResult res);
 
-      const char *GetVkFormatString(VkFormat format);
+      const char* GetVkFormatString(VkFormat format);
 
-      const char *GetVkFormatStringSimpled(VkFormat format);
+      const char* GetVkFormatStringSimpled(VkFormat format);
 
       VkFormat GetVkFormatFromString(const std::string& str);
 

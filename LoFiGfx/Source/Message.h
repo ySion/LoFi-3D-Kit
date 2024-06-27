@@ -8,7 +8,6 @@
 #include "Helper.h"
 
 namespace LoFi {
-
       enum class MessageType : uint8_t {
             Normal,
             Warning,
@@ -33,6 +32,7 @@ namespace LoFi {
             static void Clear();
 
             static std::string Get(int messageCount = 0);
+
       private:
             inline static std::list<Message> Messages;
             inline static uint32_t ErrorCount = 0;

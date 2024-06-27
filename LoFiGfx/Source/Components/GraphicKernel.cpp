@@ -9,15 +9,14 @@
 #include "../Context.h"
 
 LoFi::Component::GraphicKernel::GraphicKernel(entt::entity id) : _id(id) {
-
 }
 
 LoFi::Component::GraphicKernel::~GraphicKernel() {
-      if(_pipeline) {
+      if (_pipeline) {
             vkDestroyPipeline(volkGetLoadedDevice(), _pipeline, nullptr);
       }
 
-      if(_pipelineLayout){
+      if (_pipelineLayout) {
             vkDestroyPipelineLayout(volkGetLoadedDevice(), _pipelineLayout, nullptr);
       }
 }
@@ -25,38 +24,38 @@ LoFi::Component::GraphicKernel::~GraphicKernel() {
 bool LoFi::Component::GraphicKernel::CreateFromProgram(entt::entity program) {
       auto& world = *volkGetLoadedEcsWorld();
 
-      if(!world.valid(program)) {
+      if (!world.valid(program)) {
             auto str = std::format("GraphicKernel::CreateFromProgram - Invalid Program Entity\n");
             MessageManager::Log(MessageType::Warning, str);
             return false;
       }
 
       auto prog = world.try_get<LoFi::Component::Program>(program);
-      if(!prog) {
+      if (!prog) {
             auto str = std::format("GraphicKernel::CreateFromProgram - Program Component Not Found\n");
             MessageManager::Log(MessageType::Warning, str);
             return false;
       }
 
-      if(!prog->IsCompiled()) {
+      if (!prog->IsCompiled()) {
             const auto err = std::format("GraphicKernel::CreateFromProgram - Program Not Compiled\n");
             MessageManager::Log(MessageType::Warning, err);
             return false;
       }
 
-      if(!prog->GetShaderModules().contains(glslang_stage_t::GLSLANG_STAGE_VERTEX)) {
+      if (!prog->GetShaderModules().contains(glslang_stage_t::GLSLANG_STAGE_VERTEX)) {
             auto str = std::format("GraphicKernel::CreateFromProgram - Vertex Shader Not Found\n");
             MessageManager::Log(MessageType::Warning, str);
             return false;
       }
 
-      if(!prog->GetShaderModules().contains(glslang_stage_t::GLSLANG_STAGE_FRAGMENT)) {
+      if (!prog->GetShaderModules().contains(glslang_stage_t::GLSLANG_STAGE_FRAGMENT)) {
             auto str = std::format("GraphicKernel::CreateFromProgram - Pixel Shader Not Found\n");
             MessageManager::Log(MessageType::Warning, str);
             return false;
       }
 
-      std::vector<VkPipelineShaderStageCreateInfo> stages {
+      std::vector<VkPipelineShaderStageCreateInfo> stages{
             {
                   .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                   .stage = VK_SHADER_STAGE_VERTEX_BIT,
@@ -82,15 +81,15 @@ bool LoFi::Component::GraphicKernel::CreateFromProgram(entt::entity program) {
       //       .extent = {1, 1}
       // };
 
-      VkPipelineViewportStateCreateInfo viewport_ci {
+      VkPipelineViewportStateCreateInfo viewport_ci{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
             .viewportCount = 1,
             //.pViewports = &default_viewport,
             .scissorCount = 1,
-           // .pScissors = &default_scissor
+            // .pScissors = &default_scissor
       };
 
-      VkPipelineMultisampleStateCreateInfo multisample_ci {
+      VkPipelineMultisampleStateCreateInfo multisample_ci{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
             .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
             .sampleShadingEnable = VK_FALSE,
@@ -100,12 +99,12 @@ bool LoFi::Component::GraphicKernel::CreateFromProgram(entt::entity program) {
             .alphaToOneEnable = VK_FALSE
       };
 
-      std::vector<VkDynamicState> dynamic_states {
-           VK_DYNAMIC_STATE_VIEWPORT,
+      std::vector<VkDynamicState> dynamic_states{
+            VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR
       };
 
-      VkPipelineDynamicStateCreateInfo dynamic_state_ci {
+      VkPipelineDynamicStateCreateInfo dynamic_state_ci{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
@@ -113,7 +112,7 @@ bool LoFi::Component::GraphicKernel::CreateFromProgram(entt::entity program) {
             .pDynamicStates = dynamic_states.data()
       };
 
-      VkPipelineLayoutCreateInfo pipeline_layout_ci {
+      VkPipelineLayoutCreateInfo pipeline_layout_ci{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
@@ -123,7 +122,7 @@ bool LoFi::Component::GraphicKernel::CreateFromProgram(entt::entity program) {
             .pPushConstantRanges = (prog->_pushConstantRange.size == 0 ? nullptr : &prog->_pushConstantRange)
       };
 
-      if(vkCreatePipelineLayout(volkGetLoadedDevice(), &pipeline_layout_ci, nullptr, &_pipelineLayout) != VK_SUCCESS) {
+      if (vkCreatePipelineLayout(volkGetLoadedDevice(), &pipeline_layout_ci, nullptr, &_pipelineLayout) != VK_SUCCESS) {
             auto str = std::format("GraphicKernel::CreateFromProgram - vkCreatePipelineLayout Failed\n");
             MessageManager::Log(MessageType::Error, str);
             return false;
@@ -174,7 +173,7 @@ bool LoFi::Component::GraphicKernel::CreateFromProgram(entt::entity program) {
       // multisampling.sampleShadingEnable = VK_FALSE;
       // multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-      VkGraphicsPipelineCreateInfo pipeline_ci {
+      VkGraphicsPipelineCreateInfo pipeline_ci{
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             .pNext = &prog->_renderingCreateInfo,
             .flags = 0,
@@ -185,7 +184,7 @@ bool LoFi::Component::GraphicKernel::CreateFromProgram(entt::entity program) {
             .pTessellationState = nullptr,
             .pViewportState = &viewport_ci,
             .pRasterizationState = &prog->_rasterizationStateCreateInfo,
-            .pMultisampleState =&multisample_ci,
+            .pMultisampleState = &multisample_ci,
             .pDepthStencilState = &prog->_depthStencilStateCreateInfo,
             .pColorBlendState = &prog->_colorBlendStateCreateInfo,
             .pDynamicState = &dynamic_state_ci,
@@ -196,7 +195,7 @@ bool LoFi::Component::GraphicKernel::CreateFromProgram(entt::entity program) {
             .basePipelineIndex = 0
       };
 
-      if(vkCreateGraphicsPipelines(volkGetLoadedDevice(), nullptr, 1, &pipeline_ci, nullptr, &_pipeline) != VK_SUCCESS) {
+      if (vkCreateGraphicsPipelines(volkGetLoadedDevice(), nullptr, 1, &pipeline_ci, nullptr, &_pipeline) != VK_SUCCESS) {
             auto str = std::format("GraphicKernel::CreateFromProgram - vkCreateGraphicsPipelines Failed\n");
             MessageManager::Log(MessageType::Error, str);
             return false;

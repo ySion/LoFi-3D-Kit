@@ -11,17 +11,15 @@ namespace LoFi {
 }
 
 namespace LoFi::Component {
-
       class GraphicKernel {
       public:
-
             NO_COPY_MOVE_CONS(GraphicKernel);
 
-            explicit  GraphicKernel(entt::entity id);
+            explicit GraphicKernel(entt::entity id);
 
             ~GraphicKernel();
 
-            bool CreateFromProgram(entt::entity program) ;
+            bool CreateFromProgram(entt::entity program);
 
             [[nodiscard]] VkPipeline GetPipeline() const { return _pipeline; }
 
@@ -30,14 +28,13 @@ namespace LoFi::Component {
             [[nodiscard]] VkPipelineLayout* GetPipelineLayoutPtr() { return &_pipelineLayout; }
 
       private:
-
             friend class ::LoFi::Context;
-      private:
 
+      private:
             entt::entity _id = entt::null;
 
-            VkPipeline _pipeline {};
+            VkPipeline _pipeline{};
 
-            VkPipelineLayout _pipelineLayout {};
+            VkPipelineLayout _pipelineLayout{};
       };
 }

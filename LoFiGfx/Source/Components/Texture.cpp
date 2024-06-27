@@ -31,7 +31,6 @@ LoFi::Component::Texture::Texture(entt::entity id, const VkImageCreateInfo& imag
 }
 
 VkImageView LoFi::Component::Texture::CreateView(VkImageViewCreateInfo view_ci) {
-
       view_ci.image = _image;
 
       VkImageView view{};
@@ -54,8 +53,7 @@ void LoFi::Component::Texture::ClearViews() {
       _viewCIs.clear();
 }
 
-void LoFi::Component::Texture::SetData(void* data, size_t size)
-{
+void LoFi::Component::Texture::SetData(void* data, size_t size) {
       VmaAllocationInfo info{};
       vmaGetAllocationInfo(volkGetLoadedVmaAllocator(), _memory, &info);
 
@@ -65,7 +63,8 @@ void LoFi::Component::Texture::SetData(void* data, size_t size)
             return;
       }
 
-      if (_intermediateBuffer == nullptr) { // create a upload buffer
+      if (_intermediateBuffer == nullptr) {
+            // create a upload buffer
 
             auto str = std::format(R"(Texture::SetData - Try UpLoad To device texture, using Intermediate Buffer)");
             MessageManager::Log(MessageType::Normal, str);
@@ -90,7 +89,7 @@ void LoFi::Component::Texture::SetData(void* data, size_t size)
       auto imm_buffer = _intermediateBuffer->GetBuffer();
       auto trans_size = size;
 
-      VkBufferImageCopy buffer_copyto_image {
+      VkBufferImageCopy buffer_copyto_image{
             .bufferOffset = 0,
             .bufferRowLength = 0,
             .bufferImageHeight = 0,
@@ -115,14 +114,13 @@ void LoFi::Component::Texture::SetData(void* data, size_t size)
 }
 
 void LoFi::Component::Texture::BarrierLayout(VkCommandBuffer cmd, VkImageLayout new_layout, std::optional<VkImageLayout> src_layout,
-      std::optional<VkPipelineStageFlags2> src_stage, std::optional<VkPipelineStageFlags2> dst_stage)
-{
+std::optional<VkPipelineStageFlags2> src_stage, std::optional<VkPipelineStageFlags2> dst_stage) {
       auto& old_layout = _currentLayout;
 
       if (old_layout == new_layout) return;
 
       VkImageMemoryBarrier2 barrier{};
-      barrier.sType =VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2_KHR;
+      barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2_KHR;
       barrier.image = _image;
       barrier.subresourceRange = {
             .aspectMask = _viewCIs.at(0).subresourceRange.aspectMask,
@@ -144,70 +142,75 @@ void LoFi::Component::Texture::BarrierLayout(VkCommandBuffer cmd, VkImageLayout 
       barrier.srcAccessMask = 0;
       barrier.dstAccessMask = 0;
 
-      if(src_layout.has_value()) {
+      if (src_layout.has_value()) {
             old_layout = src_layout.value();
       }
 
       switch (old_layout) {
-      case VK_IMAGE_LAYOUT_UNDEFINED: case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-            barrier.srcAccessMask = 0;
-            break;
+            case VK_IMAGE_LAYOUT_UNDEFINED:
+            case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+                  barrier.srcAccessMask = 0;
+                  break;
 
-      case VK_IMAGE_LAYOUT_PREINITIALIZED:
-            barrier.srcAccessMask = VK_ACCESS_2_HOST_WRITE_BIT;
-            break;
+            case VK_IMAGE_LAYOUT_PREINITIALIZED:
+                  barrier.srcAccessMask = VK_ACCESS_2_HOST_WRITE_BIT;
+                  break;
 
-      case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            barrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-            break;
+            case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+                  barrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+                  break;
 
-      case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL: case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL: case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
-            barrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-            break;
+            case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+            case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
+            case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+                  barrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                  break;
 
-      case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
-            break;
+            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+                  barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+                  break;
 
-      case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-            break;
+            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+                  barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                  break;
 
-      case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-            break;
+            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+                  barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+                  break;
 
-      default: break;
+            default: break;
       }
 
       switch (new_layout) {
-      case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            barrier.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-            break;
-      case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL: case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL: case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
-            barrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-            break;
-      case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
-            break;
-      case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-            break;
-      case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            if (barrier.srcAccessMask == 0) {
-                  barrier.srcAccessMask = VK_ACCESS_2_HOST_WRITE_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT;
-            }
-            barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-            break;
-      case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-            barrier.dstAccessMask = 0;
+            case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+                  barrier.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+                  break;
+            case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+            case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
+            case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+                  barrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                  break;
+            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+                  barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+                  break;
+            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+                  barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                  break;
+            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+                  if (barrier.srcAccessMask == 0) {
+                        barrier.srcAccessMask = VK_ACCESS_2_HOST_WRITE_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                  }
+                  barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+                  break;
+            case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+                  barrier.dstAccessMask = 0;
                   break;
             default: break;
       }
 
       old_layout = barrier.newLayout;
 
-      const VkDependencyInfo info {
+      const VkDependencyInfo info{
             .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
             .imageMemoryBarrierCount = 1,
             .pImageMemoryBarriers = &barrier
@@ -219,7 +222,7 @@ void LoFi::Component::Texture::BarrierLayout(VkCommandBuffer cmd, VkImageLayout 
 
 void LoFi::Component::Texture::ReleaseAllViews() const {
       for (const auto view : _views) {
-            ContextResourceRecoveryInfo info {
+            ContextResourceRecoveryInfo info{
                   .Type = ContextResourceType::IMAGEVIEW,
                   .Resource1 = (size_t)view
             };
@@ -237,18 +240,16 @@ void LoFi::Component::Texture::Clean() {
       }
 }
 
-void LoFi::Component::Texture::SetBindlessIndexForSampler(std::optional<uint32_t> index)
-{
+void LoFi::Component::Texture::SetBindlessIndexForSampler(std::optional<uint32_t> index) {
       _bindlessIndexForSampler = index;
 }
 
-void LoFi::Component::Texture::SetBindlessIndexForComputeKernel(std::optional<uint32_t> index)
-{
+void LoFi::Component::Texture::SetBindlessIndexForComputeKernel(std::optional<uint32_t> index) {
       _bindlessIndexForComputeKernel = index;
 }
 
 void LoFi::Component::Texture::DestroyTexture() {
-      ContextResourceRecoveryInfo info {
+      ContextResourceRecoveryInfo info{
             .Type = ContextResourceType::IMAGE,
             .Resource1 = (size_t)_image,
             .Resource2 = (size_t)_memory,

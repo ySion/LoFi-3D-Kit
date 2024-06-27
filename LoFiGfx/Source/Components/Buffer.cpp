@@ -1,6 +1,7 @@
 #include "Buffer.h"
 #include "../Message.h"
 #include "../Context.h"
+
 LoFi::Component::Buffer::~Buffer() {
       Clean();
 }
@@ -10,8 +11,7 @@ LoFi::Component::Buffer::Buffer(const VkBufferCreateInfo& buffer_ci, const VmaAl
 }
 
 LoFi::Component::Buffer::Buffer(entt::entity id, const VkBufferCreateInfo& buffer_ci,
-      const VmaAllocationCreateInfo& alloc_ci)
-{
+const VmaAllocationCreateInfo& alloc_ci) {
       _id = id;
       CreateBuffer(buffer_ci, alloc_ci);
 }
@@ -56,7 +56,6 @@ void LoFi::Component::Buffer::Unmap() {
 }
 
 void LoFi::Component::Buffer::SetData(const void* p, uint64_t size) {
-
       if (!p) {
             std::string msg = "Buffer::SetData Invalid data pointer";
             MessageManager::Log(MessageType::Error, msg);
@@ -71,7 +70,8 @@ void LoFi::Component::Buffer::SetData(const void* p, uint64_t size) {
             memcpy(Map(), p, size);
             _vaildSize = size;
       } else {
-            if (_intermediateBuffer == nullptr) { // create a upload buffer
+            if (_intermediateBuffer == nullptr) {
+                  // create a upload buffer
 
                   auto str = std::format(R"(Buffer::SetData - Try UpLoad To device buffer, using Intermediate Buffer)");
                   MessageManager::Log(MessageType::Normal, str);
@@ -89,7 +89,6 @@ void LoFi::Component::Buffer::SetData(const void* p, uint64_t size) {
                         .usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
                         .requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                   });
-
             }
 
             _intermediateBuffer->SetData(p, size);
@@ -130,8 +129,8 @@ void LoFi::Component::Buffer::Recreate(uint64_t size) {
 
       RecreateAllViews();
 
-      if(_bindlessIndex.has_value()) {
-            _bindlessIndex =  Context::Get()->MakeBindlessIndexBuffer(_id);
+      if (_bindlessIndex.has_value()) {
+            _bindlessIndex = Context::Get()->MakeBindlessIndexBuffer(_id);
       }
 
       auto str = std::format(R"(Buffer::CreateBuffer - Recreate "{}" bytes at "{}" side)", _bufferCI->size, _isHostSide ? "Host" : "Device");
@@ -139,9 +138,8 @@ void LoFi::Component::Buffer::Recreate(uint64_t size) {
 }
 
 void LoFi::Component::Buffer::CreateBuffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci) {
-
-      _bufferCI.reset(new VkBufferCreateInfo{ buffer_ci });
-      _memoryCI.reset(new VmaAllocationCreateInfo{ alloc_ci });
+      _bufferCI.reset(new VkBufferCreateInfo{buffer_ci});
+      _memoryCI.reset(new VmaAllocationCreateInfo{alloc_ci});
 
       if (_buffer != nullptr) {
             DestroyBuffer();
@@ -165,7 +163,7 @@ void LoFi::Component::Buffer::CreateBuffer(const VkBufferCreateInfo& buffer_ci, 
 
 void LoFi::Component::Buffer::ReleaseAllViews() const {
       for (const auto view : _views) {
-            ContextResourceRecoveryInfo info {
+            ContextResourceRecoveryInfo info{
                   .Type = ContextResourceType::BUFFERVIEW,
                   .Resource1 = (size_t)view
             };
@@ -202,7 +200,7 @@ void LoFi::Component::Buffer::SetBindlessIndex(std::optional<uint32_t> bindless_
 }
 
 void LoFi::Component::Buffer::DestroyBuffer() {
-      ContextResourceRecoveryInfo info {
+      ContextResourceRecoveryInfo info{
             .Type = ContextResourceType::BUFFER,
             .Resource1 = (size_t)_buffer,
             .Resource2 = (size_t)_memory,
@@ -210,5 +208,3 @@ void LoFi::Component::Buffer::DestroyBuffer() {
       };
       Context::Get()->RecoveryContextResource(info);
 }
-
-
