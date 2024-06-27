@@ -1,4 +1,4 @@
-﻿//
+//
 // Created by starr on 2024/6/20.
 //
 #include "LoFiGfx.h"
@@ -124,6 +124,48 @@ void GStart()
 
                   layout(location = 0) out vec3 out_color;
 
+                  #extension GL_EXT_nonuniform_qualifier : enable
+                  #define BindlessStorageBinding 0
+                  #define BindlessSamplerBinding 1
+
+                  #define GetLayoutVariableName(Name) _bindless##Name##Register
+
+                  #define RegisterStruct1(Name, Vars) \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name Vars GetLayoutVariableName(Name)[];
+
+                  #define RegisterStruct2(Name, Vars, Name2, Vars2) \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name Vars GetLayoutVariableName(Name)[]; \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name2 Vars2 GetLayoutVariableName(Name2)[];
+
+                  #define RegisterStruct3(Name, Vars, Name2, Vars2, Name3, Vars3) \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name Vars GetLayoutVariableName(Name)[]; \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name2 Vars2 GetLayoutVariableName(Name2)[]; \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name3 Vars3 GetLayoutVariableName(Name3)[];
+
+                  #define RegisterStruct4(Name, Vars, Name2, Vars2, Name3, Vars3, Name4, Vars4) \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name Vars GetLayoutVariableName(Name)[]; \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name2 Vars2 GetLayoutVariableName(Name2)[]; \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name3 Vars3 GetLayoutVariableName(Name3)[]; \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name4 Vars4 GetLayoutVariableName(Name4)[];
+
+                  #define RegisterStruct5(Name, Vars, Name2, Vars2, Name3, Vars3, Name4, Vars4, Name5, Vars5) \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name Vars GetLayoutVariableName(Name)[]; \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name2 Vars2 GetLayoutVariableName(Name2)[]; \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name3 Vars3 GetLayoutVariableName(Name3)[]; \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name4 Vars4 GetLayoutVariableName(Name4)[]; \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name5 Vars5 GetLayoutVariableName(Name5)[];
+
+                  RegisterStruct2(
+                        Info, {
+                              vec4 pos;
+                              vec4 color;
+                        },
+                        Camera, {
+                              mat4 view;
+                              mat4 proj;
+                        }
+                  )
+
                   void VSMain() {
                         gl_Position = vec4(pos, 0.0f, 1.0f);
                         out_color = color;
@@ -204,5 +246,5 @@ void GStart()
 
       func.wait();
 
-      printf("End");
+      printf("你好你好");
 }

@@ -1,18 +1,29 @@
 ﻿{
     "configurations": [
         {
-            "name": "x64-Debug",
+            "name": "MinSize",
             "generator": "Ninja",
-            "configurationType": "Debug",
-            "inheritEnvironments": [ "msvc_x64_x64" ],
+            "configurationType": "MinSizeRel",
             "buildRoot": "${projectDir}\\out\\build\\${name}",
             "installRoot": "${projectDir}\\out\\install\\${name}",
             "cmakeCommandArgs": "",
             "buildCommandArgs": "",
-            "ctestCommandArgs": ""
+            "ctestCommandArgs": "",
+            "inheritEnvironments": [ "msvc_x64_x64" ]
         },
         {
-            "name": "x64-Release",
+            "name": "Release",
+            "generator": "Ninja",
+            "configurationType": "RelWithDebInfo",
+            "buildRoot": "${projectDir}\\out\\build\\${name}",
+            "installRoot": "${projectDir}\\out\\install\\${name}",
+            "cmakeCommandArgs": "",
+            "buildCommandArgs": "",
+            "ctestCommandArgs": "",
+            "inheritEnvironments": [ "msvc_x64_x64" ]
+        },
+        {
+            "name": "ReleaseDbg",
             "generator": "Ninja",
             "configurationType": "RelWithDebInfo",
             "buildRoot": "${projectDir}\\out\\build\\${name}",

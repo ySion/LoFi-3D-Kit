@@ -1,4 +1,4 @@
-﻿#include "Context.h"
+#include "Context.h"
 #include "Message.h"
 #include "PhysicalDevice.h"
 
@@ -456,16 +456,16 @@ void Context::Init() {
                  },
                  VkDescriptorSetLayoutBinding {
                         .binding = 1,
-                        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                         .descriptorCount = 32767,
                         .stageFlags = VK_SHADER_STAGE_ALL
                  },
                  VkDescriptorSetLayoutBinding {
                         .binding = 2,
-                        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
                         .descriptorCount = 32767,
                         .stageFlags = VK_SHADER_STAGE_ALL
-                 }
+                 },
             };
 
             std::array<VkDescriptorBindingFlags, 3> flags{
@@ -1202,13 +1202,13 @@ uint32_t Context::MakeBindlessIndexTextureForSampler(entt::entity texture, uint3
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
       };
 
-      auto free_index = _bindlessIndexFreeList[2].Gen();
+      auto free_index = _bindlessIndexFreeList[1].Gen();
 
       VkWriteDescriptorSet write{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = nullptr,
             .dstSet = _bindlessDescriptorSet,
-            .dstBinding = 2,
+            .dstBinding = 1,
             .dstArrayElement = free_index,
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -1255,13 +1255,13 @@ uint32_t Context::MakeBindlessIndexTextureForComputeKernel(entt::entity texture,
             .imageLayout = VK_IMAGE_LAYOUT_GENERAL
       };
 
-      auto free_index = _bindlessIndexFreeList[1].Gen();
+      auto free_index = _bindlessIndexFreeList[2].Gen();
 
       VkWriteDescriptorSet write{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = nullptr,
             .dstSet = _bindlessDescriptorSet,
-            .dstBinding = 1,
+            .dstBinding = 2,
             .dstArrayElement = free_index,
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
@@ -1535,9 +1535,9 @@ void Context::RecoveryContextResourceImage(const ContextResourceRecoveryInfo &pa
             vmaDestroyImage(_allocator, image, alloc);
 
             if(pack.Resource3.has_value())
-                  _bindlessIndexFreeList[2].Free(pack.Resource3.value());
+                  _bindlessIndexFreeList[1].Free(pack.Resource3.value());
             if(pack.Resource4.has_value())
-                  _bindlessIndexFreeList[1].Free(pack.Resource4.value());
+                  _bindlessIndexFreeList[2].Free(pack.Resource4.value());
 
             MessageManager::Log(MessageType::Normal, "Recovery Resource Image");
       } else {

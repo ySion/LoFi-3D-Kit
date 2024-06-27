@@ -1,4 +1,4 @@
-﻿//
+//
 // Created by starr on 2024/6/20.
 //
 #pragma once
@@ -247,7 +247,7 @@ namespace LoFi {
 
             entt::dense_map<VkSamplerCreateInfo, VkSampler, SamplerCIHash, SamplerCIEqual> _samplers{};
 
-            FreeList _bindlessIndexFreeList[3]{}; // buffer, texture_cs, textuure_sample
+            FreeList _bindlessIndexFreeList[3]{}; // buffer, texture_sample, texture_cs
 
       private:
             std::vector<std::function<void(VkCommandBuffer)>> _commandQueue;

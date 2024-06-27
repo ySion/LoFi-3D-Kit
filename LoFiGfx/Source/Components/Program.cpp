@@ -1,14 +1,11 @@
-﻿#define NOMINMAX
+#define NOMINMAX
 #include "Program.h"
 
 #include "../Context.h"
 #include "../Message.h"
 
 #include "../Third/spirv-cross/spirv_cross.hpp"
-#include "../Third/spirv-cross/spirv_hlsl.hpp"
-
-#include "SDL3/SDL.h"
-#include "glslang/Public/resource_limits_c.h"
+#include "../Third/glslang/Public/resource_limits_c.h"
 
 using namespace LoFi::Component;
 
@@ -172,7 +169,7 @@ bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std
             glslang_stage_t shader_type;
 
             if(!find_shader_type.has_value()) {
-                  const auto err = std::format("Program::CompileFromSourceCode - Failed to find shader type for shader program \"{}\", unknown shader type. -- Fail\n",
+                  const auto err = std::format("Program::CompileFromSourceCode - Failed to find shader type for shader program \"{}\", unknown shader type.",
                         _programName);
                   MessageManager::Log(MessageType::Warning, err);
                   return false;
@@ -184,14 +181,14 @@ bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std
             VkShaderModule shader_module{};
 
             if (!ParseSetters(source, setters, source_code_output, setter_parse_err_msg, shader_type)) {
-                  auto err = std::format("Program::CompileFromSourceCode - Failed to parse setters for shader program \"{}\" shader type :\"{}\" -- Fail\nSetterCompiler:\n{}",
+                  auto err = std::format("Program::CompileFromSourceCode - Failed to parse setters for shader program \"{}\" shader type :\"{}\".\nSetterCompiler:\n{}",
                         _programName, shader_type_str, setter_parse_err_msg);
                   MessageManager::Log(MessageType::Warning, err);
                   return false;
             }
 
             if(!CompileFromCode(source_code_output.data(), shader_type, spv, setter_parse_err_msg)){
-                  const auto err = std::format("Program::CompileFromSourceCode - Failed to compile shader program \"{}\", shader type :\"{}\" -- Fail\nShaderCompiler:\n{}",
+                  const auto err = std::format("Program::CompileFromSourceCode - Failed to compile shader program \"{}\", shader type :\"{}\".\nShaderCompiler:\n{}",
                         _programName, shader_type_str, setter_parse_err_msg);
                   MessageManager::Log(MessageType::Warning, err);
                   return false;
@@ -207,7 +204,7 @@ bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std
             }
 
             if(!parse_result) {
-                  const auto err = std::format("Program::CompileFromSourceCode - Failed to parse shader program \"{}\", shader type :\"{}\" -- Fail\n",
+                  const auto err = std::format("Program::CompileFromSourceCode - Failed to parse shader program \"{}\", shader type :\"{}\".",
                         _programName, shader_type_str);
                   MessageManager::Log(MessageType::Warning, err);
                   return false;
@@ -217,14 +214,14 @@ bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std
             shader_ci.pCode = spv.data();
 
             if (auto res = vkCreateShaderModule(volkGetLoadedDevice(), &shader_ci, nullptr, &shader_module); res != VK_SUCCESS) {
-                  const auto err = std::format("Program::CompileFromSourceCode - Failed to create shader module for shader program \"{}\", shader type :\"{}\" -- Fail\n",
+                  const auto err = std::format("Program::CompileFromSourceCode - Failed to create shader module for shader program \"{}\", shader type :\"{}\".",
                         _programName, shader_type_str);
                   MessageManager::Log(MessageType::Warning, err);
                   return false;
             }
 
             _shaderModules[shader_type] = std::make_pair(std::move(spv), shader_module);
-            const auto success = std::format("Program::CompileFromSourceCode - Successfully compiled shader program \"{}\", shader type :\"{}\" -- Success\n",
+            const auto success = std::format("Program::CompileFromSourceCode - Successfully compiled shader program \"{}\", shader type :\"{}\".",
                   _programName, shader_type_str);
             MessageManager::Log(MessageType::Normal, success);
       }
@@ -373,7 +370,13 @@ bool Program::ParseSetters(std::string_view codes, entt::dense_map<std::string, 
             } else {
                   auto posCommit = piece.find("//#set");
                   if (posCommit != std::string_view::npos) {
+                        output_codes += piece;
+                        output_codes += "\n";
                         continue;
+                  }else {
+                        output_codes += "//";
+                        output_codes += piece;
+                        output_codes += "\n";
                   }
             }
 
@@ -475,14 +478,14 @@ bool Program::ParseSetters(std::string_view codes, entt::dense_map<std::string, 
 
 bool Program::ParseVS(const std::vector<uint32_t>& spv) {
       MessageManager::Log(MessageType::Normal, "Program::ParseVS - Parsing Vertex Shader");
-      spirv_cross::CompilerHLSL comp(spv);
+      spirv_cross::Compiler comp(spv);
       spirv_cross::ShaderResources resources = comp.get_shader_resources();
 
       //input stage
       for (auto &resource: resources.stage_inputs) {
             const auto &name = comp.get_name(resource.id);
             const auto &type_id = comp.get_name(resource.base_type_id);
-            auto str1 = std::format("\tinput_stage : name {}, type {}.", name, type_id);
+            auto str1 = std::format("\tInput: name {}, type {}.", name, type_id);
             std::printf("%s\n", str1.c_str());
       }
 
@@ -494,7 +497,7 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
             std::string resoure_name = comp.get_name(resource.id);
             std::string type_name = comp.get_name(resource.base_type_id);
 
-            auto str1 = std::format("storage_buffers : Set: {}, Binding {}, resourece name {}, warpper type name: {}.",
+            auto str1 = std::format("StorageBuffer : Set: {}, Binding {}, resourece name {}, warpper type name: {}.",
                                     set, binding, resoure_name, type_name);
             std::printf("%s\n", str1.c_str());
 
@@ -504,7 +507,7 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
 
             uint32_t member_count = contained_type.member_types.size();
 
-            auto strSubType = std::format("\t\tcontained type name {}, member count {}.", contained_type_name,
+            auto strSubType = std::format("\t\tWrapperType: name {}, member count {}.", contained_type_name,
                                           member_count);
             std::printf("%s\n", strSubType.c_str());
 
@@ -521,7 +524,7 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
             }
       }
 
-      for (auto &resource: resources.separate_images) {
+      for (auto &resource: resources.sampled_images) {
             auto &type = comp.get_type(resource.base_type_id);
             uint32_t member_count = type.member_types.size();
 
@@ -529,7 +532,7 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
             uint32_t binding = comp.get_decoration(resource.id, spv::Decoration::DecorationBinding);
 
             const std::string& res_name = comp.get_name(resource.id);
-            auto str1 = std::format("separate_images : Set: {}, Binding {}, name {}.", set, binding, res_name);
+            auto str1 = std::format("SampledTexture: Set: {}, Binding {}, name {}.", set, binding, res_name);
             std::printf("%s\n", str1.c_str());
       }
 
@@ -546,7 +549,7 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
                   size_t offset = comp.type_struct_member_offset(type, i);
 
                   const std::string& member_name = comp.get_member_name(type.self, i);
-                  auto str = std::format("push_constant_buffers {}, offset {}, size {}", member_name, offset, member_size);
+                  auto str = std::format("PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
                   std::printf("%s\n", str.c_str());
 
                   if(i == member_count - 1){
@@ -561,7 +564,7 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
 
 bool Program::ParseFS(const std::vector<uint32_t>& spv) {
       MessageManager::Log(MessageType::Normal, "Program::ParsePS - Parsing Pixel Shader");
-      spirv_cross::CompilerHLSL comp(spv);
+      spirv_cross::Compiler comp(spv);
       spirv_cross::ShaderResources resources = comp.get_shader_resources();
 
       auto output_target_count = resources.stage_outputs.size();
@@ -570,7 +573,7 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
             const auto &name = comp.get_name(resource.id);
             const auto &type_id = comp.get_name(resource.base_type_id);
 
-            auto str1 = std::format("\t stage_outputs : name {}, type {}.", name, type_id);
+            auto str1 = std::format("\tOutPutTarget: name {}, type {}.", name, type_id);
             std::printf("%s\n", str1.c_str());
       }
 
@@ -588,7 +591,7 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
             std::string resoure_name = comp.get_name(resource.id);
             std::string type_name = comp.get_name(resource.base_type_id);
 
-            auto str1 = std::format("storage_buffers : Set: {}, Binding {}, resourece name {}, warpper type name: {}.",
+            auto str1 = std::format("StorageBuffer: Set: {}, Binding {}, resourece name {}, warpper type name: {}.",
                                     set, binding, resoure_name, type_name);
             std::printf("%s\n", str1.c_str());
 
@@ -598,7 +601,7 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
 
             uint32_t member_count = contained_type.member_types.size();
 
-            auto strSubType = std::format("\t\tcontained type name {}, member count {}.", contained_type_name,
+            auto strSubType = std::format("\t\tWrapperType: name {}, member count {}.", contained_type_name,
                                           member_count);
             std::printf("%s\n", strSubType.c_str());
 
@@ -615,7 +618,7 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
             }
       }
 
-      for (auto &resource: resources.separate_images) {
+      for (auto &resource: resources.sampled_images) {
             auto &type = comp.get_type(resource.base_type_id);
             uint32_t member_count = type.member_types.size();
 
@@ -623,7 +626,7 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
             uint32_t binding = comp.get_decoration(resource.id, spv::Decoration::DecorationBinding);
 
             std::string res_name = comp.get_name(resource.id);
-            auto str1 = std::format("separate_images : Set: {}, Binding {}, name {}.", set, binding, res_name);
+            auto str1 = std::format("SampledTexture: Set: {}, Binding {}, name {}.", set, binding, res_name);
             std::printf("%s\n", str1.c_str());
       }
 
@@ -800,28 +803,28 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                   uint32_t offset;
                   try {
                         binding = std::stoi(values[0]);
-                  } catch (const auto& what) {
+                  } catch (std::runtime_error& what) {
                         error_msg = std::format("Invalid argument 1 for key \"{}\". Expected integer, got \"{}\".", key, values[0]);
                         return false;
                   }
 
                   try {
                         location = std::stoi(values[1]);
-                  } catch (const auto& what) {
+                  } catch (std::runtime_error& what) {
                         error_msg = std::format("Invalid argument 2 for key \"{}\". Expected integer, got \"{}\".", key, values[1]);
                         return false;
                   }
 
                   try {
                         offset = std::stoi(values[3]);
-                  } catch (const auto& what) {
+                  } catch (std::runtime_error& what) {
                         error_msg = std::format("Invalid argument 4 for key \"{}\". Expected integer, got \"{}\".", key, values[3]);
                         return false;
                   }
 
                   VkFormat format = GetVkFormatFromStringSimpled(values[2]);
 
-                  if(format == VK_FORMAT_UNDEFINED) {
+                  if (format == VK_FORMAT_UNDEFINED) {
                         return ErrorArgument(key, 3, values[2], error_msg, "(format)");
                   }
 
@@ -836,39 +839,39 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
 
                   _vertexInputStateCreateInfo.pVertexAttributeDescriptions = _vertexInputAttributeDescription.data();
                   _vertexInputStateCreateInfo.vertexAttributeDescriptionCount = _vertexInputAttributeDescription.size();
-            }else {
+            } else {
                   return ErrorArgumentUnmatching(key, 4, values.size(), error_msg, "bind, location , format, offset");
             }
       } else if (key == "vs_binding") {
-            if(values.size() == 3) {  // binding, stride_size, binding_rate
+            if (values.size() == 3) {  // binding, stride_size, binding_rate
                   uint32_t binding;
                   uint32_t stride_size;
 
                   try {
                         binding = std::stoi(values[0]);
-                  } catch (const auto& what) {
+                  } catch (std::runtime_error& what) {
                         error_msg = std::format("Invalid argument 1 for key \"{}\". Expected integer, got \"{}\".", key, values[0]);
                         return false;
                   }
 
                   try {
                         stride_size = std::stoi(values[1]);
-                  } catch (const auto& what) {
+                  } catch (std::runtime_error& what) {
                         error_msg = std::format("Invalid argument 2 for key \"{}\". Expected integer, got \"{}\".", key, values[1]);
                         return false;
                   }
 
-                  VkVertexInputBindingDescription binding_desc {
+                  VkVertexInputBindingDescription binding_desc{
                         .binding = binding,
                         .stride = stride_size,
                         .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
                   };
 
-                  if(values[2] == "vertex") {
+                  if (values[2] == "vertex") {
                         binding_desc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-                  }else if(values[2] == "instance") {
+                  } else if (values[2] == "instance") {
                         binding_desc.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
-                  }else {
+                  } else {
                         return ErrorArgument(key, 3, values[2], error_msg, "vertex, instance");
                   }
                   _vertexInputBindingDescription.push_back(binding_desc);
@@ -879,28 +882,28 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                   return ErrorArgumentUnmatching(key, 4, values.size(), error_msg, "binding, stride_size, binding_rate");
             }
       } else if (key == "depth_bias") {
-            if(values.size() == 3) {  // depthBiasConstantFactor, depthBiasClamp, depthBiasSlopeFactor
+            if (values.size() == 3) {  // depthBiasConstantFactor, depthBiasClamp, depthBiasSlopeFactor
                   float depthBiasConstantFactor;
                   float depthBiasClamp;
                   float depthBiasSlopeFactor;
 
                   try {
                         depthBiasConstantFactor = std::stof(values[0]);
-                  } catch (const auto& what) {
+                  } catch (std::runtime_error& what) {
                         error_msg = std::format("Invalid argument 1 for key \"{}\". Expected float, got \"{}\".", key, values[0]);
                         return false;
                   }
 
                   try {
                         depthBiasClamp = std::stof(values[1]);
-                  } catch (const auto& what) {
+                  } catch (std::runtime_error& what) {
                         error_msg = std::format("Invalid argument 2 for key \"{}\". Expected float, got \"{}\".", key, values[1]);
                         return false;
                   }
 
                   try {
                         depthBiasSlopeFactor = std::stof(values[2]);
-                  } catch (const auto& what) {
+                  } catch (std::runtime_error& what) {
                         error_msg = std::format("Invalid argument 3 for key \"{}\". Expected float, got \"{}\".", key, values[2]);
                         return false;
                   }
@@ -913,20 +916,20 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                   return ErrorArgumentUnmatching(key, 3, values.size(), error_msg, "depth_bias_constant_factor, depth_bias_clamp, depth_bias_slope_factor");
             }
       } else if (key == "depth_bounds_test") {
-            if(values.size() == 2) {  // min_depth, max_depth
+            if (values.size() == 2) {  // min_depth, max_depth
                   float min_depth;
                   float max_depth;
 
                   try {
                         min_depth = std::stof(values[0]);
-                  } catch (const auto& what) {
+                  } catch (std::runtime_error& what) {
                         error_msg = std::format("Invalid argument 1 for key \"{}\". Expected float, got \"{}\".", key, values[0]);
                         return false;
                   }
 
                   try {
                         max_depth = std::stof(values[1]);
-                  } catch (const auto& what) {
+                  } catch (std::runtime_error& what) {
                         error_msg = std::format("Invalid argument 2 for key \"{}\". Expected float, got \"{}\".", key, values[1]);
                         return false;
                   }
@@ -942,7 +945,7 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
 
             try {
                   line_width = std::stof(values[0]);
-            } catch (const auto& what) {
+            } catch (std::runtime_error& what) {
                   error_msg = std::format("Invalid argument 1 for key \"{}\". Expected float, got \"{}\".", key, values[0]);
                   return false;
             }

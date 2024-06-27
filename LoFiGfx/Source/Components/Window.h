@@ -5,6 +5,10 @@
 
 struct SDL_Window;
 
+namespace LoFi {
+      class Context;
+}
+
 namespace LoFi::Component {
 
       class Window {
@@ -31,6 +35,6 @@ namespace LoFi::Component {
             SDL_Window* _window {};
 
       private:
-            friend class Context;
+            friend class ::LoFi::Context;
       };
 }
