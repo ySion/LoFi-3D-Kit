@@ -9,27 +9,27 @@
 ### Very easy to use!
 
 ```c++
-          const char* vs = R"(
-                  #set topology   = triangle_list
-                  #set polygon_mode = fill
-                  #set cull_mode   = none
-                  #set depth_test  = default
-                  #set depth_write  = true
-
-                  #set vs_location = 0 0 r32g32b32_sfloat 0
-                  layout(location = 0) in vec2 pos;
-
-                  #set vs_location = 0 1 r32g32b32_sfloat 12
-                  layout(location = 1) in vec3 color;
-
-                  #set vs_binding = 0 24 vertex
-
-                  layout(location = 0) out vec3 out_color;
-
-                  void VSMain() {
-                        gl_Position = vec4(pos, 0.0f, 1.0f);
-                        out_color = color;
-                  }
+      const char* vs = R"(
+            #set topology   = triangle_list
+            #set polygon_mode = fill
+            #set cull_mode   = none
+            #set depth_test  = default
+            #set depth_write  = true
+            
+            #set vs_location = 0 0 r32g32b32_sfloat 0
+            layout(location = 0) in vec2 pos;
+            
+            #set vs_location = 0 1 r32g32b32_sfloat 12
+            layout(location = 1) in vec3 color;
+            
+            #set vs_binding = 0 24 vertex
+            
+            layout(location = 0) out vec3 out_color;
+            
+            void VSMain() {
+                gl_Position = vec4(pos, 0.0f, 1.0f);
+                out_color = color;
+            }
       )";
 
       const char* ps = R"(
