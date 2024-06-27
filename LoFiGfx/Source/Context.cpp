@@ -727,6 +727,7 @@ void Context::CmdBindLayoutVariable(const std::vector<LayoutVariableBindInfo>& l
                   for(const auto& i : layout_variable_names) {
                         printf("\t\t\tVailed Name: \"%s\"\n", i.first.c_str());
                   }
+
             }
       }
 
@@ -1192,7 +1193,7 @@ void Context::CmdBeginRenderPass(const std::vector<RenderPassBeginArgument>& tex
                   _frameRenderingDepthStencilAttachment = VkRenderingAttachmentInfo{
                         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                         .imageView = texture->GetView(view_index),
-                        .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+                        .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                         .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
                         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
                         .clearValue = {.depthStencil = {1.0f, 0}}

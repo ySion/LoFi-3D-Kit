@@ -17,7 +17,7 @@
             #set depth_write  = true
             
             #set vs_location = 0 0 r32g32b32_sfloat 0
-            layout(location = 0) in vec2 pos;
+            layout(location = 0) in vec3 pos;
             
             #set vs_location = 0 1 r32g32b32_sfloat 12
             layout(location = 1) in vec3 color;
@@ -27,7 +27,7 @@
             layout(location = 0) out vec3 out_color;
             
             void VSMain() {
-                gl_Position = vec4(pos, 0.0f, 1.0f);
+                gl_Position = vec4(pos, 1.0f);
                 out_color = color;
             }
       )";

@@ -29,11 +29,11 @@ void GStart() {
                   #set topology   = triangle_list
                   #set polygon_mode = fill
                   #set cull_mode   = none
-                  #set depth_test  = default
+                  #set depth_test  = less_or_equal
                   #set depth_write  = true
 
                   #set vs_location = 0 0 r32g32b32_sfloat 0
-                  layout(location = 0) in vec2 pos;
+                  layout(location = 0) in vec3 pos;
 
                   #set vs_location = 0 1 r32g32b32_sfloat 12
                   layout(location = 1) in vec3 color;
@@ -47,7 +47,7 @@ void GStart() {
                   })
 
                   void VSMain() {
-                        gl_Position = vec4(pos, 0, 1.0f);
+                        gl_Position = vec4(pos, 1.0f);
                         float t = sin(GetVar(Info).time * 10.0f) / 2.0f;
                         out_color = color + vec3(t,t,t);
                   }
@@ -88,18 +88,18 @@ void GStart() {
       ctx->Init();
 
       const auto win1 = ctx->CreateWindow("Triangle", 800, 600);
-      const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
-      const auto win3 = ctx->CreateWindow("Depth", 800, 600);
+      //const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
+      //const auto win3 = ctx->CreateWindow("Depth", 800, 600);
 
       const auto rt1 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 800, 600);
-      const auto rt2 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 400, 400);
-      const auto rt3 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 800, 600);
+      //const auto rt2 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 400, 400);
+      //const auto rt3 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 800, 600);
 
       const auto ds = ctx->CreateTexture2D(VK_FORMAT_D32_SFLOAT, 800, 600);
 
       ctx->MapRenderTargetToWindow(rt1, win1);
-      ctx->MapRenderTargetToWindow(rt2, win2);
-      ctx->MapRenderTargetToWindow(rt3, win3);
+     //ctx->MapRenderTargetToWindow(rt2, win2);
+      //ctx->MapRenderTargetToWindow(rt3, win3);
 
       const auto triangle_vert = ctx->CreateBuffer(triangle_vt);
       const auto triangle_index = ctx->CreateBuffer(triangle_id);
@@ -129,32 +129,29 @@ void GStart() {
 
                   ctx->BeginFrame();
                   //Pass 1
-                  ctx->CmdBeginRenderPass({{rt1}});
-                  ctx->CmdBindGraphicKernelToRenderPass(kernel);
+                  // ctx->CmdBeginRenderPass({{rt1}});
+                  // ctx->CmdBindGraphicKernelToRenderPass(kernel);
+                  // ctx->CmdBindLayoutVariable({{"Info", InfoBuffer}});
+                  // ctx->CmdBindVertexBuffer(triangle_vert);
+                  // ctx->CmdDrawIndex(triangle_index);
+                  // ctx->CmdEndRenderPass();
 
-                  ctx->CmdBindLayoutVariable({{"Info", InfoBuffer}});
-
-
-                  ctx->CmdBindVertexBuffer(triangle_vert);
-                  ctx->CmdDrawIndex(triangle_index);
-                  ctx->CmdEndRenderPass();
-
-                  //Pass 2
-                  ctx->CmdBeginRenderPass({{rt2}});
+                  // //Pass 2
+                  // ctx->CmdBeginRenderPass({{rt2}});
+                  // ctx->CmdBindGraphicKernelToRenderPass(kernel);
+                  // ctx->CmdBindLayoutVariable({{"Info", InfoBuffer}});
+                  // ctx->CmdBindVertexBuffer(square_vert);
+                  // ctx->CmdDrawIndex(square_index);
+                  // ctx->CmdEndRenderPass();
+                  //
+                  // //Pass 3
+                  ctx->CmdBeginRenderPass({{rt1}, {ds}});
                   ctx->CmdBindGraphicKernelToRenderPass(kernel);
                   ctx->CmdBindLayoutVariable({{"Info", InfoBuffer}});
                   ctx->CmdBindVertexBuffer(square_vert);
                   ctx->CmdDrawIndex(square_index);
-                  ctx->CmdEndRenderPass();
-
-                  //Pass 3
-                  ctx->CmdBeginRenderPass({{rt3}, {ds}});
-                  ctx->CmdBindGraphicKernelToRenderPass(kernel);
-                  ctx->CmdBindLayoutVariable({{"Info", InfoBuffer}});
                   ctx->CmdBindVertexBuffer(triangle_vert);
                   ctx->CmdDrawIndex(triangle_index);
-                  ctx->CmdBindVertexBuffer(square_vert);
-                  ctx->CmdDrawIndex(square_index);
                   ctx->CmdEndRenderPass();
 
                   ctx->EndFrame();
