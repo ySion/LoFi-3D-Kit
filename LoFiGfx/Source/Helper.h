@@ -20,42 +20,47 @@ Class& operator=(const Class&) = delete
 #include <stdexcept>
 #include <functional>
 #include <vector>
+#include <span>
+#include <variant>
+#include <ranges>
+#include <optional>
 
 #include "../Third/volk/volk.h"
 #include "VmaLoader.h"
 #include "entt/entt.hpp"
 #include "Concurrent/concurrentqueue.h"
 
-VmaAllocator volkGetLoadedVmaAllocator();
+namespace LoFi {
 
-void volkLoadVmaAllocator(VmaAllocator allocator);
+      VmaAllocator volkGetLoadedVmaAllocator();
 
-entt::registry *volkGetLoadedEcsWorld();
+      void volkLoadVmaAllocator(VmaAllocator allocator);
 
-void volkLoadEcsWorld(entt::registry *world);
+      entt::registry *volkGetLoadedEcsWorld();
 
-VkPhysicalDevice volkGetLoadedPhysicalDevice();
+      void volkLoadEcsWorld(entt::registry *world);
 
-void volkLoadPhysicalDevice(VkPhysicalDevice device);
+      VkPhysicalDevice volkGetLoadedPhysicalDevice();
 
-const char *GetVkResultString(VkResult res);
+      void volkLoadPhysicalDevice(VkPhysicalDevice device);
 
-const char *GetVkFormatString(VkFormat format);
+      const char *GetVkResultString(VkResult res);
 
-const char *GetVkFormatStringSimpled(VkFormat format);
+      const char *GetVkFormatString(VkFormat format);
 
-VkFormat GetVkFormatFromString(const std::string& str);
+      const char *GetVkFormatStringSimpled(VkFormat format);
 
-VkFormat GetVkFormatFromStringSimpled(const std::string& str);
+      VkFormat GetVkFormatFromString(const std::string& str);
 
-bool IsDepthOnlyFormat(VkFormat format);
+      VkFormat GetVkFormatFromStringSimpled(const std::string& str);
 
-bool IsDepthStencilOnlyFormat(VkFormat format);
+      bool IsDepthOnlyFormat(VkFormat format);
 
-bool IsDepthStencilFormat(VkFormat format);
+      bool IsDepthStencilOnlyFormat(VkFormat format);
 
-const char* GetImageLayoutString(VkImageLayout layout);
+      bool IsDepthStencilFormat(VkFormat format);
 
-
+      const char* GetImageLayoutString(VkImageLayout layout);
+}
 
 #endif //MARCOS_H

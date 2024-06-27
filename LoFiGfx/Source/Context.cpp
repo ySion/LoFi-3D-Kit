@@ -2,7 +2,6 @@
 #include "Message.h"
 #include "PhysicalDevice.h"
 
-#include <ranges>
 #include "SDL3/SDL.h"
 
 using namespace LoFi;
@@ -25,7 +24,7 @@ Context::~Context() {
 void Context::Init() {
       volkInitialize();
 
-      std::vector<const char*> instance_layers{ };
+      std::vector<const char*> instance_layers{};
       if (_bDebugMode) instance_layers.push_back("VK_LAYER_KHRONOS_validation");
 
       std::vector needed_instance_extension{
@@ -43,7 +42,7 @@ void Context::Init() {
             for (const auto& ext : needed_instance_extension) {
                   if (std::ranges::find_if(extensions, [&ext](const auto& extension) {
                         return std::strcmp(extension.extensionName, ext) == 0;
-                        }) == extensions.end()) {
+                  }) == extensions.end()) {
                         missing_extensions_names.push_back(ext);
                   }
             }
@@ -108,30 +107,30 @@ void Context::Init() {
             }
 
             if (!_physicalDevice) {
-                  std::string error_msg = "No suitable physical device found";
-                  MessageManager::Log(MessageType::Error, error_msg);
-                  throw std::runtime_error(error_msg);
+                  const auto err = "No suitable physical device found";
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
             }
       }
 
       {
             std::vector needed_device_extensions{
 
-                  "VK_KHR_dynamic_rendering",   // 必要
+                  "VK_KHR_dynamic_rendering", // 必要
                   "VK_EXT_descriptor_indexing", // bindless
 
                   "VK_KHR_maintenance2",
-                  "VK_GOOGLE_hlsl_functionality1",    //hlsl
-                  "VK_GOOGLE_user_type",              //hlsl
+                  "VK_GOOGLE_hlsl_functionality1", //hlsl
+                  "VK_GOOGLE_user_type", //hlsl
 
-                  "VK_KHR_swapchain",           // 必要
+                  "VK_KHR_swapchain", // 必要
                   "VK_KHR_get_memory_requirements2",
                   "VK_KHR_dedicated_allocation",
                   "VK_KHR_bind_memory2",
                   "VK_KHR_spirv_1_4",
 
                   //ray tracing
-                 // "VK_KHR_deferred_host_operations",
+                  // "VK_KHR_deferred_host_operations",
                   //"VK_KHR_acceleration_structure",
                   //"VK_KHR_ray_tracing_pipeline",
 
@@ -151,7 +150,7 @@ void Context::Init() {
             for (const auto& ext : needed_device_extensions) {
                   if (std::ranges::find_if(extensions, [&ext](const auto& extension) {
                         return std::strcmp(extension.extensionName, ext) == 0;
-                        }) == extensions.end()) {
+                  }) == extensions.end()) {
                         missing_extensions_names.push_back(ext);
                   }
             }
@@ -186,7 +185,7 @@ void Context::Init() {
                   .meshShaderQueries = false
             };
 
-            VkPhysicalDeviceSynchronization2FeaturesKHR synchronization2_features {
+            VkPhysicalDeviceSynchronization2FeaturesKHR synchronization2_features{
                   .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR,
                   .pNext = nullptr,
                   .synchronization2 = true,
@@ -240,7 +239,7 @@ void Context::Init() {
                   .runtimeDescriptorArray = true
             };
 
-            VkPhysicalDeviceFeatures2 features2 {
+            VkPhysicalDeviceFeatures2 features2{
                   .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
                   .pNext = &descriptor_indexing_features,
                   .features = {
@@ -396,15 +395,15 @@ void Context::Init() {
 
             for (int i = 0; i < 3; i++) {
                   if (vkCreateFence(_device, &fence_ci, nullptr, &_mainCommandFence[i]) != VK_SUCCESS) {
-                        std::string msg = "Context::Init Failed to create fence";
-                        MessageManager::Log(MessageType::Error, msg);
-                        throw std::runtime_error(msg);
+                        const auto err = "Context::Init Failed to create fence";
+                        MessageManager::Log(MessageType::Error, err);
+                        throw std::runtime_error(err);
                   }
 
                   if (vkCreateSemaphore(_device, &semaphore_ci, nullptr, &_mainCommandQueueSemaphore[i]) != VK_SUCCESS) {
-                        std::string msg = "Context::Init Failed to create semaphore";
-                        MessageManager::Log(MessageType::Error, msg);
-                        throw std::runtime_error(msg);
+                        const auto err = "Context::Init Failed to create semaphore";
+                        MessageManager::Log(MessageType::Error, err);
+                        throw std::runtime_error(err);
                   }
             }
       }
@@ -412,21 +411,20 @@ void Context::Init() {
       volkLoadEcsWorld(&_world);
 
       {
-
             std::array size{
                   //VkDescriptorPoolSize {
                   //      .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, // UBO
                   //      .descriptorCount = 65535
                   //},
-                  VkDescriptorPoolSize {
+                  VkDescriptorPoolSize{
                         .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // Storage Buffer
                         .descriptorCount = 65535
                   },
-                  VkDescriptorPoolSize {
+                  VkDescriptorPoolSize{
                         .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
                         .descriptorCount = 65535
                   },
-                  VkDescriptorPoolSize {
+                  VkDescriptorPoolSize{
                         .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, // sampler
                         .descriptorCount = 65535
                   },
@@ -442,30 +440,30 @@ void Context::Init() {
 
 
             if (auto res = vkCreateDescriptorPool(_device, &pool_ci, nullptr, &_descriptorPool); res != VK_SUCCESS) {
-                  auto msg = std::format("Context::Init - Failed to create descriptor pool, res {}", (uint64_t)res);
-                  MessageManager::Log(MessageType::Error, msg);
-                  throw std::runtime_error(msg);
+                  const auto err = std::format("Context::Init - Failed to create descriptor pool, res {}", (uint64_t)res);
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
             }
 
             std::array binding{
-                 VkDescriptorSetLayoutBinding {
+                  VkDescriptorSetLayoutBinding{
                         .binding = 0,
                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                         .descriptorCount = 32767,
                         .stageFlags = VK_SHADER_STAGE_ALL
-                 },
-                 VkDescriptorSetLayoutBinding {
+                  },
+                  VkDescriptorSetLayoutBinding{
                         .binding = 1,
                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                         .descriptorCount = 32767,
                         .stageFlags = VK_SHADER_STAGE_ALL
-                 },
-                 VkDescriptorSetLayoutBinding {
+                  },
+                  VkDescriptorSetLayoutBinding{
                         .binding = 2,
                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
                         .descriptorCount = 32767,
                         .stageFlags = VK_SHADER_STAGE_ALL
-                 },
+                  },
             };
 
             std::array<VkDescriptorBindingFlags, 3> flags{
@@ -474,7 +472,7 @@ void Context::Init() {
                   VkDescriptorBindingFlagBits::VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VkDescriptorBindingFlagBits::VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT
             };
 
-            VkDescriptorSetLayoutBindingFlagsCreateInfo flag_info = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
+            VkDescriptorSetLayoutBindingFlagsCreateInfo flag_info = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO};
             flag_info.bindingCount = flags.size();
             flag_info.pBindingFlags = flags.data();
 
@@ -487,9 +485,9 @@ void Context::Init() {
 
 
             if (auto res = vkCreateDescriptorSetLayout(_device, &layout_ci, nullptr, &_bindlessDescriptorSetLayout); res != VK_SUCCESS) {
-                  auto msg = std::format("Context::Init - Failed to create descriptor set layout, res {}", (uint64_t)res);
-                  MessageManager::Log(MessageType::Error, msg);
-                  throw std::runtime_error(msg);
+                  const auto err = std::format("Context::Init - Failed to create descriptor set layout, res {}", (uint64_t)res);
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
             }
 
 
@@ -501,9 +499,9 @@ void Context::Init() {
             };
 
             if (auto res = vkAllocateDescriptorSets(_device, &alloc_ci, &_bindlessDescriptorSet); res != VK_SUCCESS) {
-                  auto msg = std::format("Context::Init - Failed to allocate descriptor set, res {}", (uint64_t)res);
-                  MessageManager::Log(MessageType::Error, msg);
-                  throw std::runtime_error(msg);
+                  const auto err = std::format("Context::Init - Failed to allocate descriptor set, res {}", (uint64_t)res);
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
             }
       }
 
@@ -582,8 +580,8 @@ void Context::Shutdown() {
 
       vkDestroySampler(_device, _defaultSampler, nullptr);
 
-      for (auto i : _samplers) {
-            vkDestroySampler(_device, i.second, nullptr);
+      for (auto& val : _samplers | std::views::values) {
+            vkDestroySampler(_device, val, nullptr);
       }
 
       vmaDestroyAllocator(_allocator);
@@ -592,11 +590,10 @@ void Context::Shutdown() {
 }
 
 entt::entity Context::CreateWindow(const char* title, int w, int h) {
-
       if (w < 1 || h < 1) {
-            std::string msg = "Context::CreateWindow - Invalid window size";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+            const auto err = "Context::CreateWindow - Invalid window size";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       auto id = _world.create();
@@ -608,7 +605,7 @@ entt::entity Context::CreateWindow(const char* title, int w, int h) {
       return id;
 }
 
-void Context::RecoveryContextResource(const ContextResourceRecoveryInfo &pack) {
+void Context::RecoveryContextResource(const ContextResourceRecoveryInfo& pack) {
       _resourceRecoveryQueue.enqueue(pack);
 }
 
@@ -629,28 +626,27 @@ void Context::DestroyWindow(entt::entity window) {
 }
 
 void Context::MapRenderTargetToWindow(entt::entity texture, entt::entity window) {
-
-      if(!_world.valid(texture)) {
+      if (!_world.valid(texture)) {
             auto err = std::format("Context::MapRenderTargetToWindow - Invalid texture entity.");
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
-      if(!_world.valid(window)) {
+      if (!_world.valid(window)) {
             auto err = std::format("Context::MapRenderTargetToWindow - Invalid window entity.");
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       auto tex = _world.try_get<Component::Texture>(texture);
-      if(!tex) {
+      if (!tex) {
             auto err = std::format("Context::MapRenderTargetToWindow - thie entity is not texture entity.");
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       auto sp = _world.try_get<Component::Swapchain>(window);
-      if(!sp) {
+      if (!sp) {
             auto err = std::format("Context::MapRenderTargetToWindow - thie entity is not a renderable window entity.");
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
@@ -659,127 +655,15 @@ void Context::MapRenderTargetToWindow(entt::entity texture, entt::entity window)
       sp->SetMappedRenderTarget(texture);
 }
 
-void Context::CmdBindRenderTargetBeforeRenderPass(entt::entity color_texture, bool clear, uint32_t view_index) {
-      if(_world.valid(color_texture)) {
-            auto& tex = _world.get<Component::Texture>(color_texture);
-
-            if(_frameRenderingRenderArea.extent.width == 0 || _frameRenderingRenderArea.extent.height == 0) {
-                  auto extent = tex.GetExtent();
-                  _frameRenderingRenderArea = {0, 0, extent.width, extent.height};
-            } else {
-                  auto extent = tex.GetExtent();
-                  if(extent.width != _frameRenderingRenderArea.extent.width  || extent.height != _frameRenderingRenderArea.extent.height) {
-                        auto str = std::format("Context::CmdBindRenderTarget - Color texture size mismatch, expected {}x{}, got {}x{}", _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height, extent.width, extent.height);
-                        MessageManager::Log(MessageType::Error, str);
-                        throw std::runtime_error(str);
-                  }
-            }
-
-            auto layout = tex.GetCurrentLayout();
-            if(layout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL){
-                  tex.BarrierLayout(GetCurrentCommandBuffer(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
-            }
-
-            const VkRenderingAttachmentInfo info {
-                  .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                  .imageView = tex.GetView(view_index),
-                  .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                  .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
-                  .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                  .clearValue = { .color = {0.0f, 0.0f, 0.0f, 1.0f} }
-            };
-
-            _frameRenderingColorAttachments.push_back(info);
-      }
-}
-
-
-void Context::CmdBindDepthStencilTargetBeforeRenderPass(entt::entity depth_stencil_texture, bool clear, uint32_t view_index) {
-      if(_world.valid(depth_stencil_texture)) {
-            auto& tex = _world.get<Component::Texture>(depth_stencil_texture);
-            if(!IsDepthStencilOnlyFormat(tex.GetFormat())) {
-                  auto errr = std::format("Context::CmdBindDepthStencil - Depth stencil texture is not a depth stencil format, error format {}.", GetVkFormatString(tex.GetFormat()));
-                  MessageManager::Log(MessageType::Error, errr);
-                  throw std::runtime_error(errr);
-            }
-
-            if(_frameRenderingRenderArea.extent.width == 0 || _frameRenderingRenderArea.extent.height == 0) {
-                  auto extent = tex.GetExtent();
-                  _frameRenderingRenderArea = {0, 0, extent.width, extent.height};
-            } else {
-                  auto extent = tex.GetExtent();
-                  if(extent.width != _frameRenderingRenderArea.extent.width || extent.height != _frameRenderingRenderArea.extent.height) {
-                        auto str = std::format("Context::CmdBindDepthStencil - Depth stencil texture size mismatch, expected {}x{}, got {}x{}", _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height, extent.width, extent.height);
-                        MessageManager::Log(MessageType::Error, str);
-                        throw std::runtime_error(str);
-                  }
-            }
-            auto layout = tex.GetCurrentLayout();
-            if(layout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL){
-                  tex.BarrierLayout(GetCurrentCommandBuffer(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT);
-            }
-
-            _frameRenderingDepthStencilAttachment = VkRenderingAttachmentInfo {
-                  .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                  .imageView = tex.GetView(view_index),
-                  .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                  .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
-                  .storeOp = VK_ATTACHMENT_STORE_OP_STORE ,
-                  .clearValue = { .depthStencil = {1.0f, 0} }
-            };
-
-            _frameRenderingDepthAttachment = std::nullopt;
-      }
-}
-
-void Context::CmdBindDepthOnlyTargetToRenderPass(entt::entity depth_texture, bool clear, uint32_t view_index) {
-      if(_world.valid(depth_texture)) {
-            auto& tex = _world.get<Component::Texture>(depth_texture);
-            if(!IsDepthOnlyFormat(tex.GetFormat())) {
-                  const auto err = std::format("Context::CmdBindDepthTarget - Depth texture is not a depth format, error format {}.", GetVkFormatString(tex.GetFormat()));
-                  MessageManager::Log(MessageType::Error, err);
-                  throw std::runtime_error(err);
-            }
-
-            if(_frameRenderingRenderArea.extent.width == 0 || _frameRenderingRenderArea.extent.height == 0) {
-                  auto extent = tex.GetExtent();
-                  _frameRenderingRenderArea = {0, 0, extent.width, extent.height};
-            } else {
-                  auto extent = tex.GetExtent();
-                  if(extent.width != _frameRenderingRenderArea.extent.width || extent.height != _frameRenderingRenderArea.extent.height) {
-                        auto str = std::format("Context::CmdBindDepthTarget - Depth texture size mismatch, expected {}x{}, got {}x{}", _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height, extent.width, extent.height);
-                        MessageManager::Log(MessageType::Error, str);
-                        throw std::runtime_error(str);
-                  }
-            }
-            auto layout = tex.GetCurrentLayout();
-            if(layout != VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL){
-                  tex.BarrierLayout(GetCurrentCommandBuffer(), VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT);
-            }
-
-            _frameRenderingDepthAttachment = VkRenderingAttachmentInfo {
-                  .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                  .imageView = tex.GetView(view_index),
-                  .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-                  .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
-                  .storeOp = VK_ATTACHMENT_STORE_OP_STORE ,
-                  .clearValue = { .depthStencil = {1.0f, 0} }
-            };
-
-            _frameRenderingDepthStencilAttachment = std::nullopt;
-      }
-}
-
 void Context::CmdBindGraphicKernelToRenderPass(entt::entity kernel) {
-
-      if(!_world.valid(kernel)) {
+      if (!_world.valid(kernel)) {
             auto err = "Context::CmdBindGraphicKernel - Invalid graphics kernel entity";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       auto k = _world.try_get<Component::GraphicKernel>(kernel);
-      if(!k) {
+      if (!k) {
             auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
@@ -787,21 +671,21 @@ void Context::CmdBindGraphicKernelToRenderPass(entt::entity kernel) {
 
       vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, k->GetPipeline());
       vkCmdBindDescriptorSets(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, k->GetPipelineLayout(), 0, 1, &_bindlessDescriptorSet, 0, nullptr);
-      const VkViewport viewport = VkViewport {0, (float)_frameRenderingRenderArea.extent.height, (float)_frameRenderingRenderArea.extent.width, -(float)_frameRenderingRenderArea.extent.height, 0, 1};
+      const VkViewport viewport = VkViewport{0, (float)_frameRenderingRenderArea.extent.height, (float)_frameRenderingRenderArea.extent.width, -(float)_frameRenderingRenderArea.extent.height, 0, 1};
       vkCmdSetViewport(GetCurrentCommandBuffer(), 0, 1, &viewport);
-      const VkRect2D scissor = VkRect2D {0, 0, _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height};
+      const VkRect2D scissor = VkRect2D{0, 0, _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height};
       vkCmdSetScissor(GetCurrentCommandBuffer(), 0, 1, &scissor);
 }
 
 void Context::CmdBindVertexBuffer(entt::entity buffer, size_t offset) {
-      if(!_world.valid(buffer)) {
+      if (!_world.valid(buffer)) {
             auto err = "Context::CmdBindVertexBuffer - Invalid buffer entity";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       auto buf = _world.try_get<Component::Buffer>(buffer);
-      if(!buf) {
+      if (!buf) {
             auto err = "Context::CmdBindVertexBuffer - this enity is not a buffer";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
@@ -810,43 +694,37 @@ void Context::CmdBindVertexBuffer(entt::entity buffer, size_t offset) {
       vkCmdBindVertexBuffers(GetCurrentCommandBuffer(), 0, 1, buf->GetBufferPtr(), &offset);
 }
 
-void Context::CmdDraw()
-{
-      vkCmdDraw(GetCurrentCommandBuffer(), 3, 1, 0, 0);
+void Context::CmdDraw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) const {
+      vkCmdDraw(GetCurrentCommandBuffer(), vertex_count, instance_count, first_vertex, first_instance);
 }
 
-
-void Context::CmdDrawIndex(entt::entity index_buffer, size_t offset, std::optional<uint32_t> index_count)
-{
-      if(!_world.valid(index_buffer)) {
-            auto err = "Context::CmdDrawIndex - Invalid buffer entity";
+void Context::CmdDrawIndex(entt::entity index_buffer, size_t offset, std::optional<uint32_t> index_count) {
+      if (!_world.valid(index_buffer)) {
+            const auto err = "Context::CmdDrawIndex - Invalid buffer entity";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       auto ib = _world.try_get<Component::Buffer>(index_buffer);
-      if(!ib) {
-            auto err = "Context::CmdDrawIndex - this entity is not a buffer";
+      if (!ib) {
+            const auto err = "Context::CmdDrawIndex - this entity is not a buffer";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       vkCmdBindIndexBuffer(GetCurrentCommandBuffer(), ib->GetBuffer(), offset, VK_INDEX_TYPE_UINT32);
 
-      VkBuffer index = ib->GetBuffer();
-
       uint32_t max_vaild_idx_count = ib->GetSize() / sizeof(uint32_t);
       uint32_t idx_count = max_vaild_idx_count;
 
-      if(index_count.has_value()) {
+      if (index_count.has_value()) {
             index_count = std::min(index_count.value(), max_vaild_idx_count);
       }
-      vkCmdDrawIndexed(GetCurrentCommandBuffer(),idx_count, 1, 0, 0, 0);
+      vkCmdDrawIndexed(GetCurrentCommandBuffer(), idx_count, 1, 0, 0, 0);
 }
 
 entt::entity Context::CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts) {
-
-      if(w == 0 || h == 0) {
+      if (w == 0 || h == 0) {
             const auto err = std::format("Context::CreateTexture2D - Invalid texture size, w = {}, h = {}, create texture failed, return null.", w, h);
             MessageManager::Log(MessageType::Error, err);
             return entt::null;
@@ -858,7 +736,7 @@ entt::entity Context::CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, u
       image_ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
       image_ci.imageType = VK_IMAGE_TYPE_2D;
       image_ci.format = format;
-      image_ci.extent = VkExtent3D{ (uint32_t)w, (uint32_t)h, 1 };
+      image_ci.extent = VkExtent3D{(uint32_t)w, (uint32_t)h, 1};
       image_ci.mipLevels = mipMapCounts;
       image_ci.arrayLayers = 1;
       image_ci.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -869,15 +747,15 @@ entt::entity Context::CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, u
 
       if (is_depth_stencil) {
             image_ci.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-      }else{
+      } else {
             image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
       }
 
       VkImageAspectFlags as_flag = VK_IMAGE_ASPECT_COLOR_BIT;
 
-      if(IsDepthStencilOnlyFormat(format)){
+      if (IsDepthStencilOnlyFormat(format)) {
             as_flag = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-      }else if(IsDepthOnlyFormat(format)){
+      } else if (IsDepthOnlyFormat(format)) {
             as_flag = VK_IMAGE_ASPECT_DEPTH_BIT;
       }
 
@@ -914,7 +792,7 @@ entt::entity Context::CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, u
 
 
 entt::entity Context::CreateBuffer(uint64_t size, bool cpu_access, bool bindless) {
-      if(size == 0) {
+      if (size == 0) {
             MessageManager::Log(MessageType::Error, "Context::CreateBuffer - Invalid buffer size, size = 0, create buffer failed, return null.");
             return entt::null;
       }
@@ -924,7 +802,8 @@ entt::entity Context::CreateBuffer(uint64_t size, bool cpu_access, bool bindless
       VkBufferCreateInfo buffer_ci{};
       buffer_ci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
       buffer_ci.size = size;
-      buffer_ci.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+      buffer_ci.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
       buffer_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
       VmaAllocationCreateInfo alloc_ci{};
@@ -932,19 +811,19 @@ entt::entity Context::CreateBuffer(uint64_t size, bool cpu_access, bool bindless
 
       _world.emplace<Component::Buffer>(id, id, buffer_ci, alloc_ci);
 
-      if(bindless) {
+      if (bindless) {
             MakeBindlessIndexBuffer(id);
       }
 
       return id;
 }
 
-entt::entity Context::CreateBuffer(void* data, uint64_t size, bool cpu_access, bool bindless) {
-      if(data == nullptr){
+entt::entity Context::CreateBuffer(const void* data, uint64_t size, bool cpu_access, bool bindless) {
+      if (data == nullptr) {
             MessageManager::Log(MessageType::Error, "Context::CreateBuffer - Invalid data pointer, data = nullptr, create buffer failed, return null.");
             return entt::null;
       }
-      if(size == 0) {
+      if (size == 0) {
             MessageManager::Log(MessageType::Error, "Context::CreateBuffer - Invalid buffer size, size = 0, create buffer failed, return null.");
             return entt::null;
       }
@@ -960,7 +839,7 @@ entt::entity Context::CreateGraphicKernel(entt::entity program) {
       auto& kernel = _world.emplace<Component::GraphicKernel>(id, id);
       bool success = kernel.CreateFromProgram(program);
 
-      if(!success) {
+      if (!success) {
             const auto err = "Context::CreateGraphicKernel - Failed to create graphic kernel from program";
             MessageManager::Log(MessageType::Warning, err);
             throw std::runtime_error(err);
@@ -972,7 +851,7 @@ entt::entity Context::CreateGraphicKernel(entt::entity program) {
 entt::entity Context::CreateProgram(const std::vector<std::string_view>& source_code) {
       auto id = _world.create();
       auto& comp = _world.emplace<Component::Program>(id, id);
-      if(!comp.CompileFromSourceCode("hello", source_code)) {
+      if (!comp.CompileFromSourceCode("hello", source_code)) {
             _world.destroy(id);
             return entt::null;
       }
@@ -1002,8 +881,7 @@ void* Context::PollEvent() {
       }
 
       if (event.type == SDL_EVENT_WINDOW_RESIZED) {
-            const auto id = event.window.windowID;
-            printf("REsized");
+            printf("Resized");
       }
 
       if (_windowIdToWindow.empty()) {
@@ -1022,18 +900,18 @@ void Context::BeginFrame() {
       auto cmd = GetCurrentCommandBuffer();
 
       if (vkResetCommandBuffer(cmd, 0) != VK_SUCCESS) {
-            std::string msg = "Context::BeginFrame Failed to reset command buffer";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+            const auto err = "Context::BeginFrame Failed to reset command buffer";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       VkCommandBufferBeginInfo begin_info{};
       begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
       if (vkBeginCommandBuffer(cmd, &begin_info) != VK_SUCCESS) {
-            std::string msg = "Context::BeginFrame Failed to begin command buffer";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+            const auto err = "Context::BeginFrame Failed to begin command buffer";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       for (const auto& i : _commandQueue) {
@@ -1048,8 +926,7 @@ void Context::BeginFrame() {
 }
 
 void Context::EndFrame() {
-
-      if(_isRenderPassOpen) {
+      if (_isRenderPassOpen) {
             auto err = "Context::EndFrame - Render pass is still open, close RenderPass before EndFrame!";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
@@ -1080,13 +957,13 @@ void Context::EndFrame() {
       });
 
       if (vkEndCommandBuffer(cmd_buf) != VK_SUCCESS) {
-            std::string msg = "Context::EndFrame Failed to end command buffer";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+            const auto err = "Context::EndFrame Failed to end command buffer";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       VkSubmitInfo vk_submit_info{};
-      VkCommandBuffer buffers[] = { cmd_buf };
+      VkCommandBuffer buffers[] = {cmd_buf};
       vk_submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
       vk_submit_info.commandBufferCount = 1;
       vk_submit_info.pCommandBuffers = buffers;
@@ -1097,9 +974,9 @@ void Context::EndFrame() {
       vk_submit_info.signalSemaphoreCount = 1;
 
       if (vkQueueSubmit(_queue, 1, &vk_submit_info, GetCurrentFence()) != VK_SUCCESS) {
-            std::string msg = "Context::EndFrame Failed to submit command buffer";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+            const auto err = "Context::EndFrame Failed to submit command buffer";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       VkPresentInfoKHR present_info{};
@@ -1116,9 +993,9 @@ void Context::EndFrame() {
             //       s.CreateOrRecreateSwapChain();
             // });
       } else if (res != VK_SUCCESS) {
-            std::string msg = "frame_end:Failed to present";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+            const auto err = "frame_end:Failed to present";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       StageRecoveryContextResource();
@@ -1126,68 +1003,156 @@ void Context::EndFrame() {
       GoNextFrame();
 }
 
-void Context::CmdBeginRenderPass() {
-
-      if(_isRenderPassOpen) {
-            auto msg = "Context::BeginRenderPass - Render pass already open";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
-      }
-
-      auto cmd = GetCurrentCommandBuffer();
-      VkRenderingInfoKHR render_info = {
-            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
-            .pNext = nullptr,
-            .flags = 0,
-            .renderArea = _frameRenderingRenderArea,
-            .layerCount = 1,
-            .viewMask = 0,
-            .colorAttachmentCount = (uint32_t)_frameRenderingColorAttachments.size(),
-            .pColorAttachments = _frameRenderingColorAttachments.data(),
-      };
-
-      if(_frameRenderingDepthStencilAttachment.has_value()){
-            render_info.pDepthAttachment = &_frameRenderingDepthStencilAttachment.value();
-            render_info.pStencilAttachment = &_frameRenderingDepthStencilAttachment.value();
-      } else if(_frameRenderingDepthAttachment.has_value()){
-            render_info.pDepthAttachment = &_frameRenderingDepthAttachment.value();
-            render_info.pStencilAttachment = nullptr;
-      }
-
-      if(_frameRenderingRenderArea.extent.width == 0 || _frameRenderingRenderArea.extent.height == 0) {
-            const auto err = std::format("Context::BeginRenderPass - Invalid render area size, w = {}, h = {}, create render pass failed.", _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height);
+void Context::CmdBeginRenderPass(const std::vector<RenderPassBeginArgument>& textures) {
+      if (_isRenderPassOpen) {
+            const auto err = "Context::BeginRenderPass - Render pass already open";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
+      if (textures.empty()) {
+            const auto err = "Context::BeginRenderPass - Empty textures, create render pass failed.";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      _frameRenderingRenderArea = {};
+
+      VkRenderingInfoKHR render_info = {
+            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
+            .pNext = nullptr,
+            .flags = 0,
+            .renderArea = 0,
+            .layerCount = 1,
+            .viewMask = 0,
+            .colorAttachmentCount = 0,
+            .pColorAttachments = nullptr,
+            .pDepthAttachment = nullptr,
+            .pStencilAttachment = nullptr
+      };
+
+      std::vector<VkRenderingAttachmentInfo> _frameRenderingColorAttachments{};
+      VkRenderingAttachmentInfo _frameRenderingDepthStencilAttachment{};
+      VkRenderingAttachmentInfo _frameRenderingDepthAttachment{};
+      auto cmd = GetCurrentCommandBuffer();
+
+      _frameRenderingRenderArea = {};
+      for (const auto& entity : textures) {
+            entt::entity handle = entity.TextureHandle;
+            uint32_t view_index = entity.ViewIndex;
+            bool clear = entity.ClearBeforeRendering;
+            if (!_world.valid(handle)) {
+                  auto err = std::format("Context::CmdBindRenderTarget - Invalid texture entity.");
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
+            }
+
+            auto texture = _world.try_get<Component::Texture>(handle);
+            if (!texture) {
+                  auto err = std::format("Context::CmdBindRenderTarget - this entity is not a texture entity.");
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
+            }
+
+            auto extent = texture->GetExtent();
+            if (_frameRenderingRenderArea.extent.width == 0 || _frameRenderingRenderArea.extent.height == 0) {
+                  _frameRenderingRenderArea = {0, 0, extent.width, extent.height};
+            } else {
+                  if (extent.width != _frameRenderingRenderArea.extent.width || extent.height != _frameRenderingRenderArea.extent.height) {
+                        auto str = std::format("Context::CmdBindRenderTarget - Texture size mismatch, expected {}x{}, got {}x{}", _frameRenderingRenderArea.extent.width,
+                                               _frameRenderingRenderArea.extent.height, extent.width, extent.height);
+                        MessageManager::Log(MessageType::Error, str);
+                        throw std::runtime_error(str);
+                  }
+            }
+
+            if (texture->IsTextureFormatColor()) {
+                  // RenderTarget:
+                  auto crruent_layout = texture->GetCurrentLayout();
+                  if (crruent_layout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
+                        texture->BarrierLayout(GetCurrentCommandBuffer(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
+                  }
+
+                  const VkRenderingAttachmentInfo info{
+                        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                        .imageView = texture->GetView(view_index),
+                        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                        .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+                        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                        .clearValue = {.color = {0.0f, 0.0f, 0.0f, 1.0f}}
+                  };
+
+                  _frameRenderingColorAttachments.push_back(info);
+                  render_info.colorAttachmentCount = _frameRenderingColorAttachments.size();
+                  render_info.pColorAttachments = _frameRenderingColorAttachments.data();
+            } else if (texture->IsTextureFormatDepthOnly()) {
+                  // Depth:
+                  auto layout = texture->GetCurrentLayout();
+                  if (layout != VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) {
+                        texture->BarrierLayout(GetCurrentCommandBuffer(), VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT);
+                  }
+
+                  _frameRenderingDepthAttachment = VkRenderingAttachmentInfo{
+                        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                        .imageView = texture->GetView(view_index),
+                        .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+                        .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+                        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                        .clearValue = {.depthStencil = {1.0f, 0}}
+                  };
+
+                  render_info.pDepthAttachment = &_frameRenderingDepthAttachment;
+                  render_info.pStencilAttachment = nullptr;
+            } else if (texture->IsTextureFormatDepthStencil()) {
+                  //Depth Stencil
+                  auto layout = texture->GetCurrentLayout();
+                  if (layout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+                        texture->BarrierLayout(GetCurrentCommandBuffer(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT);
+                  }
+
+                  _frameRenderingDepthStencilAttachment = VkRenderingAttachmentInfo{
+                        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                        .imageView = texture->GetView(view_index),
+                        .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+                        .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+                        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                        .clearValue = {.depthStencil = {1.0f, 0}}
+                  };
+
+                  render_info.pDepthAttachment = &_frameRenderingDepthStencilAttachment;
+                  render_info.pStencilAttachment = &_frameRenderingDepthStencilAttachment;
+            } else {
+                  const auto err = std::format("Context::CmdBindRenderTarget - Invalid texture format, format = {}, create render pass failed.", GetVkFormatString(texture->GetFormat()));
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
+            }
+      }
+
+      render_info.renderArea = _frameRenderingRenderArea;
       vkCmdBeginRenderingKHR(cmd, &render_info);
       _isRenderPassOpen = true;
 }
 
 void Context::CmdEndRenderPass() {
-      if(_isRenderPassOpen) {
+      if (_isRenderPassOpen) {
             vkCmdEndRendering(GetCurrentCommandBuffer());
             _isRenderPassOpen = false;
-            _frameRenderingColorAttachments.clear();
-            _frameRenderingDepthAttachment.reset();
-            _frameRenderingRenderArea = {};
       }
 }
 
 uint32_t Context::MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t viewIndex) {
-
       if (!_world.valid(texture)) {
-            std::string msg = "Context::MakeBindlessIndexTextureForSampler - Invalid texture entity";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+            const auto err = "Context::MakeBindlessIndexTextureForSampler - Invalid texture entity";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       auto texture_component = _world.try_get<Component::Texture>(texture);
 
       if (!texture_component) {
-            std::string msg = "Context::BindTextureForSampler - Invalid texture entity";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+            const auto err = "Context::BindTextureForSampler - Invalid texture entity";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       VkSampler sampler = texture_component->GetSampler();
@@ -1228,19 +1193,18 @@ uint32_t Context::MakeBindlessIndexTextureForSampler(entt::entity texture, uint3
 }
 
 uint32_t Context::MakeBindlessIndexTextureForComputeKernel(entt::entity texture, uint32_t viewIndex) {
-
       if (!_world.valid(texture)) {
-            std::string msg = "Context::MakeBindlessIndexTextureForComputeKernel - Invalid texture entity";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+            const auto err = "Context::MakeBindlessIndexTextureForComputeKernel - Invalid texture entity";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       auto texture_component = _world.try_get<Component::Texture>(texture);
 
       if (!texture_component) {
-            std::string msg = "Context::BindRawTexture - Invalid texture entity";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+            const auto err = "Context::BindRawTexture - Invalid texture entity";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       VkSampler sampler = texture_component->GetSampler();
@@ -1281,19 +1245,18 @@ uint32_t Context::MakeBindlessIndexTextureForComputeKernel(entt::entity texture,
 }
 
 uint32_t Context::MakeBindlessIndexBuffer(entt::entity buffer) {
-
       if (!_world.valid(buffer)) {
-            std::string msg = "Context::BindBuffer - Invalid buffer entity";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+            const auto err = "Context::BindBuffer - Invalid buffer entity";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       auto buffer_component = _world.try_get<Component::Buffer>(buffer);
 
       if (!buffer_component) {
-            std::string msg = "Context::BindBuffer - Invalid buffer entity";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+            const auto err = "Context::BindBuffer - Invalid buffer entity";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       VkDescriptorBufferInfo buffer_info = {
@@ -1331,21 +1294,21 @@ void Context::SetTextureSampler(entt::entity image, const VkSamplerCreateInfo& s
       auto texture = _world.try_get<Component::Texture>(image);
 
       if (!texture) {
-            std::string msg = "Context::SetTextureSampler - Invalid texture entity";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+            const auto err = "Context::SetTextureSampler - Invalid texture entity";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       VkSampler sampler = nullptr;
 
-      if (auto res = _samplers.find(sampler_ci); res != _samplers.end()) {
-            sampler = res->second;
+      if (const auto finder = _samplers.find(sampler_ci); finder != _samplers.end()) {
+            sampler = finder->second;
             texture->SetSampler(sampler);
       } else {
-            if (auto res = vkCreateSampler(_device, &sampler_ci, nullptr, &sampler); res != VK_SUCCESS) {
-                  std::string msg = "Context::SetTextureSampler - Failed to create sampler";
-                  MessageManager::Log(MessageType::Error, msg);
-                  throw std::runtime_error(msg);
+            if (const auto result = vkCreateSampler(_device, &sampler_ci, nullptr, &sampler); result != VK_SUCCESS) {
+                  const auto err = std::format("Context::SetTextureSampler - Failed to create sampler, error code: {}.", GetVkResultString(result));
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
             }
             _samplers.emplace(sampler_ci, sampler);
       }
@@ -1379,26 +1342,26 @@ void Context::GoNextFrame() {
 }
 
 void Context::StageRecoveryContextResource() {
-
       std::vector<ContextResourceRecoveryInfo>& current_list = _resoureceRecoveryList[GetCurrentFrameIndex()];
-      if(!current_list.empty()) {
-            for (auto & i : current_list) {
+      if (!current_list.empty()) {
+            for (auto& i : current_list) {
                   switch (i.Type) {
-                        case ContextResourceType::WINDOW:
-                              RecoveryContextResourceWindow(i);
-                              break;
-                        case ContextResourceType::BUFFER:
-                              RecoveryContextResourceBuffer(i);
-                              break;
-                        case ContextResourceType::BUFFERVIEW:
-                              RecoveryContextResourceBufferView(i);
-                              break;
-                        case ContextResourceType::IMAGE:
-                              RecoveryContextResourceImage(i);
-                        break; case ContextResourceType::IMAGEVIEW:
-                              RecoveryContextResourceImageView(i);
-                              break;
-                        default: break;
+                  case ContextResourceType::WINDOW:
+                        RecoveryContextResourceWindow(i);
+                        break;
+                  case ContextResourceType::BUFFER:
+                        RecoveryContextResourceBuffer(i);
+                        break;
+                  case ContextResourceType::BUFFERVIEW:
+                        RecoveryContextResourceBufferView(i);
+                        break;
+                  case ContextResourceType::IMAGE:
+                        RecoveryContextResourceImage(i);
+                        break;
+                  case ContextResourceType::IMAGEVIEW:
+                        RecoveryContextResourceImageView(i);
+                        break;
+                  default: break;
                   }
             }
       }
@@ -1406,33 +1369,33 @@ void Context::StageRecoveryContextResource() {
       current_list.clear();
 
       ContextResourceRecoveryInfo temp{};
-      while(_resourceRecoveryQueue.try_dequeue(temp)) {
-           current_list.push_back(temp);
+      while (_resourceRecoveryQueue.try_dequeue(temp)) {
+            current_list.push_back(temp);
       }
 }
 
 void Context::RecoveryAllContextResourceImmediately() {
-
-      for(size_t i = GetCurrentFrameIndex(); i < GetCurrentFrameIndex() + 3; i++) {
+      for (size_t i = GetCurrentFrameIndex(); i < GetCurrentFrameIndex() + 3; i++) {
             std::vector<ContextResourceRecoveryInfo>& current_list = _resoureceRecoveryList[i % 3];
-            if(!current_list.empty()) {
-                  for (auto & i : current_list) {
-                        switch (i.Type) {
-                              case ContextResourceType::WINDOW:
-                                    RecoveryContextResourceWindow(i);
+            if (!current_list.empty()) {
+                  for (auto& resource : current_list) {
+                        switch (resource.Type) {
+                        case ContextResourceType::WINDOW:
+                              RecoveryContextResourceWindow(resource);
                               break;
-                              case ContextResourceType::BUFFER:
-                                    RecoveryContextResourceBuffer(i);
+                        case ContextResourceType::BUFFER:
+                              RecoveryContextResourceBuffer(resource);
                               break;
-                              case ContextResourceType::BUFFERVIEW:
-                                    RecoveryContextResourceBufferView(i);
+                        case ContextResourceType::BUFFERVIEW:
+                              RecoveryContextResourceBufferView(resource);
                               break;
-                              case ContextResourceType::IMAGE:
-                                    RecoveryContextResourceImage(i);
-                              break; case ContextResourceType::IMAGEVIEW:
-                                    RecoveryContextResourceImageView(i);
+                        case ContextResourceType::IMAGE:
+                              RecoveryContextResourceImage(resource);
                               break;
-                              default: break;
+                        case ContextResourceType::IMAGEVIEW:
+                              RecoveryContextResourceImageView(resource);
+                              break;
+                        default: break;
                         }
                   }
             }
@@ -1442,48 +1405,50 @@ void Context::RecoveryAllContextResourceImmediately() {
       std::vector<ContextResourceRecoveryInfo>& current_list = _resoureceRecoveryList[0];
 
       ContextResourceRecoveryInfo temp{};
-      while(_resourceRecoveryQueue.try_dequeue(temp)) {
+      while (_resourceRecoveryQueue.try_dequeue(temp)) {
             current_list.push_back(temp);
       }
 
-      if(!current_list.empty()) {
-            for (auto & i : current_list) {
+      if (!current_list.empty()) {
+            for (auto& i : current_list) {
                   switch (i.Type) {
-                        case ContextResourceType::WINDOW:
-                              RecoveryContextResourceWindow(i);
+                  case ContextResourceType::WINDOW:
+                        RecoveryContextResourceWindow(i);
                         break;
-                        case ContextResourceType::BUFFER:
-                              RecoveryContextResourceBuffer(i);
+                  case ContextResourceType::BUFFER:
+                        RecoveryContextResourceBuffer(i);
                         break;
-                        case ContextResourceType::BUFFERVIEW:
-                              RecoveryContextResourceBufferView(i);
+                  case ContextResourceType::BUFFERVIEW:
+                        RecoveryContextResourceBufferView(i);
                         break;
-                        case ContextResourceType::IMAGE:
-                              RecoveryContextResourceImage(i);
-                        break; case ContextResourceType::IMAGEVIEW:
-                              RecoveryContextResourceImageView(i);
+                  case ContextResourceType::IMAGE:
+                        RecoveryContextResourceImage(i);
                         break;
-                        default: break;
+                  case ContextResourceType::IMAGEVIEW:
+                        RecoveryContextResourceImageView(i);
+                        break;
+                  default: break;
                   }
             }
       }
 }
 
-void Context::RecoveryContextResourceWindow(const ContextResourceRecoveryInfo &pack) {
-      if(pack.Resource1.has_value()) { // entity
-            entt::entity entity_id = entt::null;
+void Context::RecoveryContextResourceWindow(const ContextResourceRecoveryInfo& pack) {
+      if (pack.Resource1.has_value()) {
+            // entity
+            entt::entity entity_id;
 
             auto id = (uint32_t)pack.Resource1.value();
             if (_windowIdToWindow.contains(id)) {
                   vkDeviceWaitIdle(_device);
                   entity_id = _windowIdToWindow[id];
-                  if ( _world.valid(entity_id) && _world.try_get<Component::Window>(entity_id)) {
+                  if (_world.valid(entity_id) && _world.try_get<Component::Window>(entity_id)) {
                         _world.destroy(entity_id);
                   }
                   _windowIdToWindow.erase(id);
             } else {
                   entity_id = (entt::entity)pack.Resource1.value();
-                  if ( _world.valid(entity_id) && _world.try_get<Component::Window>(entity_id)) {
+                  if (_world.valid(entity_id) && _world.try_get<Component::Window>(entity_id)) {
                         vkDeviceWaitIdle(_device);
                         _world.destroy(entity_id);
                   } else {
@@ -1492,63 +1457,65 @@ void Context::RecoveryContextResourceWindow(const ContextResourceRecoveryInfo &p
                   }
             }
             MessageManager::Log(MessageType::Normal, "Recovery Resource Window");
-      }  else {
+      } else {
             auto str = std::format("Context::RecoveryContextResourceWindow - Invalid Window resource");
             MessageManager::Log(MessageType::Warning, str);
       }
 }
 
-void Context::RecoveryContextResourceBuffer(const ContextResourceRecoveryInfo &pack) {
-      if(pack.Resource1.has_value() && pack.Resource2.has_value()) {
+void Context::RecoveryContextResourceBuffer(const ContextResourceRecoveryInfo& pack) {
+      if (pack.Resource1.has_value() && pack.Resource2.has_value()) {
             // Image allocation
             auto buffer = (VkBuffer)pack.Resource1.value();
-            auto alloc= (VmaAllocation)pack.Resource2.value();
+            auto alloc = (VmaAllocation)pack.Resource2.value();
             vmaDestroyBuffer(_allocator, buffer, alloc);
 
-            if(pack.Resource3.has_value())
+            if (pack.Resource3.has_value())
                   _bindlessIndexFreeList[0].Free(pack.Resource3.value());
 
             MessageManager::Log(MessageType::Normal, "Recovery Resource Buffer");
-
       } else {
             auto str = std::format("Context::RecoveryContextResourceBuffer - Invalid Buffer resource");
             MessageManager::Log(MessageType::Warning, str);
       }
 }
 
-void Context::RecoveryContextResourceBufferView(const ContextResourceRecoveryInfo &pack) {
-      if(pack.Resource1 != 0) { // view
+void Context::RecoveryContextResourceBufferView(const ContextResourceRecoveryInfo& pack) const {
+      if (pack.Resource1 != 0) {
+            // view
             auto view = (VkBufferView)pack.Resource1.value();
             vkDestroyBufferView(_device, view, nullptr);
 
             MessageManager::Log(MessageType::Normal, "Recovery Resource BufferView");
-      }else {
+      } else {
             auto str = std::format("Context::RecoveryContextResourceBufferView - Invalid BufferView resource");
             MessageManager::Log(MessageType::Warning, str);
       }
 }
 
-void Context::RecoveryContextResourceImage(const ContextResourceRecoveryInfo &pack) {
-      if(pack.Resource1.has_value() && pack.Resource2.has_value()) {  // Image allocation
+void Context::RecoveryContextResourceImage(const ContextResourceRecoveryInfo& pack) {
+      if (pack.Resource1.has_value() && pack.Resource2.has_value()) {
+            // Image allocation
             auto image = (VkImage)pack.Resource1.value();
-            auto alloc= (VmaAllocation)pack.Resource2.value();
+            auto alloc = (VmaAllocation)pack.Resource2.value();
             vmaDestroyImage(_allocator, image, alloc);
 
-            if(pack.Resource3.has_value())
+            if (pack.Resource3.has_value())
                   _bindlessIndexFreeList[1].Free(pack.Resource3.value());
-            if(pack.Resource4.has_value())
+            if (pack.Resource4.has_value())
                   _bindlessIndexFreeList[2].Free(pack.Resource4.value());
 
             MessageManager::Log(MessageType::Normal, "Recovery Resource Image");
       } else {
             auto str = std::format("Context::RecoveryContextResourceImage - Invalid Image resource, {}, {}, {}, {}",
-                  pack.Resource1.has_value(), pack.Resource2.has_value(),  pack.Resource3.has_value(), pack.Resource4.has_value());
+                                   pack.Resource1.has_value(), pack.Resource2.has_value(), pack.Resource3.has_value(), pack.Resource4.has_value());
             MessageManager::Log(MessageType::Warning, str);
       }
 }
 
-void Context::RecoveryContextResourceImageView(const ContextResourceRecoveryInfo &pack) {
-      if(pack.Resource1.has_value()) { // view
+void Context::RecoveryContextResourceImageView(const ContextResourceRecoveryInfo& pack) const {
+      if (pack.Resource1.has_value()) {
+            // view
             auto view = (VkImageView)pack.Resource1.value();
             vkDestroyImageView(_device, view, nullptr);
 
@@ -1557,5 +1524,4 @@ void Context::RecoveryContextResourceImageView(const ContextResourceRecoveryInfo
             auto str = std::format("Context::RecoveryContextResourceImageView - Invalid ImageView resource");
             MessageManager::Log(MessageType::Warning, str);
       }
-
 }

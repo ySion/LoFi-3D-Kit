@@ -48,7 +48,7 @@ namespace LoFi::Component {
 
             void Unmap();
 
-            void SetData(void* p, uint64_t size);
+            void SetData(const void* p, uint64_t size);
 
             void Recreate(uint64_t size);
 

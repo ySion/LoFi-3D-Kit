@@ -55,7 +55,7 @@ void LoFi::Component::Buffer::Unmap() {
       }
 }
 
-void LoFi::Component::Buffer::SetData(void* p, uint64_t size) {
+void LoFi::Component::Buffer::SetData(const void* p, uint64_t size) {
 
       if (!p) {
             std::string msg = "Buffer::SetData Invalid data pointer";

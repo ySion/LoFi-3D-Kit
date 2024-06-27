@@ -3,8 +3,6 @@
 //
 #pragma once
 
-#include <span>
-#include <variant>
 
 #include "Helper.h"
 #include "PhysicalDevice.h"
@@ -18,7 +16,6 @@
 #include "../Third/xxHash/xxh3.h"
 
 namespace LoFi {
-
       struct ContextSetupParam {
             bool Debug = false;
       };
@@ -34,10 +31,10 @@ namespace LoFi {
 
       struct ContextResourceRecoveryInfo {
             ContextResourceType Type = ContextResourceType::UNKONWN;
-            std::optional<size_t> Resource1 {};
-            std::optional<size_t> Resource2 {};
-            std::optional<size_t> Resource3 {};
-            std::optional<size_t> Resource4 {};
+            std::optional<size_t> Resource1{};
+            std::optional<size_t> Resource2{};
+            std::optional<size_t> Resource3{};
+            std::optional<size_t> Resource4{};
       };
 
       class FreeList {
@@ -62,12 +59,17 @@ namespace LoFi {
             }
 
       private:
-            uint32_t _top {};
-            std::vector<uint32_t> _free {};
+            uint32_t _top{};
+            std::vector<uint32_t> _free{};
+      };
+
+      struct RenderPassBeginArgument {
+            entt::entity TextureHandle = entt::null;
+            bool ClearBeforeRendering = true;
+            uint32_t ViewIndex = 0;
       };
 
       class Context {
-
             friend class Component::Buffer;
             friend class Component::Program;
             friend class Component::GraphicKernel;
@@ -88,7 +90,7 @@ namespace LoFi {
             static Context* GlobalContext;
 
       public:
-            static Context* Get() { return GlobalContext;}
+            static Context* Get() { return GlobalContext; }
 
             NO_COPY_MOVE_CONS(Context);
 
@@ -100,17 +102,27 @@ namespace LoFi {
 
             entt::entity CreateWindow(const char* title, int w, int h);
 
-           /* [[nodiscard]] entt::entity  CreateTexture2DArray();
+            /* [[nodiscard]] entt::entity  CreateTexture2DArray();
 
-            [[nodiscard]] entt::entity  CreateTexture3D();
+             [[nodiscard]] entt::entity  CreateTexture3D();
 
-            [[nodiscard]] entt::entity  CreateTextureCube();*/
+             [[nodiscard]] entt::entity  CreateTextureCube();*/
 
             [[nodiscard]] entt::entity CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts = 1);
 
             [[nodiscard]] entt::entity CreateBuffer(uint64_t size, bool cpu_access = false, bool bindless = true);
 
-            [[nodiscard]] entt::entity CreateBuffer(void* data, uint64_t size, bool cpu_access = false, bool bindless = true);
+            [[nodiscard]] entt::entity CreateBuffer(const void* data, uint64_t size, bool cpu_access = false, bool bindless = true);
+
+            template <class T>
+            [[nodiscard]] entt::entity CreateBuffer(const std::vector<T>& data, bool cpu_access = false, bool bindless = true) {
+                  return CreateBuffer(data.data(), data.size() * sizeof(T), cpu_access, bindless);
+            }
+
+            template <class T, uint32_t N>
+            [[nodiscard]] entt::entity CreateBuffer(const std::array<T, N>& data, bool cpu_access = false, bool bindless = true) {
+                  return CreateBuffer(data.data(), N * sizeof(T), cpu_access, bindless);
+            }
 
             [[nodiscard]] entt::entity CreateGraphicKernel(entt::entity program);
 
@@ -134,7 +146,7 @@ namespace LoFi {
 
             void EndFrame();
 
-            void CmdBeginRenderPass();
+            void CmdBeginRenderPass(const std::vector<RenderPassBeginArgument>& textures);
 
             void CmdEndRenderPass();
 
@@ -144,19 +156,11 @@ namespace LoFi {
 
             void MapRenderTargetToWindow(entt::entity texture, entt::entity window);
 
-            void CmdBindRenderTargetBeforeRenderPass(entt::entity color_texture, bool clear = true, uint32_t view_index = 0);
-
-            void CmdBindDepthStencilTargetBeforeRenderPass(entt::entity depth_stencil_texture, bool clear = true, uint32_t view_index = 0);
-
-            void CmdBindDepthOnlyTargetToRenderPass(entt::entity depth_texture, bool clear = true, uint32_t view_index = 0);
-
             void CmdBindGraphicKernelToRenderPass(entt::entity kernel);
 
             void CmdBindVertexBuffer(entt::entity buffer, size_t offset = 0);
 
-            void CmdDraw();
-
-            void CmdDraw(entt::entity vertex_buffer);
+            void CmdDraw(uint32_t vertex_count, uint32_t instance_count = 1, uint32_t first_vertex = 0, uint32_t first_instance = 0) const;
 
             void CmdDrawIndex(entt::entity index_buffer, size_t offset = 0, std::optional<uint32_t> index_count = {});
 
@@ -200,14 +204,13 @@ namespace LoFi {
 
             void RecoveryContextResourceBuffer(const ContextResourceRecoveryInfo& pack);
 
-            void RecoveryContextResourceBufferView(const ContextResourceRecoveryInfo& pack);
+            void RecoveryContextResourceBufferView(const ContextResourceRecoveryInfo& pack) const;
 
             void RecoveryContextResourceImage(const ContextResourceRecoveryInfo& pack);
 
-            void RecoveryContextResourceImageView(const ContextResourceRecoveryInfo& pack);
+            void RecoveryContextResourceImageView(const ContextResourceRecoveryInfo& pack) const;
 
       private:
-
             bool _bDebugMode = true;
 
             VkInstance _instance{};
@@ -257,21 +260,12 @@ namespace LoFi {
             entt::registry _world;
 
       private:
-
             moodycamel::ConcurrentQueue<ContextResourceRecoveryInfo> _resourceRecoveryQueue{};
 
             std::vector<ContextResourceRecoveryInfo> _resoureceRecoveryList[3]{};
 
       private:
-            VkRenderingInfo _frameRenderingInfo{};
-
             VkRect2D _frameRenderingRenderArea{};
-
-            std::vector<VkRenderingAttachmentInfo> _frameRenderingColorAttachments{};
-
-            std::optional<VkRenderingAttachmentInfo> _frameRenderingDepthStencilAttachment{};
-
-            std::optional<VkRenderingAttachmentInfo> _frameRenderingDepthAttachment{};
 
             bool _isRenderPassOpen = false;
       };
