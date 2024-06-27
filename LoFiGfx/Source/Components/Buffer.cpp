@@ -2,6 +2,8 @@
 #include "../Message.h"
 #include "../Context.h"
 
+using namespace LoFi::Internal;
+
 LoFi::Component::Buffer::~Buffer() {
       Clean();
 }

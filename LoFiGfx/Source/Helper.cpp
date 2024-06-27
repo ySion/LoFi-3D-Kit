@@ -4,7 +4,7 @@
 
 #include "Helper.h"
 
-namespace LoFi {
+namespace LoFi::Internal {
       static VmaAllocator loadedAllocator = VK_NULL_HANDLE;
       static entt::registry* loadedEcsWorld = nullptr;
       static VkPhysicalDevice loadedPhysicalDevice = VK_NULL_HANDLE;

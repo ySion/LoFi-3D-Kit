@@ -3,8 +3,8 @@
 #include "../Message.h"
 #include "SDL3/SDL_vulkan.h"
 
-
 using namespace LoFi::Component;
+using namespace LoFi::Internal;
 
 Swapchain::Swapchain(entt::entity id) : _id(id) {
       auto device = volkGetLoadedDevice();

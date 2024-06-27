@@ -30,7 +30,7 @@ Class& operator=(const Class&) = delete
 #include "entt/entt.hpp"
 #include "Concurrent/concurrentqueue.h"
 
-namespace LoFi {
+namespace LoFi::Internal {
       VmaAllocator volkGetLoadedVmaAllocator();
 
       void volkLoadVmaAllocator(VmaAllocator allocator);

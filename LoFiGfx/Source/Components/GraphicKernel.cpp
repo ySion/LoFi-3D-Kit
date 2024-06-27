@@ -8,10 +8,13 @@
 #include "../Message.h"
 #include "../Context.h"
 
-LoFi::Component::GraphicKernel::GraphicKernel(entt::entity id) : _id(id) {
+using namespace LoFi::Component;
+using namespace LoFi::Internal;
+
+GraphicKernel::GraphicKernel(entt::entity id) : _id(id) {
 }
 
-LoFi::Component::GraphicKernel::~GraphicKernel() {
+GraphicKernel::~GraphicKernel() {
       if (_pipeline) {
             vkDestroyPipeline(volkGetLoadedDevice(), _pipeline, nullptr);
       }
@@ -21,7 +24,7 @@ LoFi::Component::GraphicKernel::~GraphicKernel() {
       }
 }
 
-bool LoFi::Component::GraphicKernel::CreateFromProgram(entt::entity program) {
+bool GraphicKernel::CreateFromProgram(entt::entity program) {
       auto& world = *volkGetLoadedEcsWorld();
 
       if (!world.valid(program)) {
@@ -30,7 +33,7 @@ bool LoFi::Component::GraphicKernel::CreateFromProgram(entt::entity program) {
             return false;
       }
 
-      auto prog = world.try_get<LoFi::Component::Program>(program);
+      auto prog = world.try_get<Program>(program);
       if (!prog) {
             auto str = std::format("GraphicKernel::CreateFromProgram - Program Component Not Found\n");
             MessageManager::Log(MessageType::Warning, str);

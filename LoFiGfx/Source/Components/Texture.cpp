@@ -4,11 +4,14 @@
 #include "../Message.h"
 #include "../Context.h"
 
-LoFi::Component::Texture::~Texture() {
+using namespace LoFi::Internal;
+using namespace LoFi::Component;
+
+Texture::~Texture() {
       Clean();
 }
 
-LoFi::Component::Texture::Texture(const VkImageCreateInfo& image_ci, VkImage Image, bool isBorrow) {
+Texture::Texture(const VkImageCreateInfo& image_ci, VkImage Image, bool isBorrow) {
       _id = entt::null;
       _isBorrow = isBorrow;
 
@@ -18,7 +21,7 @@ LoFi::Component::Texture::Texture(const VkImageCreateInfo& image_ci, VkImage Ima
       _currentLayout = _imageCI->initialLayout;
 }
 
-LoFi::Component::Texture::Texture(entt::entity id, const VkImageCreateInfo& image_ci, const VmaAllocationCreateInfo& alloc_ci) {
+Texture::Texture(entt::entity id, const VkImageCreateInfo& image_ci, const VmaAllocationCreateInfo& alloc_ci) {
       const auto allocator = volkGetLoadedVmaAllocator();
       _imageCI = std::make_unique<VkImageCreateInfo>(image_ci);
       if (vmaCreateImage(allocator, &image_ci, &alloc_ci, &_image, &_memory, nullptr) != VK_SUCCESS) {
@@ -30,7 +33,7 @@ LoFi::Component::Texture::Texture(entt::entity id, const VkImageCreateInfo& imag
       _currentLayout = _imageCI->initialLayout;
 }
 
-VkImageView LoFi::Component::Texture::CreateView(VkImageViewCreateInfo view_ci) {
+VkImageView Texture::CreateView(VkImageViewCreateInfo view_ci) {
       view_ci.image = _image;
 
       VkImageView view{};
@@ -47,13 +50,13 @@ VkImageView LoFi::Component::Texture::CreateView(VkImageViewCreateInfo view_ci) 
       return view;
 }
 
-void LoFi::Component::Texture::ClearViews() {
+void Texture::ClearViews() {
       ReleaseAllViews();
       _views.clear();
       _viewCIs.clear();
 }
 
-void LoFi::Component::Texture::SetData(void* data, size_t size) {
+void Texture::SetData(void* data, size_t size) {
       VmaAllocationInfo info{};
       vmaGetAllocationInfo(volkGetLoadedVmaAllocator(), _memory, &info);
 
@@ -113,7 +116,7 @@ void LoFi::Component::Texture::SetData(void* data, size_t size) {
       });
 }
 
-void LoFi::Component::Texture::BarrierLayout(VkCommandBuffer cmd, VkImageLayout new_layout, std::optional<VkImageLayout> src_layout,
+void Texture::BarrierLayout(VkCommandBuffer cmd, VkImageLayout new_layout, std::optional<VkImageLayout> src_layout,
 std::optional<VkPipelineStageFlags2> src_stage, std::optional<VkPipelineStageFlags2> dst_stage) {
       auto& old_layout = _currentLayout;
 
@@ -220,7 +223,7 @@ std::optional<VkPipelineStageFlags2> src_stage, std::optional<VkPipelineStageFla
 }
 
 
-void LoFi::Component::Texture::ReleaseAllViews() const {
+void Texture::ReleaseAllViews() const {
       for (const auto view : _views) {
             ContextResourceRecoveryInfo info{
                   .Type = ContextResourceType::IMAGEVIEW,
@@ -230,7 +233,7 @@ void LoFi::Component::Texture::ReleaseAllViews() const {
       }
 }
 
-void LoFi::Component::Texture::Clean() {
+void Texture::Clean() {
       ClearViews();
 
       _currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -240,15 +243,15 @@ void LoFi::Component::Texture::Clean() {
       }
 }
 
-void LoFi::Component::Texture::SetBindlessIndexForSampler(std::optional<uint32_t> index) {
+void Texture::SetBindlessIndexForSampler(std::optional<uint32_t> index) {
       _bindlessIndexForSampler = index;
 }
 
-void LoFi::Component::Texture::SetBindlessIndexForComputeKernel(std::optional<uint32_t> index) {
+void Texture::SetBindlessIndexForComputeKernel(std::optional<uint32_t> index) {
       _bindlessIndexForComputeKernel = index;
 }
 
-void LoFi::Component::Texture::DestroyTexture() {
+void Texture::DestroyTexture() {
       ContextResourceRecoveryInfo info{
             .Type = ContextResourceType::IMAGE,
             .Resource1 = (size_t)_image,

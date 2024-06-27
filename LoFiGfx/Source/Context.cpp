@@ -5,6 +5,7 @@
 #include "SDL3/SDL.h"
 
 using namespace LoFi;
+using namespace LoFi::Internal;
 
 Context* Context::GlobalContext = nullptr;
 

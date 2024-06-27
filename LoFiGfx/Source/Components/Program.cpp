@@ -8,6 +8,7 @@
 #include "../Third/glslang/Public/resource_limits_c.h"
 
 using namespace LoFi::Component;
+using namespace LoFi::Internal;
 
 static const char* ShaderTypeHelperGetName(glslang_stage_t type) {
       switch (type) {

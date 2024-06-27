@@ -3,7 +3,6 @@
 //
 #pragma once
 
-
 #include "Helper.h"
 #include "PhysicalDevice.h"
 
@@ -16,51 +15,54 @@
 #include "../Third/xxHash/xxh3.h"
 
 namespace LoFi {
+
+      namespace Internal {
+            enum class ContextResourceType {
+                  UNKONWN,
+                  WINDOW,
+                  IMAGE,
+                  BUFFER,
+                  IMAGEVIEW,
+                  BUFFERVIEW
+            };
+
+            struct ContextResourceRecoveryInfo {
+                  ContextResourceType Type = ContextResourceType::UNKONWN;
+                  std::optional<size_t> Resource1{};
+                  std::optional<size_t> Resource2{};
+                  std::optional<size_t> Resource3{};
+                  std::optional<size_t> Resource4{};
+            };
+
+            class FreeList {
+            public:
+                  uint32_t Gen() {
+                        if (_free.empty()) {
+                              return _top++;
+                        } else {
+                              uint32_t id = _free.back();
+                              _free.pop_back();
+                              return id;
+                        }
+                  }
+
+                  void Free(uint32_t id) {
+                        _free.push_back(id);
+                  }
+
+                  void Clear() {
+                        _top = 0;
+                        _free.clear();
+                  }
+
+            private:
+                  uint32_t _top{};
+                  std::vector<uint32_t> _free{};
+            };
+      }
+
       struct ContextSetupParam {
             bool Debug = false;
-      };
-
-      enum class ContextResourceType {
-            UNKONWN,
-            WINDOW,
-            IMAGE,
-            BUFFER,
-            IMAGEVIEW,
-            BUFFERVIEW
-      };
-
-      struct ContextResourceRecoveryInfo {
-            ContextResourceType Type = ContextResourceType::UNKONWN;
-            std::optional<size_t> Resource1{};
-            std::optional<size_t> Resource2{};
-            std::optional<size_t> Resource3{};
-            std::optional<size_t> Resource4{};
-      };
-
-      class FreeList {
-      public:
-            uint32_t Gen() {
-                  if (_free.empty()) {
-                        return _top++;
-                  } else {
-                        uint32_t id = _free.back();
-                        _free.pop_back();
-                        return id;
-                  }
-            }
-
-            void Free(uint32_t id) {
-                  _free.push_back(id);
-            }
-
-            void Clear() {
-                  _top = 0;
-                  _free.clear();
-            }
-
-      private:
-            uint32_t _top{};
-            std::vector<uint32_t> _free{};
       };
 
       struct RenderPassBeginArgument {
@@ -176,7 +178,7 @@ namespace LoFi {
       private:
             void Shutdown();
 
-            void RecoveryContextResource(const ContextResourceRecoveryInfo& pack);
+            void RecoveryContextResource(const Internal::ContextResourceRecoveryInfo& pack);
 
             uint32_t MakeBindlessIndexBuffer(entt::entity buffer);
 
@@ -200,15 +202,15 @@ namespace LoFi {
 
             void RecoveryAllContextResourceImmediately();
 
-            void RecoveryContextResourceWindow(const ContextResourceRecoveryInfo& pack);
+            void RecoveryContextResourceWindow(const Internal::ContextResourceRecoveryInfo& pack);
 
-            void RecoveryContextResourceBuffer(const ContextResourceRecoveryInfo& pack);
+            void RecoveryContextResourceBuffer(const Internal::ContextResourceRecoveryInfo& pack);
 
-            void RecoveryContextResourceBufferView(const ContextResourceRecoveryInfo& pack) const;
+            void RecoveryContextResourceBufferView(const Internal::ContextResourceRecoveryInfo& pack) const;
 
-            void RecoveryContextResourceImage(const ContextResourceRecoveryInfo& pack);
+            void RecoveryContextResourceImage(const Internal::ContextResourceRecoveryInfo& pack);
 
-            void RecoveryContextResourceImageView(const ContextResourceRecoveryInfo& pack) const;
+            void RecoveryContextResourceImageView(const Internal::ContextResourceRecoveryInfo& pack) const;
 
       private:
             bool _bDebugMode = true;
@@ -250,7 +252,7 @@ namespace LoFi {
 
             entt::dense_map<VkSamplerCreateInfo, VkSampler, SamplerCIHash, SamplerCIEqual> _samplers{};
 
-            FreeList _bindlessIndexFreeList[3]{}; // buffer, texture_sample, texture_cs
+            Internal::FreeList _bindlessIndexFreeList[3]{}; // buffer, texture_sample, texture_cs
 
       private:
             std::vector<std::function<void(VkCommandBuffer)>> _commandQueue;
@@ -260,9 +262,9 @@ namespace LoFi {
             entt::registry _world;
 
       private:
-            moodycamel::ConcurrentQueue<ContextResourceRecoveryInfo> _resourceRecoveryQueue{};
+            moodycamel::ConcurrentQueue<Internal::ContextResourceRecoveryInfo> _resourceRecoveryQueue{};
 
-            std::vector<ContextResourceRecoveryInfo> _resoureceRecoveryList[3]{};
+            std::vector<Internal::ContextResourceRecoveryInfo> _resoureceRecoveryList[3]{};
 
       private:
             VkRect2D _frameRenderingRenderArea{};

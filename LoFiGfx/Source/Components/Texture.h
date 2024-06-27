@@ -39,11 +39,11 @@ namespace LoFi::Component {
 
             [[nodiscard]] VkFormat GetFormat() const { return _imageCI->format; }
 
-            [[nodiscard]] bool IsTextureFormatColor() const { return !IsDepthStencilFormat(_imageCI->format); }
+            [[nodiscard]] bool IsTextureFormatColor() const { return !Internal::IsDepthStencilFormat(_imageCI->format); }
 
-            [[nodiscard]] bool IsTextureFormatDepthOnly() const { return !IsDepthStencilOnlyFormat(_imageCI->format); }
+            [[nodiscard]] bool IsTextureFormatDepthOnly() const { return !Internal::IsDepthStencilOnlyFormat(_imageCI->format); }
 
-            [[nodiscard]] bool IsTextureFormatDepthStencil() const { return !IsDepthStencilFormat(_imageCI->format); }
+            [[nodiscard]] bool IsTextureFormatDepthStencil() const { return !Internal::IsDepthStencilFormat(_imageCI->format); }
 
             [[nodiscard]] VkImageLayout GetCurrentLayout() const { return _currentLayout; }
 

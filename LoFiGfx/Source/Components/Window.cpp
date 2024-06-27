@@ -4,6 +4,7 @@
 #include "../Context.h"
 
 using namespace LoFi::Component;
+using namespace LoFi::Internal;
 
 Window::Window(entt::entity id, const char* title, int w, int h) : _id(id) {
       _window = SDL_CreateWindow(title, w, h, SDL_WINDOW_VULKAN);
