@@ -667,10 +667,27 @@ void Context::CmdBindGraphicKernelToRenderPass(entt::entity kernel) {
       }
 
       auto k = _world.try_get<Component::GraphicKernel>(kernel);
-      if (!k) {
-            const auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel";
+      auto ki = _world.try_get<Component::GrapicsKernelInstance>(kernel);
+      if (!k && !ki) {
+            const auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel or a graphics kernel instance";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
+      } else {
+            if(ki) {
+                  entt::entity graphic_kernel = ki->GetParentGraphicsKernel();
+                  if(!_world.valid(graphic_kernel)) {
+                        const auto err = "Context::CmdBindGraphicKernel - Invalid graphics kernel entity";
+                        MessageManager::Log(MessageType::Error, err);
+                        throw std::runtime_error(err);
+                  }
+
+                  k = _world.try_get<Component::GraphicKernel>(graphic_kernel);
+                  if(!k) {
+                        const auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel or a graphics kernel instance";
+                        MessageManager::Log(MessageType::Error, err);
+                        throw std::runtime_error(err);
+                  }
+            }
       }
 
       vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, k->GetPipeline());
@@ -681,26 +698,10 @@ void Context::CmdBindGraphicKernelToRenderPass(entt::entity kernel) {
       vkCmdSetScissor(GetCurrentCommandBuffer(), 0, 1, &scissor);
 
       _currentGraphicsKernel = kernel;
-}
 
-void Context::CmdBindGraphicKernelInstanceToRenderPass(entt::entity frame_resource) {
-      if (!_world.valid(frame_resource)) {
-            const auto err = "Context::CmdBindGraphicKernelInstanceToRenderPass - Invalid frame resource entity";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
+      if(ki) {
+            ki->PushBindlessInfo(GetCurrentCommandBuffer());
       }
-
-      auto fr = _world.try_get<Component::GrapicsKernelInstance>(frame_resource);
-      if (!fr) {
-            const auto err = "Context::CmdBindGraphicKernelInstanceToRenderPass - this entity is not a frame resource";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      const auto kernel_handle = fr->GetParentGraphicsKernel();
-      CmdBindGraphicKernelToRenderPass(kernel_handle);
-
-      fr->PushBindlessInfo(GetCurrentCommandBuffer());
 }
 
 void Context::SetGraphicKernelInstanceParamter(entt::entity frame_resource, const std::string& variable_name, const void* data) {

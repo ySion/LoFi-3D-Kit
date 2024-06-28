@@ -140,18 +140,18 @@ void GStart() {
       ctx->Init();
 
       const auto win1 = ctx->CreateWindow("Triangle", 1920, 1080);
-      //const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
-      //const auto win3 = ctx->CreateWindow("Depth", 800, 600);
+      const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
+      const auto win3 = ctx->CreateWindow("Depth", 800, 600);
 
       const auto rt1 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 1920, 1080);
-      //const auto rt2 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 400, 400);
-      //const auto rt3 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 800, 600);
+      const auto rt2 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 400, 400);
+      const auto rt3 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 800, 600);
 
-      const auto ds = ctx->CreateTexture2D(VK_FORMAT_D32_SFLOAT, 1920, 1080);
+      const auto ds = ctx->CreateTexture2D(VK_FORMAT_D32_SFLOAT, 800, 600);
 
       ctx->MapRenderTargetToWindow(rt1, win1);
-      //ctx->MapRenderTargetToWindow(rt2, win2);
-      //ctx->MapRenderTargetToWindow(rt3, win3);
+      ctx->MapRenderTargetToWindow(rt2, win2);
+      ctx->MapRenderTargetToWindow(rt3, win3);
 
       const auto triangle_vert = ctx->CreateBuffer(triangle_vt);
       const auto triangle_index = ctx->CreateBuffer(triangle_id);
@@ -174,23 +174,23 @@ void GStart() {
 
                   ctx->BeginFrame();
 
-                  // //Pass 1
-                  // ctx->CmdBeginRenderPass({{rt1}});
-                  // ctx->CmdBindGraphicKernelInstanceToRenderPass(kernel_instance);
-                  // ctx->CmdBindVertexBuffer(triangle_vert);
-                  // ctx->CmdDrawIndex(triangle_index);
-                  // ctx->CmdEndRenderPass();
-                  //
-                  // //Pass 2
-                  // ctx->CmdBeginRenderPass({{rt2}});
-                  // ctx->CmdBindGraphicKernelInstanceToRenderPass(kernel_instance);
-                  // ctx->CmdBindVertexBuffer(square_vert);
-                  // ctx->CmdDrawIndex(square_index);
-                  // ctx->CmdEndRenderPass();
+                  //Pass 1
+                  ctx->CmdBeginRenderPass({{rt1}});
+                  ctx->CmdBindGraphicKernelToRenderPass(kernel_instance);
+                  ctx->CmdBindVertexBuffer(triangle_vert);
+                  ctx->CmdDrawIndex(triangle_index);
+                  ctx->CmdEndRenderPass();
+
+                  //Pass 2
+                  ctx->CmdBeginRenderPass({{rt2}});
+                  ctx->CmdBindGraphicKernelToRenderPass(kernel_instance);
+                  ctx->CmdBindVertexBuffer(square_vert);
+                  ctx->CmdDrawIndex(square_index);
+                  ctx->CmdEndRenderPass();
 
                   //Pass 3
-                  ctx->CmdBeginRenderPass({{rt1}, {ds}});
-                  ctx->CmdBindGraphicKernelInstanceToRenderPass(kernel_instance);
+                  ctx->CmdBeginRenderPass({{rt3}, {ds}});
+                  ctx->CmdBindGraphicKernelToRenderPass(kernel_instance);
                   ctx->CmdBindVertexBuffer(square_vert);
                   ctx->CmdDrawIndex(square_index);
                   ctx->CmdBindVertexBuffer(triangle_vert);

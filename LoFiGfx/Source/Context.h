@@ -170,8 +170,6 @@ namespace LoFi {
 
             void CmdBindGraphicKernelToRenderPass(entt::entity kernel);
 
-            void CmdBindGraphicKernelInstanceToRenderPass(entt::entity frame_resource);
-
             void SetGraphicKernelInstanceParamter(entt::entity frame_resource, const std::string& variable_name, const void* data);
 
             void SetGraphicKernelInstanceParamterStruct(entt::entity frame_resource, const std::string& struct_name, const void* data);
