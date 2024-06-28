@@ -16,31 +16,20 @@ GraphicKernel::GraphicKernel(entt::entity id) : _id(id) {
 
 GraphicKernel::~GraphicKernel() {
       if (_pipeline) {
-            vkDestroyPipeline(volkGetLoadedDevice(), _pipeline, nullptr);
+            const ContextResourceRecoveryInfo info {
+                  .Type = ContextResourceType::PIPELINE,
+                  .Resource1 = (size_t)_pipeline
+            };
+            Context::Get()->RecoveryContextResource(info);
       }
 
       if (_pipelineLayout) {
-            vkDestroyPipelineLayout(volkGetLoadedDevice(), _pipelineLayout, nullptr);
+            const ContextResourceRecoveryInfo info {
+                  .Type = ContextResourceType::PIPELINE_LAYOUT,
+                  .Resource1 = (size_t)_pipelineLayout
+            };
+            Context::Get()->RecoveryContextResource(info);
       }
-}
-
-std::optional<BindlessLayoutVariableInfo> GraphicKernel::SetBindlessLayoutVariable(const std::string& name) const {
-      if(const auto find = _pushConstantBufferVariableMap.find(name); find != _pushConstantBufferVariableMap.end())
-            return find->second;
-      return std::nullopt;
-}
-
-bool GraphicKernel::SetBindlessLayoutVariable(const std::string& name, const void* data) const {
-      if(const auto find = _pushConstantBufferVariableMap.find(name); find != _pushConstantBufferVariableMap.end()) {
-            const uint8_t* p = _pushConstantBuffer.data() + find->second.offset;
-            memcpy((void*)p, data, find->second.size);
-            return true;
-      }
-      return false;
-}
-
-void GraphicKernel::PushConstantBindlessLayoutVariableInfo(VkCommandBuffer cmd) const {
-      vkCmdPushConstants(cmd, _pipelineLayout, VK_SHADER_STAGE_ALL, 0, (uint32_t)_pushConstantBuffer.size(), _pushConstantBuffer.data());
 }
 
 bool GraphicKernel::CreateFromProgram(entt::entity program) {
@@ -165,8 +154,9 @@ bool GraphicKernel::CreateFromProgram(entt::entity program) {
             return false;
       }
 
-      _pushConstantBufferVariableMap = prog->_shaderPushConstantMap_BindlessLayoutVariableInfo;
-      _pushConstantBuffer.resize(prog->_pushConstantRange.size);
-
+      _structTable = prog->_structTable;
+      _structMemberTable = prog->_structMemberTable;
+      _sampledTextureTable = prog->_sampledTextureTable;
+      _pushConstantRange = prog->_pushConstantRange;
       return true;
 }

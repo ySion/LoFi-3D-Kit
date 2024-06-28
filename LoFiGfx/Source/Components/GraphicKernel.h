@@ -12,9 +12,15 @@ namespace LoFi {
 
 namespace LoFi::Component {
 
-      struct BindlessLayoutVariableInfo {
-            uint32_t size;
-            uint32_t offset;
+      struct GraphicKernelStructMemberInfo {
+            uint32_t StructIndex;
+            uint32_t Size;
+            uint32_t Offset;
+      };
+
+      struct GraphicKernelStructInfo {
+            uint32_t Index;
+            uint32_t Size;
       };
 
       class GraphicKernel {
@@ -31,15 +37,16 @@ namespace LoFi::Component {
 
             [[nodiscard]] VkPipelineLayout* GetPipelineLayoutPtr() { return &_pipelineLayout; }
 
-            [[nodiscard]] auto& GetBindlessLayoutVariableMap() const { return _pushConstantBufferVariableMap; }
+            [[nodiscard]] const entt::dense_map<std::string, GraphicKernelStructInfo>& GetStructTable() const {return _structTable;}
 
-            [[nodiscard]] std::optional<BindlessLayoutVariableInfo> SetBindlessLayoutVariable(const std::string& name) const;
+            [[nodiscard]] const entt::dense_map<std::string, uint32_t>& GetSampledTextureTable() const {return _sampledTextureTable;}
 
-            [[nodiscard]] bool SetBindlessLayoutVariable(const std::string& name, const void* data) const;
+            [[nodiscard]] const entt::dense_map<std::string, GraphicKernelStructMemberInfo>& GetStructMemberTable() const {return _structMemberTable;}
 
-            void PushConstantBindlessLayoutVariableInfo(VkCommandBuffer cmd) const;
+            [[nodiscard]] const VkPushConstantRange& GetBindlessInfoPushConstantRange() const {return _pushConstantRange;}
 
       private:
+
             bool CreateFromProgram(entt::entity program);
 
             friend class ::LoFi::Context;
@@ -51,8 +58,13 @@ namespace LoFi::Component {
 
             VkPipelineLayout _pipelineLayout{};
 
-            entt::dense_map<std::string, BindlessLayoutVariableInfo> _pushConstantBufferVariableMap{};
+            entt::dense_map<std::string, GraphicKernelStructInfo> _structTable{};
 
-            std::vector<uint8_t> _pushConstantBuffer{};
+            entt::dense_map<std::string, uint32_t> _sampledTextureTable{};
+
+            entt::dense_map<std::string, GraphicKernelStructMemberInfo> _structMemberTable{};
+
+            VkPushConstantRange _pushConstantRange{};
+
       };
 }

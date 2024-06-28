@@ -102,7 +102,7 @@ void Texture::SetData(void* data, size_t size) {
                   .baseArrayLayer = 0,
                   .layerCount = 1
             },
-            .imageOffset = 0,
+            .imageOffset = {},
             .imageExtent = {
                   .width = _imageCI->extent.width,
                   .height = _imageCI->extent.height,
@@ -110,7 +110,7 @@ void Texture::SetData(void* data, size_t size) {
             }
       };
 
-      LoFi::Context::Get()->EnqueueCommand([=](VkCommandBuffer cmd) {
+      LoFi::Context::Get()->EnqueueCommand([=, this](VkCommandBuffer cmd) {
             this->BarrierLayout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
             vkCmdCopyBufferToImage(cmd, imm_buffer, _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffer_copyto_image);
       });
@@ -226,7 +226,7 @@ std::optional<VkPipelineStageFlags2> src_stage, std::optional<VkPipelineStageFla
 void Texture::ReleaseAllViews() const {
       for (const auto view : _views) {
             ContextResourceRecoveryInfo info{
-                  .Type = ContextResourceType::IMAGEVIEW,
+                  .Type = ContextResourceType::IMAGE_VIEW,
                   .Resource1 = (size_t)view
             };
             Context::Get()->RecoveryContextResource(info);
