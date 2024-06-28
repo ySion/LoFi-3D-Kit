@@ -123,9 +123,9 @@
   auto func = std::async(std::launch::async, [&] {
         while (!should_close) {
               float time = (float)((double)SDL_GetTicks() / 1000.0);
-              ctx->SetGraphicKernelInstanceParamterStructMember(kernel_instance, "Info.time", time * 2);
-              ctx->SetGraphicKernelInstanceParamterStructMember(kernel_instance, "Info.time4", time);
-              ctx->SetGraphicKernelInstanceParamterStructMember(kernel_instance, "Info.time3", 0.1f);
+              ctx->SetGraphicKernelInstanceParamter(kernel_instance, "Info.time", time * 2);
+              ctx->SetGraphicKernelInstanceParamter(kernel_instance, "Info.time4", time);
+              ctx->SetGraphicKernelInstanceParamter(kernel_instance, "Info.time3", 0.1f);
 
               ctx->BeginFrame();
 
