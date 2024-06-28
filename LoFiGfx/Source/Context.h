@@ -12,6 +12,8 @@
 #include "Components/Buffer.h"
 #include "Components/Program.h"
 #include "Components/GraphicKernel.h"
+#include "Components/FrameResource.h"
+
 #include "../Third/xxHash/xxh3.h"
 
 namespace LoFi {
@@ -22,8 +24,10 @@ namespace LoFi {
                   WINDOW,
                   IMAGE,
                   BUFFER,
-                  IMAGEVIEW,
-                  BUFFERVIEW
+                  IMAGE_VIEW,
+                  BUFFER_VIEW,
+                  PIPELINE,
+                  PIPELINE_LAYOUT
             };
 
             struct ContextResourceRecoveryInfo {
@@ -81,6 +85,7 @@ namespace LoFi {
             friend class Component::Program;
             friend class Component::GraphicKernel;
             friend class Component::Texture;
+            friend class Component::FrameResource;
 
             struct SamplerCIHash {
                   std::size_t operator()(const VkSamplerCreateInfo& s) const noexcept {
@@ -126,7 +131,7 @@ namespace LoFi {
                   return CreateBuffer(data.data(), data.size() * sizeof(T), cpu_access, bindless);
             }
 
-            template <class T, uint32_t N>
+            template <class T, size_t N>
             [[nodiscard]] entt::entity CreateBuffer(const std::array<T, N>& data, bool cpu_access = false, bool bindless = true) {
                   return CreateBuffer(data.data(), N * sizeof(T), cpu_access, bindless);
             }
@@ -135,9 +140,9 @@ namespace LoFi {
 
             [[nodiscard]] entt::entity CreateProgram(const std::vector<std::string_view>& source_code);
 
-            void DestroyBuffer(entt::entity buffer);
+            [[nodiscard]] entt::entity CreateFrameResource(entt::entity graphics_kernel, bool is_cpu_side = true);
 
-            void DestroyTexture(entt::entity texture);
+            void DestroyHandle(entt::entity);
 
             void SetBufferData(entt::entity buffer, void* data, uint64_t size);
 
@@ -153,19 +158,28 @@ namespace LoFi {
 
             void EndFrame();
 
-            void CmdBeginRenderPass(const std::vector<RenderPassBeginArgument>& textures);
-
-            void CmdEndRenderPass();
-
             void DestroyWindow(uint32_t id);
 
             void DestroyWindow(entt::entity window);
 
             void MapRenderTargetToWindow(entt::entity texture, entt::entity window);
 
+            void CmdBeginRenderPass(const std::vector<RenderPassBeginArgument>& textures);
+
+            void CmdEndRenderPass();
+
             void CmdBindGraphicKernelToRenderPass(entt::entity kernel);
 
-            void CmdBindLayoutVariable(const std::vector<LayoutVariableBindInfo>& layout_variable_info);
+            void CmdBindGraphicKernelWithFrameResourceToRenderPass(entt::entity frame_resource);
+
+            void SetFrameResourceStruct(entt::entity frame_resource, const std::string& struct_name, const void* data);
+
+            void SetFrameResourceStructMember(entt::entity frame_resource, const std::string& struct_member_name, const void* data);
+
+            //void SetFrameResourceStructMember(entt::entity frame_resource, const std::string& struct_name, const void* data);
+
+
+            //void CmdBindLayoutVariable(const std::vector<LayoutVariableBindInfo>& layout_variable_info);
 
             void CmdBindVertexBuffer(entt::entity buffer, size_t offset = 0);
 
@@ -218,6 +232,12 @@ namespace LoFi {
             void RecoveryContextResourceImage(const Internal::ContextResourceRecoveryInfo& pack);
 
             void RecoveryContextResourceImageView(const Internal::ContextResourceRecoveryInfo& pack) const;
+
+            void RecoveryContextResourcePipeline(const Internal::ContextResourceRecoveryInfo& pack) ;
+
+            void RecoveryContextResourcePipelineLayout(const Internal::ContextResourceRecoveryInfo& pack) const;
+
+
 
       private:
             bool _bDebugMode = true;

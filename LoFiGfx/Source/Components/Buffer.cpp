@@ -104,8 +104,9 @@ void LoFi::Component::Buffer::SetData(const void* p, uint64_t size) {
                   .size = trans_size
             };
 
-            LoFi::Context::Get()->EnqueueCommand([=](VkCommandBuffer cmd) {
-                  vkCmdCopyBuffer(cmd, imm_buffer, _buffer, 1, &copyinfo);
+            auto buffer = _buffer;
+            LoFi::Context::Get()->EnqueueCommand([ =](VkCommandBuffer cmd) {
+                  vkCmdCopyBuffer(cmd, imm_buffer, buffer, 1, &copyinfo);
             });
 
             _vaildSize = size;
@@ -166,7 +167,7 @@ void LoFi::Component::Buffer::CreateBuffer(const VkBufferCreateInfo& buffer_ci, 
 void LoFi::Component::Buffer::ReleaseAllViews() const {
       for (const auto view : _views) {
             ContextResourceRecoveryInfo info{
-                  .Type = ContextResourceType::BUFFERVIEW,
+                  .Type = ContextResourceType::BUFFER_VIEW,
                   .Resource1 = (size_t)view
             };
             Context::Get()->RecoveryContextResource(info);

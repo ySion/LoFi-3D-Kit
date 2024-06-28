@@ -52,11 +52,7 @@ Program::Program(entt::entity id) : _id(id) {
 }
 
 bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std::string_view>& sources) {
-      _isCompiled = false;
-      std::string backup_name = _programName;
       _programName = name;
-      _shaderModules.clear();
-      _shaderPushConstantMap_BindlessLayoutVariableInfo.clear();
 
       //Init Pipeline CIs, use default profile
       _inputAssemblyStateCreateInfo = VkPipelineInputAssemblyStateCreateInfo{
@@ -491,37 +487,38 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
             std::printf("%s\n", str1.c_str());
       }
 
-      for (auto& resource : resources.storage_buffers) {
-            auto& type = comp.get_type(resource.base_type_id);
+      for(uint32_t idx = 0; idx< resources.storage_buffers.size(); idx++) {
+            auto& resource = resources.storage_buffers[idx];
+            auto& struct_type = comp.get_type(resource.base_type_id);
 
             uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
             uint32_t binding = comp.get_decoration(resource.id, spv::Decoration::DecorationBinding);
-            std::string resoure_name = comp.get_name(resource.id);
-            std::string type_name = comp.get_name(resource.base_type_id);
 
-            auto str1 = std::format("StorageBuffer : Set: {}, Binding {}, resourece name {}, warpper type name: {}.",
-            set, binding, resoure_name, type_name);
+            std::string struct_buffer_resourece_name = comp.get_name(resource.id); // struct buffer resource name
+            std::string struct_type_name = comp.get_name(resource.base_type_id); // struct type name
+
+            uint32_t member_count = struct_type.member_types.size();
+            uint32_t struct_size = comp.get_declared_struct_size(struct_type); //struct size
+
+            auto str1 = std::format("StorageBuffer : Set: {}, Binding {}, resourece name {}, struct type name: {}, struct member: {}, struct_size: {}.",
+            set, binding, struct_buffer_resourece_name, struct_type_name, member_count, struct_size);
             std::printf("%s\n", str1.c_str());
 
-            uint32_t contained_type_id = type.member_types[0];
-            auto contained_type = comp.get_type(contained_type_id);
-            std::string contained_type_name = comp.get_name(contained_type.self);
-
-            uint32_t member_count = contained_type.member_types.size();
-
-            auto strSubType = std::format("\t\tWrapperType: name {}, member count {}.", contained_type_name,
-            member_count);
-            std::printf("%s\n", strSubType.c_str());
+            _structTable.emplace(struct_type_name, GraphicKernelStructInfo{idx, (uint32_t)struct_size}); // push to table
 
             for (uint32_t i = 0; i < member_count; i++) {
-                  auto& member_type = comp.get_type(contained_type.member_types[i]);
-                  const std::string& member_type_name = comp.get_name(member_type.self);
+                  auto& member_type = comp.get_type(struct_type.member_types[i]);
+                  const std::string& member_type_name = comp.get_name(member_type.self); // struct member name
 
-                  size_t member_size = comp.get_declared_struct_member_size(contained_type, i);
-                  size_t offset = comp.type_struct_member_offset(contained_type, i);
+                  size_t member_size = comp.get_declared_struct_member_size(struct_type, i); //struct member size
+                  size_t offset = comp.type_struct_member_offset(struct_type, i); //struct member offset
 
-                  const std::string& member_name = comp.get_member_name(contained_type.self, i);
-                  auto str = std::format("\t\t{}, offset {}, size {}", member_name, offset, member_size);
+                  const std::string& member_name = comp.get_member_name(struct_type.self, i);
+
+                  std::string full_member_name = std::format("{}.{}", struct_type_name, member_name);
+                  _structMemberTable.emplace(full_member_name, GraphicKernelStructMemberInfo{idx, (uint32_t)member_size, (uint32_t)offset});
+
+                  auto str = std::format("\t\tMember: {}, offset {}, size {}", member_name, offset, member_size);
                   std::printf("%s\n", str.c_str());
             }
       }
@@ -553,14 +550,6 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
                   const std::string& member_name = comp.get_member_name(type.self, i);
                   auto str = std::format("PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
                   std::printf("%s\n", str.c_str());
-
-                  if(_shaderPushConstantMap_BindlessLayoutVariableInfo.contains(member_name)) {
-                        const auto err = std::format("Program::ParseVS - Type name conflict in shader, name: {}.", member_name);
-                        MessageManager::Log(MessageType::Warning, err);
-                        return false;
-                  } else {
-                        _shaderPushConstantMap_BindlessLayoutVariableInfo.emplace(member_name, BindlessLayoutVariableInfo{(uint32_t)member_size, (uint32_t)offset});
-                  }
 
                   if (i == member_count - 1) {
                         _pushConstantRange.offset = 0;
@@ -596,38 +585,36 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
             return false;
       }
 
-      for (auto& resource : resources.storage_buffers) {
+      for (auto& resource : resources.push_constant_buffers) {
             auto& type = comp.get_type(resource.base_type_id);
+            uint32_t member_count = type.member_types.size();
+            const std::string& res_name = comp.get_name(resource.id);
 
-            uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
-            uint32_t binding = comp.get_decoration(resource.id, spv::Decoration::DecorationBinding);
-            std::string resoure_name = comp.get_name(resource.id);
-            std::string type_name = comp.get_name(resource.base_type_id);
-
-            auto str1 = std::format("StorageBuffer: Set: {}, Binding {}, resourece name {}, warpper type name: {}.",
-            set, binding, resoure_name, type_name);
-            std::printf("%s\n", str1.c_str());
-
-            uint32_t contained_type_id = type.member_types[0];
-            auto contained_type = comp.get_type(contained_type_id);
-            std::string contained_type_name = comp.get_name(contained_type.self);
-
-            uint32_t member_count = contained_type.member_types.size();
-
-            auto strSubType = std::format("\t\tWrapperType: name {}, member count {}.", contained_type_name,
-            member_count);
-            std::printf("%s\n", strSubType.c_str());
-
-            for (uint32_t i = 0; i < member_count; i++) {
-                  auto& member_type = comp.get_type(contained_type.member_types[i]);
+            for (int i = 0; i < member_count; i++) {
+                  auto& member_type = comp.get_type(type.member_types[i]);
                   const std::string& member_type_name = comp.get_name(member_type.self);
 
-                  size_t member_size = comp.get_declared_struct_member_size(contained_type, i);
-                  size_t offset = comp.type_struct_member_offset(contained_type, i);
+                  size_t member_size = comp.get_declared_struct_member_size(type, i);
+                  size_t offset = comp.type_struct_member_offset(type, i);
 
-                  const std::string& member_name = comp.get_member_name(contained_type.self, i);
-                  auto str = std::format("\t\t{}, offset {}, size {}", member_name, offset, member_size);
+                  const std::string& member_name = comp.get_member_name(type.self, i);
+                  auto str = std::format("PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
                   std::printf("%s\n", str.c_str());
+
+                  if(!_structTable.contains(member_name)) {
+                        const auto err = std::format("Program::ParseFS - fs's struct type don't find in vs : {}.", member_name);
+                        MessageManager::Log(MessageType::Warning, err);
+                        return false;
+                  }
+
+                  if (i == member_count - 1) {
+                        uint32_t ps_size = offset + member_size;
+                        if(ps_size != _pushConstantRange.size) {
+                              const auto err = std::format("Program::ParseFS - fs's struct not match with vs, please copy it from vs to fs, expected {}, got {}.", _pushConstantRange.size, ps_size);
+                              MessageManager::Log(MessageType::Warning, err);
+                              return false;
+                        }
+                  }
             }
       }
 

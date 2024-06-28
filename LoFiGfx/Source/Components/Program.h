@@ -45,6 +45,12 @@ namespace LoFi::Component {
 
             [[nodiscard]] bool IsCompiled() const { return _isCompiled; }
 
+            [[nodiscard]] const auto& GetStructTable() const {return _structTable;}
+
+            [[nodiscard]] const auto& GetSampledTextureTable() const {return _sampledTextureTable;}
+
+            [[nodiscard]] const auto& GetStructMemberTable() const {return _structMemberTable;}
+
             // TODO: LoadFromCache
 
       private:
@@ -67,14 +73,18 @@ namespace LoFi::Component {
             entt::dense_map<glslang_stage_t, std::pair<std::vector<uint32_t>, VkShaderModule>>& GetShaderModules() { return _shaderModules; }
 
       private:
-            //entt::dense_map<std::string, std::vector<std::string>> _setters{};
+
             bool _isCompiled{};
 
             std::vector<std::string> _sampleTexture{};
 
             entt::dense_map<glslang_stage_t, std::pair<std::vector<uint32_t>, VkShaderModule>> _shaderModules{};
 
-            entt::dense_map<std::string, BindlessLayoutVariableInfo> _shaderPushConstantMap_BindlessLayoutVariableInfo{};
+            entt::dense_map<std::string, GraphicKernelStructInfo> _structTable{};
+
+            entt::dense_map<std::string, uint32_t> _sampledTextureTable{};
+
+            entt::dense_map<std::string, GraphicKernelStructMemberInfo> _structMemberTable{};
 
             entt::entity _id{};
 
