@@ -15,8 +15,8 @@ set(Source_List
         Source/Components/Program.cpp
         Source/Components/Buffer.cpp
         Source/Components/GraphicKernel.cpp
-        Source/Components/FrameResource.cpp
-        Source/Components/FrameResource.h
+        Source/Components/GrapicsKernelInstance.cpp
+        Source/Components/GrapicsKernelInstance.h
 )
 
 find_package(Vulkan REQUIRED)

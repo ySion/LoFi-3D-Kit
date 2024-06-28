@@ -8,24 +8,22 @@
 #include "GraphicKernel.h"
 
 namespace LoFi::Component {
-
-      struct TagFrameResourceChanged {};
+      struct TagGrapicsKernelInstanceParameterChanged {};
 
       struct FrameResourceBuffer {
             bool IsModified = false;
             std::vector<uint8_t> CachedBufferData{};
-            std::array <entt::entity, 3> Buffers{};
+            std::array<entt::entity, 3> Buffers{};
       };
 
-
       // notice: FrameResource will upload CachedBufferData to gpu buffer when CmdBindGraphicKernelWithFrameResourceToRenderPass() called if IsModified is true
-      class FrameResource {
+      class GrapicsKernelInstance {
       public:
-            NO_COPY_MOVE_CONS(FrameResource);
+            NO_COPY_MOVE_CONS(GrapicsKernelInstance);
 
-            ~FrameResource();
+            ~GrapicsKernelInstance();
 
-            explicit FrameResource(entt::entity id, entt::entity graphics_kernel, bool is_cpu_side = true);
+            explicit GrapicsKernelInstance(entt::entity id, entt::entity graphics_kernel, bool is_cpu_side = true);
 
             [[nodiscard]] entt::entity GetHandle() const { return _id; }
 
@@ -33,11 +31,11 @@ namespace LoFi::Component {
 
             [[nodiscard]] entt::entity GetParentGraphicsKernel() const { return _parent; }
 
-            bool SetStruct(const std::string& struct_name, const void* data); // likes "Info"
+            bool SetParameterStruct(const std::string& struct_name, const void* data); // likes "Info"
 
-            bool SetStructMember(const std::string& struct_member_name, const void* data); // likes "Info.time"
+            bool SetParameterStructMember(const std::string& struct_member_name, const void* data); // likes "Info.time"
 
-            bool SetSampledImage(const std::string& image_name, entt::entity texture);
+            bool SetParameterSampledImage(const std::string& image_name, entt::entity texture);
 
       private:
             friend class Context;

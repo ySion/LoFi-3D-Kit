@@ -2,13 +2,13 @@
 // Created by Arzuo on 2024/6/28.
 //
 
-#include "FrameResource.h"
+#include "GrapicsKernelInstance.h"
 #include "../Context.h"
 #include "../Message.h"
 using namespace LoFi::Component;
 using namespace LoFi::Internal;
 
-FrameResource::~FrameResource() {
+GrapicsKernelInstance::~GrapicsKernelInstance() {
       auto& world = *volkGetLoadedEcsWorld();
       for (const auto& resourece_buffer : _buffers) {
             for (int i = 0; i < 3; i++) {
@@ -17,20 +17,20 @@ FrameResource::~FrameResource() {
       }
 }
 
-FrameResource::FrameResource(entt::entity id, entt::entity graphics_kernel, bool is_cpu_side) : _id(id), _isCpuSide(is_cpu_side) {
+GrapicsKernelInstance::GrapicsKernelInstance(entt::entity id, entt::entity graphics_kernel, bool is_cpu_side) : _id(id), _isCpuSide(is_cpu_side) {
 
       auto& ctx = *Context::Get();
       auto& world = *volkGetLoadedEcsWorld();
 
       if (!world.valid(graphics_kernel)) {
-            const auto err = std::format("FrameResource::FrameResource - Invalid Graphics Kernel Entity\n");
+            const auto err = std::format("GrapicsKernelInstance::GrapicsKernelInstance - Invalid Graphics Kernel Entity\n");
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       auto kernel = world.try_get<GraphicKernel>(graphics_kernel);
       if (!kernel) {
-            const auto err = std::format("FrameResource::FrameResource - this entity is not a Graphics Kernel.\n");
+            const auto err = std::format("GrapicsKernelInstance::GrapicsKernelInstance - this entity is not a Graphics Kernel.\n");
             MessageManager::Log(MessageType::Warning, err);
             throw std::runtime_error(err);
       }
@@ -54,7 +54,7 @@ FrameResource::FrameResource(entt::entity id, entt::entity graphics_kernel, bool
                   const auto buffer_created = ctx.CreateBuffer(buffer.CachedBufferData.size(), is_cpu_side);
 
                   if(!world.valid(buffer_created)) { //if happend, all dead
-                        const auto err = std::format("FrameResource::FrameResource - Can't Allocate buffer! crashed\n");
+                        const auto err = std::format("GrapicsKernelInstance::GrapicsKernelInstance - Can't Allocate buffer! crashed\n");
                         MessageManager::Log(MessageType::Error, err);
                         throw std::runtime_error(err);
                   }
@@ -65,12 +65,12 @@ FrameResource::FrameResource(entt::entity id, entt::entity graphics_kernel, bool
                   const auto buffer_bindless_index = buffer_comp.GetBindlessIndex();
 
                   if(!buffer_bindless_index.has_value()) { //should not happend
-                        const auto err = std::format("FrameResource::FrameResource - Buffer has no bindless index ? it's should not happened\n");
+                        const auto err = std::format("GrapicsKernelInstance::GrapicsKernelInstance - Buffer has no bindless index ? it's should not happened\n");
                         MessageManager::Log(MessageType::Error, err);
                         throw std::runtime_error(err);
                   }
 
-                  //printf("\tFrameResource Struct: %s - index: %u, size: %u.\n", i.first.c_str(), buffer_index, i.second.Size);
+                  //printf("\tGrapicsKernelInstance Struct: %s - index: %u, size: %u.\n", i.first.c_str(), buffer_index, i.second.Size);
                   //printf("\t\t create at offset %u in push constant buffer[%u].\n", buffer_index, idx);
 
                   _pushConstantBindlessIndexInfoBuffer.at(idx).at(buffer_index) = buffer_bindless_index.value();
@@ -80,11 +80,11 @@ FrameResource::FrameResource(entt::entity id, entt::entity graphics_kernel, bool
       printf("Create Resource Success! %u", _parent);
 }
 
-bool FrameResource::SetStruct(const std::string& struct_name, const void* data) {
+bool GrapicsKernelInstance::SetParameterStruct(const std::string& struct_name, const void* data) {
       auto& world = *volkGetLoadedEcsWorld();
 
       if (!world.valid(_parent)) {
-            const auto err = std::format("FrameResource::SetStruct - Invalid Parent Entity\n");
+            const auto err = std::format("GrapicsKernelInstance::SetStruct - Invalid Parent Entity\n");
             MessageManager::Log(MessageType::Error, err);
             return false;
       }
@@ -100,32 +100,32 @@ bool FrameResource::SetStruct(const std::string& struct_name, const void* data) 
                   std::memcpy(ptr, data, size);
                   _buffers.at(index).IsModified = true;
             } else {
-                  const auto err = std::format("FrameResource::SetStruct - Struct \"{}\" Not Found\n", struct_name);
+                  const auto err = std::format("GrapicsKernelInstance::SetStruct - Struct \"{}\" Not Found\n", struct_name);
                   MessageManager::Log(MessageType::Error, err);
                   return false;
             }
-      } else if (const auto parent_framebuffer = world.try_get<FrameResource>(_parent); parent_framebuffer) {
+      } else if (const auto parent_framebuffer = world.try_get<GrapicsKernelInstance>(_parent); parent_framebuffer) {
             // TODO
 
             return false;
       } else {
-            const auto err = std::format("FrameResource::SetStruct - Parent Entity is not a Graphics Kernel or FrameResource\n");
+            const auto err = std::format("GrapicsKernelInstance::SetStruct - Parent Entity is not a Graphics Kernel or GrapicsKernelInstance\n");
             MessageManager::Log(MessageType::Error, err);
             return false;
       }
 
-      if(!world.any_of<TagFrameResourceChanged>(_id)) {
-            world.emplace<TagFrameResourceChanged>(_id);
+      if(!world.any_of<TagGrapicsKernelInstanceParameterChanged>(_id)) {
+            world.emplace<TagGrapicsKernelInstanceParameterChanged>(_id);
       }
 
       return true;
 }
 
-bool FrameResource::SetStructMember(const std::string& struct_member_name, const void* data) {
+bool GrapicsKernelInstance::SetParameterStructMember(const std::string& struct_member_name, const void* data) {
       auto& world = *volkGetLoadedEcsWorld();
 
       if (!world.valid(_parent)) {
-            const auto err = std::format("FrameResource::SetStructMember - Invalid Parent Entity\n");
+            const auto err = std::format("GrapicsKernelInstance::SetStructMember - Invalid Parent Entity\n");
             MessageManager::Log(MessageType::Error, err);
             return false;
       }
@@ -143,35 +143,35 @@ bool FrameResource::SetStructMember(const std::string& struct_member_name, const
                   memcpy(struct_start_ptr + offset, data, size);
                   _buffers.at(index).IsModified = true;
             } else {
-                  const auto err = std::format("FrameResource::SetStructMember - Struct Member \"{}\" Not Found\n", struct_member_name);
+                  const auto err = std::format("GrapicsKernelInstance::SetStructMember - Struct Member \"{}\" Not Found\n", struct_member_name);
                   MessageManager::Log(MessageType::Error, err);
                   return false;
             }
-      } else if (const auto parent_framebuffer = world.try_get<FrameResource>(_parent); parent_framebuffer) {
+      } else if (const auto parent_framebuffer = world.try_get<GrapicsKernelInstance>(_parent); parent_framebuffer) {
             // TODO
 
             return false;
       } else {
-            const auto err = std::format("FrameResource::SetStructMember - Parent Entity is not a Graphics Kernel or FrameResource\n");
+            const auto err = std::format("GrapicsKernelInstance::SetStructMember - Parent Entity is not a Graphics Kernel or GrapicsKernelInstance\n");
             MessageManager::Log(MessageType::Error, err);
             return false;
       }
 
-      if(!world.any_of<TagFrameResourceChanged>(_id)) {
-            world.emplace<TagFrameResourceChanged>(_id);
+      if(!world.any_of<TagGrapicsKernelInstanceParameterChanged>(_id)) {
+            world.emplace<TagGrapicsKernelInstanceParameterChanged>(_id);
       }
 
       return true;
 }
 
-bool FrameResource::SetSampledImage(const std::string& image_name, entt::entity texture) {
+bool GrapicsKernelInstance::SetParameterSampledImage(const std::string& image_name, entt::entity texture) {
       return false;
 }
 
-void FrameResource::PushResourceChanged() {
+void GrapicsKernelInstance::PushResourceChanged() {
 
       auto& world = *volkGetLoadedEcsWorld();
-      if(!world.any_of<TagFrameResourceChanged>(_id))  return;
+      if(!world.any_of<TagGrapicsKernelInstanceParameterChanged>(_id))  return;
 
       const auto current_frame = Context::Get()->GetCurrentFrameIndex();
       for (auto& buffer : _buffers) {
@@ -183,10 +183,10 @@ void FrameResource::PushResourceChanged() {
       }
 }
 
-void FrameResource::PushBindlessInfo(VkCommandBuffer buf) const {
+void GrapicsKernelInstance::PushBindlessInfo(VkCommandBuffer buf) const {
       auto& world = *volkGetLoadedEcsWorld();
       if (!world.valid(_parent)) {
-            const auto err = std::format("FrameResource::SetStructMember - Invalid Parent Graphics Kernel Entity!\n");
+            const auto err = std::format("GrapicsKernelInstance::SetStructMember - Invalid Parent Graphics Kernel Entity!\n");
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
@@ -196,7 +196,7 @@ void FrameResource::PushBindlessInfo(VkCommandBuffer buf) const {
             const auto current_frame = Context::Get()->GetCurrentFrameIndex();
             vkCmdPushConstants(buf, parent_kernel->GetPipelineLayout(), VK_SHADER_STAGE_ALL, push_constant_range.offset, push_constant_range.size, _pushConstantBindlessIndexInfoBuffer[current_frame].data());
       } else {
-            const auto err = std::format("FrameResource::SetStructMember - Parent Entity is not a Graphics Kernel\n");
+            const auto err = std::format("GrapicsKernelInstance::SetStructMember - Parent Entity is not a Graphics Kernel\n");
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }

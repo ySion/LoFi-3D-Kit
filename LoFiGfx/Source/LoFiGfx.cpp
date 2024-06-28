@@ -100,8 +100,21 @@ void GStart() {
             layout(location = 0) in vec3 color;
             layout(location = 0) out vec4 outColor;
 
+            Struct2(
+            Info, {
+                     float time;
+                     float time2;
+                     float time3;
+                     float time4;
+            },
+            Info2, {
+                     vec3 pos_adder;
+                     vec3 norm_adder;
+            }
+            );
+
             void FSMain() {
-                  outColor = vec4(color, 1.0f);
+                  outColor = vec4(color - GetVar(Info).time3, 1.0f);
             }
       )";
 
@@ -126,19 +139,19 @@ void GStart() {
       auto ctx = std::make_unique<LoFi::Context>();
       ctx->Init();
 
-      const auto win1 = ctx->CreateWindow("Triangle", 800, 600);
-      const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
-      const auto win3 = ctx->CreateWindow("Depth", 800, 600);
+      const auto win1 = ctx->CreateWindow("Triangle", 1920, 1080);
+      //const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
+      //const auto win3 = ctx->CreateWindow("Depth", 800, 600);
 
-      const auto rt1 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 800, 600);
-      const auto rt2 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 400, 400);
-      const auto rt3 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 800, 600);
+      const auto rt1 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 1920, 1080);
+      //const auto rt2 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 400, 400);
+      //const auto rt3 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 800, 600);
 
-      const auto ds = ctx->CreateTexture2D(VK_FORMAT_D32_SFLOAT, 800, 600);
+      const auto ds = ctx->CreateTexture2D(VK_FORMAT_D32_SFLOAT, 1920, 1080);
 
       ctx->MapRenderTargetToWindow(rt1, win1);
-      ctx->MapRenderTargetToWindow(rt2, win2);
-      ctx->MapRenderTargetToWindow(rt3, win3);
+      //ctx->MapRenderTargetToWindow(rt2, win2);
+      //ctx->MapRenderTargetToWindow(rt3, win3);
 
       const auto triangle_vert = ctx->CreateBuffer(triangle_vt);
       const auto triangle_index = ctx->CreateBuffer(triangle_id);
@@ -149,35 +162,35 @@ void GStart() {
       const auto program = ctx->CreateProgram({vs, ps});
       const auto kernel = ctx->CreateGraphicKernel(program);
 
-      const auto kernel_instance = ctx->CreateFrameResource(kernel);
+      const auto kernel_instance = ctx->CreateGraphicsKernelInstance(kernel);
 
       std::atomic<bool> should_close = false;
       auto func = std::async(std::launch::async, [&] {
             while (!should_close) {
                   float time = (float)((double)SDL_GetTicks() / 1000.0);
-                  float time2 = time * 2;
-                  ctx->SetFrameResourceStructMember(kernel_instance, "Info.time", &time);
-                  ctx->SetFrameResourceStructMember(kernel_instance, "Info.time4", &time);
+                  ctx->SetGraphicKernelInstanceParamterStructMember(kernel_instance, "Info.time", time * 2);
+                  ctx->SetGraphicKernelInstanceParamterStructMember(kernel_instance, "Info.time4", time);
+                  ctx->SetGraphicKernelInstanceParamterStructMember(kernel_instance, "Info.time3", 0.0f);
 
                   ctx->BeginFrame();
 
-                  //Pass 1
-                  ctx->CmdBeginRenderPass({{rt1}});
-                  ctx->CmdBindGraphicKernelWithFrameResourceToRenderPass(kernel_instance);
-                  ctx->CmdBindVertexBuffer(triangle_vert);
-                  ctx->CmdDrawIndex(triangle_index);
-                  ctx->CmdEndRenderPass();
-
-                  //Pass 2
-                  ctx->CmdBeginRenderPass({{rt2}});
-                  ctx->CmdBindGraphicKernelWithFrameResourceToRenderPass(kernel_instance);
-                  ctx->CmdBindVertexBuffer(square_vert);
-                  ctx->CmdDrawIndex(square_index);
-                  ctx->CmdEndRenderPass();
+                  // //Pass 1
+                  // ctx->CmdBeginRenderPass({{rt1}});
+                  // ctx->CmdBindGraphicKernelInstanceToRenderPass(kernel_instance);
+                  // ctx->CmdBindVertexBuffer(triangle_vert);
+                  // ctx->CmdDrawIndex(triangle_index);
+                  // ctx->CmdEndRenderPass();
+                  //
+                  // //Pass 2
+                  // ctx->CmdBeginRenderPass({{rt2}});
+                  // ctx->CmdBindGraphicKernelInstanceToRenderPass(kernel_instance);
+                  // ctx->CmdBindVertexBuffer(square_vert);
+                  // ctx->CmdDrawIndex(square_index);
+                  // ctx->CmdEndRenderPass();
 
                   //Pass 3
-                  ctx->CmdBeginRenderPass({{rt3}, {ds}});
-                  ctx->CmdBindGraphicKernelWithFrameResourceToRenderPass(kernel_instance);
+                  ctx->CmdBeginRenderPass({{rt1}, {ds}});
+                  ctx->CmdBindGraphicKernelInstanceToRenderPass(kernel_instance);
                   ctx->CmdBindVertexBuffer(square_vert);
                   ctx->CmdDrawIndex(square_index);
                   ctx->CmdBindVertexBuffer(triangle_vert);

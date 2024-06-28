@@ -570,7 +570,7 @@ void Context::Shutdown() {
       RecoveryAllContextResourceImmediately();
 
       {
-            auto view = _world.view<Component::FrameResource>();
+            auto view = _world.view<Component::GrapicsKernelInstance>();
             _world.destroy(view.begin(), view.end());
       }
 
@@ -683,16 +683,16 @@ void Context::CmdBindGraphicKernelToRenderPass(entt::entity kernel) {
       _currentGraphicsKernel = kernel;
 }
 
-void Context::CmdBindGraphicKernelWithFrameResourceToRenderPass(entt::entity frame_resource) {
+void Context::CmdBindGraphicKernelInstanceToRenderPass(entt::entity frame_resource) {
       if (!_world.valid(frame_resource)) {
-            const auto err = "Context::CmdBindGraphicKernelWithFrameResourceToRenderPass - Invalid frame resource entity";
+            const auto err = "Context::CmdBindGraphicKernelInstanceToRenderPass - Invalid frame resource entity";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
-      auto fr = _world.try_get<Component::FrameResource>(frame_resource);
+      auto fr = _world.try_get<Component::GrapicsKernelInstance>(frame_resource);
       if (!fr) {
-            const auto err = "Context::CmdBindGraphicKernelWithFrameResourceToRenderPass - this entity is not a frame resource";
+            const auto err = "Context::CmdBindGraphicKernelInstanceToRenderPass - this entity is not a frame resource";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
@@ -703,30 +703,15 @@ void Context::CmdBindGraphicKernelWithFrameResourceToRenderPass(entt::entity fra
       fr->PushBindlessInfo(GetCurrentCommandBuffer());
 }
 
-void Context::SetFrameResourceStruct(entt::entity frame_resource, const std::string& struct_name, const void* data) {
-      if(!data) {
-            const auto err = "Context::SetFrameResourceStruct - Invalid data, data is nullptr.";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
+void Context::SetGraphicKernelInstanceParamter(entt::entity frame_resource, const std::string& variable_name, const void* data) {
+      if(!variable_name.contains('.')) {
+            SetGraphicKernelInstanceParamterStruct(frame_resource, variable_name, data);
+      }else {
+            SetGraphicKernelInstanceParamterStructMember(frame_resource, variable_name, data);
       }
-
-      if (!_world.valid(frame_resource)) {
-            const auto err = "Context::SetFrameResourceStruct - Invalid frame resource entity.";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      auto fr = _world.try_get<Component::FrameResource>(frame_resource);
-      if (!fr) {
-            const auto err = "Context::SetFrameResourceStruct - this entity is not a frame resource.";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      fr->SetStruct(struct_name, data);
 }
 
-void Context::SetFrameResourceStructMember(entt::entity frame_resource, const std::string& struct_member_name, const void* data) {
+void Context::SetGraphicKernelInstanceParamterStruct(entt::entity frame_resource, const std::string& struct_name, const void* data) {
       if(!data) {
             const auto err = "Context::SetFrameResourceStruct - Invalid data, data is nullptr.";
             MessageManager::Log(MessageType::Error, err);
@@ -739,14 +724,37 @@ void Context::SetFrameResourceStructMember(entt::entity frame_resource, const st
             throw std::runtime_error(err);
       }
 
-      auto fr = _world.try_get<Component::FrameResource>(frame_resource);
+      auto fr = _world.try_get<Component::GrapicsKernelInstance>(frame_resource);
       if (!fr) {
             const auto err = "Context::SetFrameResourceStruct - this entity is not a frame resource.";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
-      fr->SetStructMember(struct_member_name, data);
+      fr->SetParameterStruct(struct_name, data);
+}
+
+void Context::SetGraphicKernelInstanceParamterStructMember(entt::entity frame_resource, const std::string& struct_member_name, const void* data) {
+      if(!data) {
+            const auto err = "Context::SetFrameResourceStruct - Invalid data, data is nullptr.";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      if (!_world.valid(frame_resource)) {
+            const auto err = "Context::SetFrameResourceStruct - Invalid frame resource entity.";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      auto fr = _world.try_get<Component::GrapicsKernelInstance>(frame_resource);
+      if (!fr) {
+            const auto err = "Context::SetFrameResourceStruct - this entity is not a frame resource.";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      fr->SetParameterStructMember(struct_member_name, data);
 }
 
 // void Context::CmdBindLayoutVariable(const std::vector<LayoutVariableBindInfo>& layout_variable_info) {
@@ -995,7 +1003,7 @@ entt::entity Context::CreateProgram(const std::vector<std::string_view>& source_
       return id;
 }
 
-entt::entity Context::CreateFrameResource(entt::entity graphics_kernel, bool is_cpu_side) {
+entt::entity Context::CreateGraphicsKernelInstance(entt::entity graphics_kernel, bool is_cpu_side) {
       if (!_world.valid(graphics_kernel)) {
             const auto err = "Context::CreateFrameResource - Invalid graphics kernel entity";
             MessageManager::Log(MessageType::Error, err);
@@ -1003,7 +1011,7 @@ entt::entity Context::CreateFrameResource(entt::entity graphics_kernel, bool is_
       }
 
       auto id = _world.create();
-      _world.emplace<Component::FrameResource>(id, id, graphics_kernel, is_cpu_side);
+      _world.emplace<Component::GrapicsKernelInstance>(id, id, graphics_kernel, is_cpu_side);
       return id;
 }
 
@@ -1057,12 +1065,12 @@ void Context::EnqueueCommand(const std::function<void(VkCommandBuffer)>& command
 }
 
 void Context::BeginFrame() {
-      const auto view = _world.view<Component::FrameResource, Component::TagFrameResourceChanged>();
-      view.each([](entt::entity, Component::FrameResource& res) {
+      const auto view = _world.view<Component::GrapicsKernelInstance, Component::TagGrapicsKernelInstanceParameterChanged>();
+      view.each([](entt::entity, Component::GrapicsKernelInstance& res) {
             res.PushResourceChanged();
       });
 
-      _world.remove<Component::TagFrameResourceChanged>(view.begin(), view.end());
+      _world.remove<Component::TagGrapicsKernelInstanceParameterChanged>(view.begin(), view.end());
 
       PrepareWindowRenderTarget();
       auto cmd = GetCurrentCommandBuffer();

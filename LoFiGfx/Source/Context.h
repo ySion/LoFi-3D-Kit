@@ -12,7 +12,7 @@
 #include "Components/Buffer.h"
 #include "Components/Program.h"
 #include "Components/GraphicKernel.h"
-#include "Components/FrameResource.h"
+#include "Components/GrapicsKernelInstance.h"
 
 #include "../Third/xxHash/xxh3.h"
 
@@ -85,7 +85,7 @@ namespace LoFi {
             friend class Component::Program;
             friend class Component::GraphicKernel;
             friend class Component::Texture;
-            friend class Component::FrameResource;
+            friend class Component::GrapicsKernelInstance;
 
             struct SamplerCIHash {
                   std::size_t operator()(const VkSamplerCreateInfo& s) const noexcept {
@@ -140,7 +140,7 @@ namespace LoFi {
 
             [[nodiscard]] entt::entity CreateProgram(const std::vector<std::string_view>& source_code);
 
-            [[nodiscard]] entt::entity CreateFrameResource(entt::entity graphics_kernel, bool is_cpu_side = true);
+            [[nodiscard]] entt::entity CreateGraphicsKernelInstance(entt::entity graphics_kernel, bool is_cpu_side = true);
 
             void DestroyHandle(entt::entity);
 
@@ -170,11 +170,28 @@ namespace LoFi {
 
             void CmdBindGraphicKernelToRenderPass(entt::entity kernel);
 
-            void CmdBindGraphicKernelWithFrameResourceToRenderPass(entt::entity frame_resource);
+            void CmdBindGraphicKernelInstanceToRenderPass(entt::entity frame_resource);
 
-            void SetFrameResourceStruct(entt::entity frame_resource, const std::string& struct_name, const void* data);
+            void SetGraphicKernelInstanceParamter(entt::entity frame_resource, const std::string& variable_name, const void* data);
 
-            void SetFrameResourceStructMember(entt::entity frame_resource, const std::string& struct_member_name, const void* data);
+            void SetGraphicKernelInstanceParamterStruct(entt::entity frame_resource, const std::string& struct_name, const void* data);
+
+            void SetGraphicKernelInstanceParamterStructMember(entt::entity frame_resource, const std::string& struct_member_name, const void* data);
+
+            template<class T> requires !std::is_pointer_v<T>
+            void SetGraphicKernelInstanceParamter(entt::entity frame_resource, const std::string& variable_name, const T& data) {
+                  SetGraphicKernelInstanceParamter(frame_resource, variable_name, &data);
+            }
+
+            template<class T> requires !std::is_pointer_v<T>
+            void SetGraphicKernelInstanceParamterStruct(entt::entity frame_resource, const std::string& variable_name, const T& data) {
+                  SetGraphicKernelInstanceParamterStruct(frame_resource, variable_name, &data);
+            }
+
+            template<class T> requires !std::is_pointer_v<T>
+            void SetGraphicKernelInstanceParamterStructMember(entt::entity frame_resource, const std::string& variable_name, const T& data) {
+                  SetGraphicKernelInstanceParamterStructMember(frame_resource, variable_name, &data);
+            }
 
             //void SetFrameResourceStructMember(entt::entity frame_resource, const std::string& struct_name, const void* data);
 
