@@ -15,6 +15,7 @@ void GStart() {
       const char* vs = R"(
             #extension GL_EXT_nonuniform_qualifier : enable
 
+<<<<<<< HEAD
             #define BindlessStorageBinding 0
             #define BindlessSamplerBinding 1
             #define GetLayoutVariableName(Name) _bindless##Name
@@ -25,6 +26,25 @@ void GStart() {
             layout(push_constant) uniform _BindlessPushConstant { \
                      uint Name; \
             } _pushConstantBindlessIndexInfo;
+=======
+                  #define GetLayoutVariableName(Name) _bindless##Name
+                  #define GetVar(Name) GetLayoutVariableName(Name)[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]
+
+                  #define Struct1(Name, Vars) \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name Vars GetLayoutVariableName(Name)[]; \
+                  layout(push_constant) uniform _BindlessPushConstant { \
+                           uint Name; \
+                  } _pushConstantBindlessIndexInfo;
+
+                  #define Struct2(Name, Vars, Name2, Vars2) \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name Vars GetLayoutVariableName(Name)[]; \
+                  layout(set = 0, binding = BindlessStorageBinding) buffer Name2 Vars2 GetLayoutVariableName(Name2)[]; \
+                  layout(push_constant) uniform _BindlessPushConstant { \
+                           uint Name; \
+                           uint Name2; \
+                  } _pushConstantBindlessIndexInfo;
+
+>>>>>>> 9ba65691b3303e78180b4bbe30dd913d4b26bfe1
 
             #define Struct2(Name, Vars, Name2, Vars2) \
             layout(set = 0, binding = BindlessStorageBinding) buffer Name Vars GetLayoutVariableName(Name)[]; \
@@ -47,7 +67,22 @@ void GStart() {
             #set vs_location = 0 1 r32g32b32_sfloat 12
             layout(location = 1) in vec3 color;
 
+<<<<<<< HEAD
             #set vs_binding = 0 24 vertex
+=======
+                  Struct2(
+                  Info, {
+                           float time;
+                           float time2;
+                           float time3;
+                           float time4;
+                  },
+                  Info2, {
+                           vec3 pos_adder;
+                           vec3 norm_adder;
+                  }
+                  );
+>>>>>>> 9ba65691b3303e78180b4bbe30dd913d4b26bfe1
 
             layout(location = 0) out vec3 out_color;
 
@@ -155,9 +190,14 @@ void GStart() {
       auto func = std::async(std::launch::async, [&] {
             while (!should_close) {
                   float time = (float)((double)SDL_GetTicks() / 1000.0);
+<<<<<<< HEAD
                   float time2 = time * 2;
                   ctx->SetFrameResourceStructMember(kernel_instance, "Info.time", &time);
                   ctx->SetFrameResourceStructMember(kernel_instance, "Info.time4", &time);
+=======
+
+                  ctx->SetFrameResourceStructMember(kernel_instance, "Info.time", &time);
+>>>>>>> 9ba65691b3303e78180b4bbe30dd913d4b26bfe1
 
                   ctx->BeginFrame();
 
