@@ -56,6 +56,8 @@ namespace LoFi::Component {
       private:
             static bool CompileFromCode(const char* source, glslang_stage_t shader_type, std::vector<uint32_t>& spv, std::string& err_msg);
 
+            bool ParseMarco(std::string_view input_code, std::string& output_codes, std::string& error_message, glslang_stage_t shader_type);
+
             bool ParseSetters(std::string_view codes, entt::dense_map<std::string, std::vector<std::string>>& _setters, std::string& output_codes, std::string& error_message,
             glslang_stage_t shader_type);
 
@@ -89,6 +91,8 @@ namespace LoFi::Component {
             entt::entity _id{};
 
             std::string _programName{};
+
+            std::vector<std::pair<std::string, std::string>> _marcoParserIdentifier{}; //Helper
 
       private:
             VkPipelineInputAssemblyStateCreateInfo _inputAssemblyStateCreateInfo{};

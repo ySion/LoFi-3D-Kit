@@ -13,27 +13,6 @@
 
 void GStart() {
       const char* vs = R"(
-            #extension GL_EXT_nonuniform_qualifier : enable
-
-            #define BindlessStorageBinding 0
-            #define BindlessSamplerBinding 1
-            #define GetLayoutVariableName(Name) _bindless##Name
-            #define GetVar(Name) GetLayoutVariableName(Name)[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]
-
-            #define Struct1(Name, Vars) \
-            layout(set = 0, binding = BindlessStorageBinding) buffer Name Vars GetLayoutVariableName(Name)[]; \
-            layout(push_constant) uniform _BindlessPushConstant { \
-                     uint Name; \
-            } _pushConstantBindlessIndexInfo;
-
-            #define Struct2(Name, Vars, Name2, Vars2) \
-            layout(set = 0, binding = BindlessStorageBinding) buffer Name Vars GetLayoutVariableName(Name)[]; \
-            layout(set = 0, binding = BindlessStorageBinding) buffer Name2 Vars2 GetLayoutVariableName(Name2)[]; \
-            layout(push_constant) uniform _BindlessPushConstant { \
-                     uint Name; \
-                     uint Name2; \
-            } _pushConstantBindlessIndexInfo;
-
 
             #set topology   = triangle_list
             #set polygon_mode = fill
@@ -50,71 +29,47 @@ void GStart() {
             #set vs_binding = 0 24 vertex
 
             layout(location = 0) out vec3 out_color;
+            layout(location = 1) out vec3 out_pos;
 
-            Struct2(
-            Info, {
-                     float time;
-                     float time2;
-                     float time3;
-                     float time4;
-            },
-            Info2, {
-                     vec3 pos_adder;
-                     vec3 norm_adder;
+            STRUCT Info {
+                  float time;
+                  float time2;
+                  float time3;
+                  float time4;
             }
-            );
 
             void VSMain() {
-                  float extend = sin(GetVar(Info).time4 * 10.0f) / 5.0;
-                  gl_Position = vec4(pos, 1.0f) + vec4(extend, extend, 0, 0);
+                  float extendx = sin(GetVar(Info).time4 * 10.0f) / 5.0;
+                  float extendy = cos(GetVar(Info).time4 * 10.0f) / 5.0;
+                  gl_Position = vec4(pos, 1.0f) + vec4(extendx, extendy, 0, 0);
+                  out_pos = pos+ vec3(extendx, extendy, 0);
                   float t = sin(GetVar(Info).time * 10.0f) / 2.0f;
                   out_color = color + vec3(t,t,t);
             }
       )";
 
       const char* ps = R"(
-            #extension GL_EXT_nonuniform_qualifier : enable
-            #define BindlessStorageBinding 0
-            #define BindlessSamplerBinding 1
-            #define GetLayoutVariableName(Name) _bindless##Name
-            #define GetVar(Name) GetLayoutVariableName(Name)[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]
-
-            #define Struct1(Name, Vars) \
-            layout(set = 0, binding = BindlessStorageBinding) buffer Name Vars GetLayoutVariableName(Name)[]; \
-            layout(push_constant) uniform _BindlessPushConstant { \
-                     uint Name; \
-            } _pushConstantBindlessIndexInfo;
-
-            #define Struct2(Name, Vars, Name2, Vars2) \
-            layout(set = 0, binding = BindlessStorageBinding) buffer Name Vars GetLayoutVariableName(Name)[]; \
-            layout(set = 0, binding = BindlessStorageBinding) buffer Name2 Vars2 GetLayoutVariableName(Name2)[]; \
-            layout(push_constant) uniform _BindlessPushConstant { \
-                     uint Name; \
-                     uint Name2; \
-            } _pushConstantBindlessIndexInfo;
 
             #set rt = r8g8b8a8_unorm
             #set ds = d32_sfloat
             #set color_blend = false
 
             layout(location = 0) in vec3 color;
+            layout(location = 1) in vec3 pos;
             layout(location = 0) out vec4 outColor;
 
-            Struct2(
-            Info, {
-                     float time;
-                     float time2;
-                     float time3;
-                     float time4;
-            },
-            Info2, {
-                     vec3 pos_adder;
-                     vec3 norm_adder;
+            STRUCT Info {
+                  float time;
+                  float time2;
+                  float time3;
+                  float time4;
             }
-            );
+
+            TEXTURE some_texture;
 
             void FSMain() {
-                  outColor = vec4(color - GetVar(Info).time3, 1.0f);
+                  vec3 f = texture(GetTex2D(some_texture), vec2(pos.x, pos.y)).rgb;
+                  outColor =  vec4(f, 1.0f);// + vec4(color - GetVar(Info).time3, 1.0f);
             }
       )";
 
@@ -136,6 +91,18 @@ void GStart() {
 
       std::array square_id = {0, 1, 2, 0, 2, 3};
 
+      std::vector<float> noise_image(256 * 256 * 4);
+
+      for(int i = 0; i < 256; i++) {
+            for(int j = 0; j < 256; j++) {
+                  noise_image[i*256*4 + j*4 + 0] = sin(i / 10.0f) * 0.5f + 0.5f;
+                  noise_image[i*256*4 + j*4 + 1] = cos(j / 10.0f) * 0.5f + 0.5f;
+                  noise_image[i*256*4 + j*4 + 2] = 0.0f;
+                  noise_image[i*256*4 + j*4 + 3] = 1.0f;
+            }
+      }
+
+
       auto ctx = std::make_unique<LoFi::Context>();
       ctx->Init();
 
@@ -146,6 +113,9 @@ void GStart() {
       const auto rt1 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 1920, 1080);
       const auto rt2 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 400, 400);
       const auto rt3 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 800, 600);
+
+      const auto noise = ctx->CreateTexture2D(VK_FORMAT_R32G32B32A32_SFLOAT, 256, 256);
+      ctx->SetTexture2DData(noise, noise_image.data(), noise_image.size() * sizeof(float));
 
       const auto ds = ctx->CreateTexture2D(VK_FORMAT_D32_SFLOAT, 800, 600);
 
@@ -171,6 +141,8 @@ void GStart() {
                   ctx->SetGraphicKernelInstanceParamterStructMember(kernel_instance, "Info.time", time * 2);
                   ctx->SetGraphicKernelInstanceParamterStructMember(kernel_instance, "Info.time4", time);
                   ctx->SetGraphicKernelInstanceParamterStructMember(kernel_instance, "Info.time3", 0.0f);
+
+                  ctx->SetGraphicKernelInstanceParamterSampledTexture(kernel_instance, "some_texture", noise);
 
                   ctx->BeginFrame();
 

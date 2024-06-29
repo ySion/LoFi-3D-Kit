@@ -43,6 +43,8 @@ namespace LoFi::Component {
 
             [[nodiscard]] const entt::dense_map<std::string, GraphicKernelStructMemberInfo>& GetStructMemberTable() const {return _structMemberTable;}
 
+            [[nodiscard]] const std::vector<std::pair<std::string, std::string>>& GetMarcoParserIdentifierTable() const {return _marcoParserIdentifier;}
+
             [[nodiscard]] const VkPushConstantRange& GetBindlessInfoPushConstantRange() const {return _pushConstantRange;}
 
       private:
@@ -63,6 +65,8 @@ namespace LoFi::Component {
             entt::dense_map<std::string, uint32_t> _sampledTextureTable{};
 
             entt::dense_map<std::string, GraphicKernelStructMemberInfo> _structMemberTable{};
+
+            std::vector<std::pair<std::string, std::string>> _marcoParserIdentifier{};
 
             VkPushConstantRange _pushConstantRange{};
 

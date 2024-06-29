@@ -148,7 +148,7 @@ namespace LoFi {
 
             void SetTexture2DData(entt::entity texture, void* data, uint64_t size);
 
-            void SetTexture2DData(entt::entity texture, entt::entity buffer);
+            //void SetTexture2DData(entt::entity texture, entt::entity buffer);
 
             void EnqueueCommand(const std::function<void(VkCommandBuffer)>& command);
 
@@ -175,6 +175,8 @@ namespace LoFi {
             void SetGraphicKernelInstanceParamterStruct(entt::entity frame_resource, const std::string& struct_name, const void* data);
 
             void SetGraphicKernelInstanceParamterStructMember(entt::entity frame_resource, const std::string& struct_member_name, const void* data);
+
+            void SetGraphicKernelInstanceParamterSampledTexture(entt::entity frame_resource, const std::string& texture_name, entt::entity texture);
 
             template<class T> requires !std::is_pointer_v<T>
             void SetGraphicKernelInstanceParamter(entt::entity frame_resource, const std::string& variable_name, const T& data) {

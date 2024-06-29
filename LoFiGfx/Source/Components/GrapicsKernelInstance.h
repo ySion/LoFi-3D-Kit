@@ -35,7 +35,7 @@ namespace LoFi::Component {
 
             bool SetParameterStructMember(const std::string& struct_member_name, const void* data); // likes "Info.time"
 
-            bool SetParameterSampledImage(const std::string& image_name, entt::entity texture);
+            bool SetParameterSampledTexture(const std::string& texture_name, entt::entity texture);
 
       private:
             friend class Context;

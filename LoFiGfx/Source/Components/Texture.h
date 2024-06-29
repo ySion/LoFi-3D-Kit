@@ -61,7 +61,7 @@ namespace LoFi::Component {
 
             void ClearViews();
 
-            void SetData(void* data, size_t size);
+            void SetData(const void* data, size_t size);
 
             void BarrierLayout(VkCommandBuffer cmd, VkImageLayout new_layout, std::optional<VkImageLayout> src_layout = std::nullopt,
             std::optional<VkPipelineStageFlags2> src_stage = std::nullopt,

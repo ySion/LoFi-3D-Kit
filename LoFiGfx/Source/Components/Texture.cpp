@@ -56,12 +56,12 @@ void Texture::ClearViews() {
       _viewCIs.clear();
 }
 
-void Texture::SetData(void* data, size_t size) {
+void Texture::SetData(const void* data, size_t size) {
       VmaAllocationInfo info{};
       vmaGetAllocationInfo(volkGetLoadedVmaAllocator(), _memory, &info);
 
-      if (info.size != size) {
-            auto str = std::format(R"(Texture::SetData - Size Mismatch, Expected: {}, Actual: {})", info.size, size);
+      if (info.size < size) {
+            auto str = std::format(R"(Texture::SetData - Size Mismatch, Expected: {} {}, Actual: {})", info.size, size);
             MessageManager::Log(MessageType::Error, str);
             return;
       }
@@ -76,7 +76,7 @@ void Texture::SetData(void* data, size_t size) {
                   .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
                   .pNext = nullptr,
                   .flags = 0,
-                  .size = size,
+                  .size = info.size,
                   .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                   .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
                   .queueFamilyIndexCount = 0,

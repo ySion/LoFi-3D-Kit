@@ -758,6 +758,36 @@ void Context::SetGraphicKernelInstanceParamterStructMember(entt::entity frame_re
       fr->SetParameterStructMember(struct_member_name, data);
 }
 
+void Context::SetGraphicKernelInstanceParamterSampledTexture(entt::entity frame_resource, const std::string& texture_name, entt::entity texture) {
+        if (!_world.valid(frame_resource)) {
+                const auto err = "Context::SetFrameResourceSampledImage - Invalid frame resource entity.";
+                MessageManager::Log(MessageType::Error, err);
+                throw std::runtime_error(err);
+        }
+
+        if (!_world.valid(texture)) {
+                const auto err = "Context::SetFrameResourceSampledImage - Invalid texture entity.";
+                MessageManager::Log(MessageType::Error, err);
+                throw std::runtime_error(err);
+        }
+
+        auto fr = _world.try_get<Component::GrapicsKernelInstance>(frame_resource);
+        if (!fr) {
+                const auto err = "Context::SetFrameResourceSampledImage - this entity is not a frame resource.";
+                MessageManager::Log(MessageType::Error, err);
+                throw std::runtime_error(err);
+        }
+
+        auto tex = _world.try_get<Component::Texture>(texture);
+        if (!tex) {
+                const auto err = "Context::SetFrameResourceSampledImage - this entity is not a texture.";
+                MessageManager::Log(MessageType::Error, err);
+                throw std::runtime_error(err);
+        }
+
+        fr->SetParameterSampledTexture(texture_name, texture);
+}
+
 // void Context::CmdBindLayoutVariable(const std::vector<LayoutVariableBindInfo>& layout_variable_info) {
 //
 //       if(layout_variable_info.empty()) return;
@@ -1038,6 +1068,23 @@ void Context::SetBufferData(entt::entity buffer, void* data, uint64_t size) {
       }
 
       buffer_component->SetData(data, size);
+}
+
+void Context::SetTexture2DData(entt::entity texture, void* data, uint64_t size) {
+      if (!_world.valid(texture)) {
+            const auto err = "Context::SetTexture2DData - Invalid texture entity";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      auto texture_component = _world.try_get<Component::Texture>(texture);
+      if (!texture_component) {
+            const auto err = "Context::SetTexture2DData - this entity is not a texture";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      texture_component->SetData(data, size);
 }
 
 void* Context::PollEvent() {

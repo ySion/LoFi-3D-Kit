@@ -144,27 +144,21 @@ bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std
       _colorBlendAttachmentState.clear();
       _renderTargetFormat.clear();
 
-
       entt::dense_map<std::string, std::vector<std::string>> setters{}; // TODO: setter
 
-      for (auto source : sources) {
-            setters.clear();
+      std::vector<std::string> source_after_marco{};
 
-            std::string setter_parse_err_msg{};
-            std::string source_code_output{};
+      for (auto source : sources) {
 
             std::optional<glslang_stage_t> find_shader_type = std::nullopt;
-            std::string entry_point;
             for (auto& i : ShaderTypeMap) {
                   if (source.find(i.first) != std::string::npos) {
                         find_shader_type = i.second;
-                        entry_point = i.first;
                         break;
                   }
             }
 
             glslang_stage_t shader_type;
-
             if (!find_shader_type.has_value()) {
                   const auto err = std::format("Program::CompileFromSourceCode - Failed to find shader type for shader program \"{}\", unknown shader type.",
                   _programName);
@@ -172,7 +166,96 @@ bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std
                   return false;
             }
 
+            // if(shader_type == GLSLANG_STAGE_VERTEX) { // 筛选器
+            //       source_after_marco.push_back(source);
+            //       continue;
+            // }
+
             shader_type = find_shader_type.value();
+            std::string shader_type_str = ShaderTypeHelperGetName(shader_type);
+
+            std::string marco_parse_source_output{};
+            std::string marco_parse_err_msg{};
+            if(!ParseMarco(source, marco_parse_source_output, marco_parse_err_msg, shader_type)) {
+                  auto err = std::format("Program::ParseMarco - Failed to parse marco for shader program \"{}\" shader type :\"{}\".\nMarcoCompiler:\n{}",
+                 _programName, shader_type_str, marco_parse_err_msg);
+                  MessageManager::Log(MessageType::Warning, err);
+                  return false;
+            }
+            source_after_marco.push_back(std::move(marco_parse_source_output));
+      }
+
+      //Head Gen
+
+      std::string header = "";
+      header += "#extension GL_EXT_nonuniform_qualifier : enable\n";
+      header += "#define BindlessStorageBinding 0\n";
+      header += "#define BindlessSamplerBinding 1\n";
+
+      header += "#define GetLayoutVariableName(Name) _bindless##Name\n";
+      header += "#define GetVar(Name) GetLayoutVariableName(Name)[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
+
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1D _bindlessSamper1D[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2D _bindlessSamper2D[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler3D _bindlessSamper3D[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform samplerCube _bindlessSamperCube[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1DArray _bindlessSampler1DArray[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2DArray _bindlessSampler2DArray[];\n";
+      //header += "layout(set = 0, binding = BindlessSamplerBinding) uniform samplerCubeArray _bindlessSamplerCubeArray[];\n";
+
+      header += "#define GetTex1D(Name) _bindlessSamper1D[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
+      header += "#define GetTex2D(Name) _bindlessSamper2D[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
+      header += "#define GetTex3D(Name) _bindlessSamper3D[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
+      header += "#define GetTexCube(Name) _bindlessSamperCube[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
+      header += "#define GetTex1DArray(Name) _bindlessSampler1DArray[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
+      header += "#define GetTex2DArray(Name) _bindlessSampler2DArray[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
+     // header += "#define GetTexCubeArray(Name) _bindlessSamplerCubeArray[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
+
+      std::string push_constantsCode = "layout(push_constant) uniform _BindlessPushConstant {\n";
+      for(auto i : _marcoParserIdentifier) {
+            push_constantsCode += "\tuint " + i.first + ";\n";
+      }
+      push_constantsCode += "} _pushConstantBindlessIndexInfo;\n";
+
+      header += push_constantsCode;
+
+      for (auto& source : source_after_marco) {
+
+            std::optional<glslang_stage_t> find_shader_type = std::nullopt;
+            for (auto& i : ShaderTypeMap) {
+                  if (source.find(i.first) != std::string::npos) {
+                        find_shader_type = i.second;
+                        break;
+                  }
+            }
+
+            glslang_stage_t shader_type = find_shader_type.value();
+
+            //if(shader_type == ??) // 筛选器
+
+            source.insert(source.begin(), header.begin(), header.end());
+
+            printf("\n=============================\n%s\n=============================\n", source.c_str());
+      }
+
+
+
+      for (const auto& source : source_after_marco) {
+            setters.clear();
+
+            std::string setter_parse_err_msg{};
+            std::string source_code_output{};
+
+            std::optional<glslang_stage_t> find_shader_type = std::nullopt;
+            for (auto& i : ShaderTypeMap) {
+                  if (source.find(i.first) != std::string::npos) {
+                        find_shader_type = i.second;
+                        break;
+                  }
+            }
+
+            const glslang_stage_t shader_type = find_shader_type.value();
+
             std::string shader_type_str = ShaderTypeHelperGetName(shader_type);
             std::vector<uint32_t> spv{};
             VkShaderModule shader_module{};
@@ -293,6 +376,217 @@ bool Program::CompileFromCode(const char* source, glslang_stage_t shader_type, s
       memcpy(spv.data(), glslang_program_SPIRV_get_ptr(program), glslang_program_SPIRV_get_size(program) * sizeof(uint32_t));
       glslang_program_delete(program);
       glslang_shader_delete(shader);
+
+      return true;
+}
+
+bool Program::ParseMarco(std::string_view input_code, std::string& output_codes, std::string& error_message, glslang_stage_t shader_type) {
+      std::string_view::size_type start = 0;
+      std::string_view::size_type find;
+      std::string_view::size_type end;
+
+      std::string_view source_code = input_code;
+
+      //return <word, code after word>
+      auto EatWord = [](const std::string_view str) -> std::optional<std::pair<std::string_view, std::string_view>> {
+            std::string_view::size_type word_start = 0;
+            std::string_view::size_type index = 0;
+
+            // eat space
+            for (; word_start < str.size(); word_start++) {
+                  if (str[word_start] == ' ' || str[word_start] == '\t' || str[word_start] == '\r' || str[word_start] == '\n') { continue; } else { break; }
+            }
+
+            index = word_start;
+            for (; index < str.size(); index++) {
+                  if (std::isalnum(str[index]) || str[index] == '_') { continue; } else {break;}
+            }
+
+            if (index == word_start) {
+                  return std::nullopt;
+            } else {
+                  if (index >= str.size()) {
+                        return std::make_pair(str.substr(word_start, index - word_start), std::string_view{});
+                  } else {
+                        return std::make_pair(str.substr(word_start, index - word_start), str.substr(index, str.size() - index));
+                  }
+            }
+      };
+
+      //return <code in front of marco, code after marco>
+      auto FindMarco = [](std::string_view codes, std::string_view marco) -> std::pair<std::string_view, std::string_view> {
+            if(const auto find_pos = codes.find(marco); find_pos != std::string_view::npos) {
+                  return std::make_pair(codes.substr(0, find_pos), codes.substr(find_pos + marco.size(), codes.size() - find_pos - marco.size()));
+            } else {
+                  return std::make_pair(codes, std::string_view{});
+            }
+      };
+
+      auto FindFrontMarcos = [&](std::string_view codes, const std::vector<std::string_view>& marcos) -> std::tuple<std::string_view, std::string_view, std::string_view> {
+            size_t find_pos = std::string_view::npos;
+            std::string_view marco = {};
+            for(auto i: marcos) {
+                  if(const auto res = codes.find(i); res != std::string_view::npos) {
+                        if(res < find_pos) {
+                              find_pos = res;
+                              marco = i;
+                        }
+                  }
+            }
+
+            if(!marco.empty()) {
+                  const auto temp = FindMarco(codes, marco);
+                  return std::make_tuple(temp.first, temp.second, marco);
+            } else {
+                  return std::make_tuple(codes, std::string_view{}, std::string{});
+            }
+      };
+
+     // return <code after bracket, optional<bracket type>>
+      auto EatBracket = [](std::string_view str) -> std::pair<std::string_view, std::optional<char>> {
+            std::string_view::size_type word = 0;
+            for(; word < str.size(); word++) {
+                  if (str[word] == ' ' || str[word] == '\t'|| str[word] == '\n'|| str[word] == '\r') { continue; } else { break; }
+            }
+
+            char bracket_type = 0;
+            if (str[word] == '(') { bracket_type = '('; }
+            else if (str[word] == '{') { bracket_type = '{'; }
+            else if (str[word] == '[') { bracket_type = '['; }
+            else if (str[word] == ')') { bracket_type = ')'; }
+            else if (str[word] == '}') { bracket_type = '}'; }
+            else if (str[word] == ']') { bracket_type = ']'; }
+
+            if(bracket_type == 0) {
+                  return {str, std::nullopt};
+            }else {
+                  if(word + 1 >= str.size()) {
+                        return std::make_pair(std::string_view{}, bracket_type);
+                  } else {
+                        return std::make_pair(str.substr(word + 1, str.size() - word - 1), bracket_type);
+                  }
+            }
+      };
+
+      // return <code block, after code block>
+      auto EatCodeBlock = [](std::string_view str) -> std::optional<std::pair<std::string_view, std::string_view>> {
+            int64_t index = 0;
+
+            int64_t start = 0;
+            int64_t end = 0;
+            int64_t bracket_match_index = 0;
+
+            bool finded = false;
+            while(index < str.size()) {
+                  if(str[index] == '{') {
+                        if(finded) {
+                              bracket_match_index++;
+                        } else {
+                              finded = true;
+                              start = index;
+                              bracket_match_index++;
+                        }
+                  }else if(str[index] == '}') {
+                        if(finded) {
+                              bracket_match_index--;
+                              if(bracket_match_index == 0) {
+                                    end = index;
+
+                                    if(end + 1 >= str.size())
+                                          return std::make_pair(std::string_view{str.begin() + start, str.begin() + end + 1}, std::string_view{});
+                                    else
+                                          return std::make_pair(
+                                                      std::string_view{str.begin() + start, str.begin() + end + 1},
+                                                      std::string_view{str.begin() + end + 1, str.begin() + (int64_t)str.size()}
+                                                );
+                              }
+                        }
+                  }
+                  index++;
+            }
+
+            return std::nullopt;
+      };
+
+      output_codes = "";
+      std::vector<std::string_view> marcos_to_find{"STRUCT", "TEXTURE"};
+      while(true) {
+            auto [front, after, marco] = FindFrontMarcos(source_code, marcos_to_find);
+
+            if(after.empty()) {
+                  output_codes += front;
+                  break;
+            } else {
+                  output_codes += front;
+                  source_code = after;
+                  if(marco == "STRUCT") {
+
+                        auto struct_type_eat_word = EatWord(source_code);
+                        if(!struct_type_eat_word.has_value()) {
+                              error_message = std::format("Program::ParseMarco - Invalid statement, need a struct name after \"{}\" key word.", marco);
+                              return false;
+                        }
+
+                        auto [struct_typename, code_after_struct_typename] = struct_type_eat_word.value(); // typename
+                        source_code = code_after_struct_typename;
+
+                        const auto eat_code_block = EatCodeBlock(source_code);
+                        if(!eat_code_block.has_value()) {
+                              error_message = std::format("Program::ParseMarco - Invalid statement, need a code block after struct type name \"{}\".", struct_typename);
+                              return false;
+                        }
+
+                        const auto [code_block, code_after_block] = eat_code_block.value();
+
+                        output_codes += std::format("layout(set = 0, binding = BindlessStorageBinding) buffer {} {} _bindless{}[];", struct_typename, code_block, struct_typename);
+                        source_code = code_after_block;
+
+                        bool found = false;
+                        for(auto& i : _marcoParserIdentifier) {
+                              if(i.first == struct_typename) {
+                                    if(i.second == "struct") {
+                                          found = true;
+                                          break;
+                                    } else {
+                                          error_message = std::format("Program::ParseMarco - In {}: struct name \"{}\" is already used as a {}.",ShaderTypeHelperGetName(shader_type), struct_typename, i.second);
+                                          return false;
+                                    }
+                              }
+                        }
+                        if(!found){
+                              _marcoParserIdentifier.emplace_back(std::string{struct_typename.begin(), struct_typename.end()}, "struct");
+                        }
+
+
+                  } else if(marco == "TEXTURE") {
+                        auto struct_type_eat_word = EatWord(source_code);
+                        if(!struct_type_eat_word.has_value()) {
+                              error_message = std::format("Program::ParseMarco - Invalid statement, need a texture name after \"{}\" key word.", marco);
+                              return false;
+                        }
+
+                        auto [texture_var_name, code_after_struct_typename] = struct_type_eat_word.value(); // typename
+                        source_code = code_after_struct_typename;
+
+                        //is name exist
+                        bool found = false;
+                        for(auto& i : _marcoParserIdentifier) {
+                              if(i.first == texture_var_name) {
+                                    if(i.second == "texture") {
+                                          found = true;
+                                          break;
+                                    } else {
+                                          error_message = std::format("Program::ParseMarco - In {}: texture name \"{}\" is already used as a {}.",ShaderTypeHelperGetName(shader_type), texture_var_name, i.second);
+                                          return false;
+                                    }
+                              }
+                        }
+                        if(!found){
+                              _marcoParserIdentifier.emplace_back(std::string{texture_var_name.begin(), texture_var_name.end()}, "texture");
+                        }
+                  }
+            }
+      }
 
       return true;
 }
@@ -601,12 +895,6 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
                   auto str = std::format("PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
                   std::printf("%s\n", str.c_str());
 
-                  if(!_structTable.contains(member_name)) {
-                        const auto err = std::format("Program::ParseFS - fs's struct type don't find in vs : {}.", member_name);
-                        MessageManager::Log(MessageType::Warning, err);
-                        return false;
-                  }
-
                   if (i == member_count - 1) {
                         uint32_t ps_size = offset + member_size;
                         if(ps_size != _pushConstantRange.size) {
@@ -618,17 +906,82 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
             }
       }
 
-      for (auto& resource : resources.sampled_images) {
-            auto& type = comp.get_type(resource.base_type_id);
-            uint32_t member_count = type.member_types.size();
+      for(uint32_t idx = 0; idx< resources.storage_buffers.size(); idx++) {
+            auto& resource = resources.storage_buffers[idx];
+            auto& struct_type = comp.get_type(resource.base_type_id);
 
             uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
             uint32_t binding = comp.get_decoration(resource.id, spv::Decoration::DecorationBinding);
 
-            std::string res_name = comp.get_name(resource.id);
-            auto str1 = std::format("SampledTexture: Set: {}, Binding {}, name {}.", set, binding, res_name);
-            std::printf("%s\n", str1.c_str());
+            std::string struct_buffer_resourece_name = comp.get_name(resource.id); // struct buffer resource name
+            std::string struct_type_name = comp.get_name(resource.base_type_id); // struct type name
+
+            uint32_t member_count = struct_type.member_types.size();
+            uint32_t struct_size = comp.get_declared_struct_size(struct_type); //struct size
+
+             auto str1 = std::format("StorageBuffer : Set: {}, Binding {}, resourece name {}, struct type name: {}, struct member: {}, struct_size: {}.",
+             set, binding, struct_buffer_resourece_name, struct_type_name, member_count, struct_size);
+             std::printf("%s\n", str1.c_str());
+
+            bool contained = false;
+            if(_structTable.contains(struct_type_name)) {
+                  if(_structTable[struct_type_name].Size != struct_size) {
+                        const auto err = std::format("Program::ParseFS - struct \"{}\"'s size is not matching with exist, please check it.", struct_type_name);
+                        MessageManager::Log(MessageType::Warning, err);
+                        return false;
+                  }
+                  contained = true;
+            } else {
+                  _structTable.emplace(struct_type_name, GraphicKernelStructInfo{idx, (uint32_t)struct_size}); // push to table
+            }
+
+            for (uint32_t i = 0; i < member_count; i++) {
+                  auto& member_type = comp.get_type(struct_type.member_types[i]);
+                  const std::string& member_type_name = comp.get_name(member_type.self); // struct member name
+
+                  size_t member_size = comp.get_declared_struct_member_size(struct_type, i); //struct member size
+                  size_t member_offset = comp.type_struct_member_offset(struct_type, i); //struct member offset
+
+                  const std::string& member_name = comp.get_member_name(struct_type.self, i);
+
+                  std::string full_member_name = std::format("{}.{}", struct_type_name, member_name);
+                  if(contained) {
+                        if(_structMemberTable.contains(full_member_name)) {
+                              if(_structMemberTable[full_member_name].Size != member_size) {
+                                    const auto err = std::format("Program::ParseFS - struct \"{}\"'s member \"{}\"'s size is not matching with exist, please check it.", struct_type_name, member_name);
+                                    MessageManager::Log(MessageType::Warning, err);
+                                    return false;
+                              }
+                              if(_structMemberTable[full_member_name].Offset != member_offset) {
+                                    const auto err = std::format("Program::ParseFS - struct \"{}\"'s member \"{}\"'s offset is not matching with exist, please check it.", struct_type_name, member_name);
+                                    MessageManager::Log(MessageType::Warning, err);
+                                    return false;
+                              }
+                        } else {
+                              const auto err = std::format("Program::ParseFS - struct \"{}\"'s member \"{}\" is not exist in exist one, please check it.", struct_type_name, member_name);
+                              MessageManager::Log(MessageType::Warning, err);
+                              return false;
+                        }
+                  } else {
+                        _structMemberTable.emplace(full_member_name, GraphicKernelStructMemberInfo{idx, (uint32_t)member_size, (uint32_t)member_offset});
+                  }
+
+                  auto str = std::format("\t\tMember: {}, offset {}, size {}", member_name, member_offset, member_size);
+                  std::printf("%s\n", str.c_str());
+            }
       }
+
+      // for (auto& resource : resources.sampled_images) {
+      //       auto& type = comp.get_type(resource.base_type_id);
+      //       uint32_t member_count = type.member_types.size();
+      //
+      //       uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
+      //       uint32_t binding = comp.get_decoration(resource.id, spv::Decoration::DecorationBinding);
+      //
+      //       std::string res_name = comp.get_name(resource.id);
+      //       auto str1 = std::format("SampledTexture: Set: {}, Binding {}, name {}.", set, binding, res_name);
+      //       std::printf("%s\n", str1.c_str());
+      // }
 
       return true;
 }

@@ -158,5 +158,14 @@ bool GraphicKernel::CreateFromProgram(entt::entity program) {
       _structMemberTable = prog->_structMemberTable;
       _sampledTextureTable = prog->_sampledTextureTable;
       _pushConstantRange = prog->_pushConstantRange;
+      _marcoParserIdentifier = prog->_marcoParserIdentifier;
+
+      for(int i = 0; i <  _marcoParserIdentifier.size(); i++) {
+            if(_marcoParserIdentifier[i].second == "texture") {
+                  _sampledTextureTable[_marcoParserIdentifier[i].first] = i;
+            }
+      }
+
+
       return true;
 }

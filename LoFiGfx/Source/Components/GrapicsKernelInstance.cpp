@@ -35,13 +35,14 @@ GrapicsKernelInstance::GrapicsKernelInstance(entt::entity id, entt::entity graph
             throw std::runtime_error(err);
       }
 
-      const auto& struct_table = kernel->GetStructTable();
+      const auto& arg_count = kernel->GetMarcoParserIdentifierTable().size();
       for (int idx = 0; idx < 3; idx++) {
-          _pushConstantBindlessIndexInfoBuffer.at(idx).resize(struct_table.size());
+          _pushConstantBindlessIndexInfoBuffer.at(idx).resize(arg_count);
       }
 
-      _buffers.resize(struct_table.size());
+      _buffers.resize(arg_count);
 
+      const auto& struct_table = kernel->GetStructTable();
       for (const auto& i : struct_table) {
 
             FrameResourceBuffer& buffer = _buffers.at(i.second.Index);
@@ -164,8 +165,52 @@ bool GrapicsKernelInstance::SetParameterStructMember(const std::string& struct_m
       return true;
 }
 
-bool GrapicsKernelInstance::SetParameterSampledImage(const std::string& image_name, entt::entity texture) {
-      return false;
+bool GrapicsKernelInstance::SetParameterSampledTexture(const std::string& texture_name, entt::entity texture) {
+      auto& world = *volkGetLoadedEcsWorld();
+
+      if(!world.valid(texture)) {
+            const auto err = std::format("GrapicsKernelInstance::SetParameterSampledTexture - Invalid Texture Entity\n");
+            MessageManager::Log(MessageType::Error, err);
+            return false;
+      }
+
+      auto texture_comp = world.try_get<Texture>(texture);
+      if(!texture_comp) {
+            const auto err = std::format("GrapicsKernelInstance::SetParameterSampledTexture - This entity is not a texture \n");
+            MessageManager::Log(MessageType::Error, err);
+            return false;
+      }
+
+      auto bindless_index = texture_comp->GetBindlessIndexForSampler();
+      if(!bindless_index.has_value()) {
+            const auto err = std::format("GrapicsKernelInstance::SetParameterSampledTexture - Texture has no bindless index\n");
+            MessageManager::Log(MessageType::Error, err);
+            return false;
+      }
+
+      if (!world.valid(_parent)) {
+            const auto err = std::format("GrapicsKernelInstance::SetParameterSampledTexture - Invalid Parent Entity\n");
+            MessageManager::Log(MessageType::Error, err);
+            return false;
+      }
+
+      if (const auto parent_kernel = world.try_get<GraphicKernel>(_parent); parent_kernel) {
+            const auto& map = parent_kernel->GetSampledTextureTable();
+            if (const auto finder = map.find(texture_name); finder != map.end()) {
+                  const auto current_frame = Context::Get()->GetCurrentFrameIndex();
+                  _pushConstantBindlessIndexInfoBuffer.at(current_frame).at(finder->second) = bindless_index.value();
+            } else {
+                  const auto err = std::format("GrapicsKernelInstance::SetParameterSampledTexture - Texture \"{}\" Not Found\n", texture_name);
+                  MessageManager::Log(MessageType::Error, err);
+                  return false;
+            }
+      } else {
+            const auto err = std::format("GrapicsKernelInstance::SetParameterSampledTexture - Parent Entity is not a Graphics Kernel\n");
+            MessageManager::Log(MessageType::Error, err);
+            return false;
+      }
+
+      return true;
 }
 
 void GrapicsKernelInstance::PushResourceChanged() {
