@@ -773,13 +773,99 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
       spirv_cross::Compiler comp(spv);
       spirv_cross::ShaderResources resources = comp.get_shader_resources();
 
-      //input stage
-      for (auto& resource : resources.stage_inputs) {
-            const auto& name = comp.get_name(resource.id);
-            const auto& type_id = comp.get_name(resource.base_type_id);
-            auto str1 = std::format("\tInput: name {}, type {}.", name, type_id);
-            std::printf("%s\n", str1.c_str());
+      if(_autoVSInputStageBind) {
+            std::vector<std::pair<uint32_t, uint32_t>> stage_input_info{};  //binding size
+
+
+            for (auto& resource : resources.stage_inputs) {
+                  const auto& name = comp.get_name(resource.id);
+                  std::string type_name = "";
+                  const auto& type = comp.get_type(resource.base_type_id);
+                  VkFormat input_format = VK_FORMAT_UNDEFINED;
+
+                  const auto& binding = comp.get_decoration(resource.id, spv::Decoration::DecorationBinding);
+                  const auto& location = comp.get_decoration(resource.id, spv::Decoration::DecorationLocation);
+                  std::pair<uint32_t, uint32_t>* crruent_binding_info = nullptr;
+
+                  bool missing_binding = true;
+                  for (auto& i : stage_input_info) {
+                        if(i.first == binding) {
+                              crruent_binding_info = &i;
+                              missing_binding = false;
+                              break;
+                        }
+                  }
+                  if(missing_binding) {
+                        crruent_binding_info = &stage_input_info.emplace_back(binding, 0);
+                  }
+
+                  int curr_size = 0;
+
+                  if(type.basetype == spirv_cross::SPIRType::Float && type.vecsize <= 4) {
+                        switch(type.vecsize) {
+                              case 1: input_format = VK_FORMAT_R32_SFLOAT; curr_size = 4;break;
+                              case 2: input_format = VK_FORMAT_R32G32_SFLOAT; curr_size = 8;break;
+                              case 3: input_format = VK_FORMAT_R32G32B32_SFLOAT; curr_size = 12;break;
+                              case 4: input_format = VK_FORMAT_R32G32B32A32_SFLOAT; curr_size = 16;break;
+                              default: {
+                                    auto err = std::format("Program::ParseVS - stage inputs has invalid vecsize: {}, at location {}, binding {}", type.vecsize, location, binding);
+                                    MessageManager::Log(MessageType::Warning, err);
+                                    return false;
+                              }
+                        }
+                  }else if(type.basetype == spirv_cross::SPIRType::Int) {
+                        input_format = VK_FORMAT_R32_SINT;
+                        curr_size = 4;
+                  }else if(type.basetype == spirv_cross::SPIRType::UInt) {
+                        input_format = VK_FORMAT_R32_UINT;
+                        curr_size = 4;
+                  }
+
+                  if(input_format == VK_FORMAT_UNDEFINED) {
+                        const auto err = std::format("Program::ParseVS - stage inputs has invalid type at location {}, binding {}", location, binding);
+                        MessageManager::Log(MessageType::Warning, err);
+                        return false;
+                  }
+
+                  VkVertexInputAttributeDescription att_desc {
+                        .location = location,
+                        .binding = binding,
+                        .format = input_format,
+                        .offset = crruent_binding_info->second
+                  };
+
+                  auto str1 = std::format("\tInput: location: {}, binding: {}, name: {}, type: {}, offset {}.", location, binding, name, type_name, crruent_binding_info->second);
+                  std::printf("%s\n", str1.c_str());
+
+                  crruent_binding_info->second += curr_size;
+
+                  _vertexInputAttributeDescription.push_back(att_desc);
+
+                  _vertexInputStateCreateInfo.pVertexAttributeDescriptions = _vertexInputAttributeDescription.data();
+                  _vertexInputStateCreateInfo.vertexAttributeDescriptionCount = _vertexInputAttributeDescription.size();
+            }
+
+            for(auto& i : stage_input_info) {
+                  VkVertexInputRate rate = VK_VERTEX_INPUT_RATE_VERTEX;
+                  if(_autoVSInputBindRateTable.contains(std::get<0>(i))) {
+                        rate = _autoVSInputBindRateTable[std::get<0>(i)];
+                  }
+
+                  VkVertexInputBindingDescription binding_desc {
+                        .binding = i.first,
+                        .stride = i.second,
+                        .inputRate = rate
+                  };
+
+                  auto str1 = std::format("\tInput: Binding: {}, offset {}.",  i.first, i.second);
+                  std::printf("%s\n", str1.c_str());
+
+                  _vertexInputBindingDescription.push_back(binding_desc);
+                  _vertexInputStateCreateInfo.pVertexBindingDescriptions = _vertexInputBindingDescription.data();
+                  _vertexInputStateCreateInfo.vertexBindingDescriptionCount = _vertexInputBindingDescription.size();
+            }
       }
+
 
       for(uint32_t idx = 0; idx< resources.storage_buffers.size(); idx++) {
             auto& resource = resources.storage_buffers[idx];
@@ -969,19 +1055,8 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
                   auto str = std::format("\t\tMember: {}, offset {}, size {}", member_name, member_offset, member_size);
                   std::printf("%s\n", str.c_str());
             }
-      }
 
-      // for (auto& resource : resources.sampled_images) {
-      //       auto& type = comp.get_type(resource.base_type_id);
-      //       uint32_t member_count = type.member_types.size();
-      //
-      //       uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
-      //       uint32_t binding = comp.get_decoration(resource.id, spv::Decoration::DecorationBinding);
-      //
-      //       std::string res_name = comp.get_name(resource.id);
-      //       auto str1 = std::format("SampledTexture: Set: {}, Binding {}, name {}.", set, binding, res_name);
-      //       std::printf("%s\n", str1.c_str());
-      // }
+      }
 
       return true;
 }
@@ -1154,6 +1229,7 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
             _depthStencilStateCreateInfo.depthTestEnable = true;
             if (!Analyze(_depthStencilStateCreateInfo.depthCompareOp, key, values[0], error_msg)) return false;
       } else if (key == "vs_location") {
+            _autoVSInputStageBind = false;
             if (values.size() == 4) {
                   // bind, location, format, offset
                   uint32_t binding;
@@ -1202,6 +1278,7 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
             }
       } else if (key == "vs_binding") {
             if (values.size() == 3) {
+                  _autoVSInputStageBind = false;
                   // binding, stride_size, binding_rate
                   uint32_t binding;
                   uint32_t stride_size;
@@ -1236,6 +1313,29 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                   _vertexInputBindingDescription.push_back(binding_desc);
                   _vertexInputStateCreateInfo.pVertexBindingDescriptions = _vertexInputBindingDescription.data();
                   _vertexInputStateCreateInfo.vertexBindingDescriptionCount = _vertexInputBindingDescription.size();
+            } if (values.size() == 2) {
+                  if(!_autoVSInputStageBind) {
+                        error_msg = "Auto vertex input stage bind is disabled, please disable it by adding #set vs_binding = [binding, stride_size, binding_rate] in shader source code.";
+                        return false;
+                  }
+
+                  uint32_t binding;
+
+                  try {
+                        binding = std::stoi(values[0]);
+                  } catch (std::runtime_error& what) {
+                        error_msg = std::format("Invalid argument 1 for key \"{}\". Expected integer, got \"{}\".", key, values[0]);
+                        return false;
+                  }
+
+                  if (values[2] == "vertex") {
+                        _autoVSInputBindRateTable[binding] = VK_VERTEX_INPUT_RATE_VERTEX;
+                  } else if (values[2] == "instance") {
+                        _autoVSInputBindRateTable[binding] = VK_VERTEX_INPUT_RATE_INSTANCE;
+                  } else {
+                        return ErrorArgument(key, 3, values[2], error_msg, "vertex, instance");
+                  }
+
             } else {
                   return ErrorArgumentUnmatching(key, 4, values.size(), error_msg, "binding, stride_size, binding_rate");
             }

@@ -36,10 +36,8 @@ GrapicsKernelInstance::GrapicsKernelInstance(entt::entity id, entt::entity graph
       }
 
       const auto& arg_count = kernel->GetMarcoParserIdentifierTable().size();
-      for (int idx = 0; idx < 3; idx++) {
-          _pushConstantBindlessIndexInfoBuffer.at(idx).resize(arg_count);
-      }
 
+      _pushConstantBindlessIndexInfoBuffer.resize(arg_count);
       _buffers.resize(arg_count);
 
       const auto& struct_table = kernel->GetStructTable();
@@ -74,11 +72,10 @@ GrapicsKernelInstance::GrapicsKernelInstance(entt::entity id, entt::entity graph
                   //printf("\tGrapicsKernelInstance Struct: %s - index: %u, size: %u.\n", i.first.c_str(), buffer_index, i.second.Size);
                   //printf("\t\t create at offset %u in push constant buffer[%u].\n", buffer_index, idx);
 
-                  _pushConstantBindlessIndexInfoBuffer.at(idx).at(buffer_index) = buffer_bindless_index.value();
+                  _pushConstantBindlessIndexInfoBuffer.at(buffer_index) = buffer_bindless_index.value();
             }
       }
       _parent = graphics_kernel;
-      printf("Create Resource Success! %u", _parent);
 }
 
 bool GrapicsKernelInstance::SetParameterStruct(const std::string& struct_name, const void* data) {
@@ -99,7 +96,7 @@ bool GrapicsKernelInstance::SetParameterStruct(const std::string& struct_name, c
 
                   uint8_t* ptr = _buffers.at(index).CachedBufferData.data();
                   std::memcpy(ptr, data, size);
-                  _buffers.at(index).IsModified = true;
+                  _buffers.at(index).Modified = 3;
             } else {
                   const auto err = std::format("GrapicsKernelInstance::SetStruct - Struct \"{}\" Not Found\n", struct_name);
                   MessageManager::Log(MessageType::Error, err);
@@ -142,7 +139,7 @@ bool GrapicsKernelInstance::SetParameterStructMember(const std::string& struct_m
 
                   uint8_t* struct_start_ptr = _buffers.at(index).CachedBufferData.data();
                   memcpy(struct_start_ptr + offset, data, size);
-                  _buffers.at(index).IsModified = true;
+                  _buffers.at(index).Modified = 3;
             } else {
                   const auto err = std::format("GrapicsKernelInstance::SetStructMember - Struct Member \"{}\" Not Found\n", struct_member_name);
                   MessageManager::Log(MessageType::Error, err);
@@ -165,7 +162,7 @@ bool GrapicsKernelInstance::SetParameterStructMember(const std::string& struct_m
       return true;
 }
 
-bool GrapicsKernelInstance::SetParameterSampledTexture(const std::string& texture_name, entt::entity texture) {
+bool GrapicsKernelInstance::SetParameterTexture(const std::string& texture_name, entt::entity texture) {
       auto& world = *volkGetLoadedEcsWorld();
 
       if(!world.valid(texture)) {
@@ -197,8 +194,7 @@ bool GrapicsKernelInstance::SetParameterSampledTexture(const std::string& textur
       if (const auto parent_kernel = world.try_get<GraphicKernel>(_parent); parent_kernel) {
             const auto& map = parent_kernel->GetSampledTextureTable();
             if (const auto finder = map.find(texture_name); finder != map.end()) {
-                  const auto current_frame = Context::Get()->GetCurrentFrameIndex();
-                  _pushConstantBindlessIndexInfoBuffer.at(current_frame).at(finder->second) = bindless_index.value();
+                  _pushConstantBindlessIndexInfoBuffer.at(finder->second) = bindless_index.value();
             } else {
                   const auto err = std::format("GrapicsKernelInstance::SetParameterSampledTexture - Texture \"{}\" Not Found\n", texture_name);
                   MessageManager::Log(MessageType::Error, err);
@@ -220,10 +216,13 @@ void GrapicsKernelInstance::PushResourceChanged() {
 
       const auto current_frame = Context::Get()->GetCurrentFrameIndex();
       for (auto& buffer : _buffers) {
-            if (buffer.IsModified) {
+            if (buffer.Modified > 0) {
                   const auto buf = buffer.Buffers[current_frame];
                   world.get<Buffer>(buf).SetData(buffer.CachedBufferData.data(), buffer.CachedBufferData.size());
-                  buffer.IsModified = false;
+                  buffer.Modified--;
+                  if(buffer.Modified == 0) {
+                        world.emplace<TagGrapicsKernelInstanceParameterUpdateCompleted>(_id);
+                  }
             }
       }
 }
@@ -238,8 +237,7 @@ void GrapicsKernelInstance::PushBindlessInfo(VkCommandBuffer buf) const {
 
       if (const auto parent_kernel = world.try_get<GraphicKernel>(_parent); parent_kernel) {
             const auto& push_constant_range = parent_kernel->GetBindlessInfoPushConstantRange();
-            const auto current_frame = Context::Get()->GetCurrentFrameIndex();
-            vkCmdPushConstants(buf, parent_kernel->GetPipelineLayout(), VK_SHADER_STAGE_ALL, push_constant_range.offset, push_constant_range.size, _pushConstantBindlessIndexInfoBuffer[current_frame].data());
+            vkCmdPushConstants(buf, parent_kernel->GetPipelineLayout(), VK_SHADER_STAGE_ALL, push_constant_range.offset, push_constant_range.size, _pushConstantBindlessIndexInfoBuffer.data());
       } else {
             const auto err = std::format("GrapicsKernelInstance::SetStructMember - Parent Entity is not a Graphics Kernel\n");
             MessageManager::Log(MessageType::Error, err);

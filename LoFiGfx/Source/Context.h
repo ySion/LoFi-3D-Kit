@@ -122,6 +122,13 @@ namespace LoFi {
 
             [[nodiscard]] entt::entity CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts = 1);
 
+            [[nodiscard]] entt::entity CreateTexture2D(void* pixel_data, size_t size, VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts = 1);
+
+            template <class T>
+            [[nodiscard]] entt::entity CreateTexture2D(const std::vector<T>& data, VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts = 1) {
+                  return CreateTexture2D((void*)data.data(), data.size() * sizeof(T), format, w, h, mipMapCounts);
+            }
+
             [[nodiscard]] entt::entity CreateBuffer(uint64_t size, bool cpu_access = false, bool bindless = true);
 
             [[nodiscard]] entt::entity CreateBuffer(const void* data, uint64_t size, bool cpu_access = false, bool bindless = true);
@@ -146,7 +153,7 @@ namespace LoFi {
 
             void SetBufferData(entt::entity buffer, void* data, uint64_t size);
 
-            void SetTexture2DData(entt::entity texture, void* data, uint64_t size);
+            void FillTexture2D(entt::entity texture, void* data, uint64_t size);
 
             //void SetTexture2DData(entt::entity texture, entt::entity buffer);
 
@@ -168,35 +175,30 @@ namespace LoFi {
 
             void CmdEndRenderPass();
 
-            void CmdBindGraphicKernelToRenderPass(entt::entity kernel);
+            void CmdBindKernel(entt::entity kernel);
 
-            void SetGraphicKernelInstanceParamter(entt::entity frame_resource, const std::string& variable_name, const void* data);
+            void SetKernelParamter(entt::entity frame_resource, const std::string& variable_name, const void* data);
 
-            void SetGraphicKernelInstanceParamterStruct(entt::entity frame_resource, const std::string& struct_name, const void* data);
+            void SetKernelParamterStruct(entt::entity frame_resource, const std::string& struct_name, const void* data);
 
-            void SetGraphicKernelInstanceParamterStructMember(entt::entity frame_resource, const std::string& struct_member_name, const void* data);
+            void SetKernelParamterStructMember(entt::entity frame_resource, const std::string& struct_member_name, const void* data);
 
-            void SetGraphicKernelInstanceParamterSampledTexture(entt::entity frame_resource, const std::string& texture_name, entt::entity texture);
+            void SetKernelTexture(entt::entity frame_resource, const std::string& texture_name, entt::entity texture);
 
             template<class T> requires !std::is_pointer_v<T>
-            void SetGraphicKernelInstanceParamter(entt::entity frame_resource, const std::string& variable_name, const T& data) {
-                  SetGraphicKernelInstanceParamter(frame_resource, variable_name, &data);
+            void SetKernelParamter(entt::entity frame_resource, const std::string& variable_name, const T& data) {
+                  SetKernelParamter(frame_resource, variable_name, &data);
             }
 
             template<class T> requires !std::is_pointer_v<T>
-            void SetGraphicKernelInstanceParamterStruct(entt::entity frame_resource, const std::string& variable_name, const T& data) {
-                  SetGraphicKernelInstanceParamterStruct(frame_resource, variable_name, &data);
+            void SetKernelParamterStruct(entt::entity frame_resource, const std::string& variable_name, const T& data) {
+                  SetKernelParamterStruct(frame_resource, variable_name, &data);
             }
 
             template<class T> requires !std::is_pointer_v<T>
-            void SetGraphicKernelInstanceParamterStructMember(entt::entity frame_resource, const std::string& variable_name, const T& data) {
-                  SetGraphicKernelInstanceParamterStructMember(frame_resource, variable_name, &data);
+            void SetKernelParamterStructMember(entt::entity frame_resource, const std::string& variable_name, const T& data) {
+                  SetKernelParamterStructMember(frame_resource, variable_name, &data);
             }
-
-            //void SetFrameResourceStructMember(entt::entity frame_resource, const std::string& struct_name, const void* data);
-
-
-            //void CmdBindLayoutVariable(const std::vector<LayoutVariableBindInfo>& layout_variable_info);
 
             void CmdBindVertexBuffer(entt::entity buffer, size_t offset = 0);
 

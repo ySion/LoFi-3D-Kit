@@ -184,9 +184,15 @@ void Context::Init() {
                   .meshShaderQueries = false
             };
 
+            VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device_address_features{};
+            buffer_device_address_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+            buffer_device_address_features.pNext = nullptr;
+            buffer_device_address_features.bufferDeviceAddress = true;
+
+
             VkPhysicalDeviceSynchronization2FeaturesKHR synchronization2_features{
                   .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR,
-                  .pNext = nullptr,
+                  .pNext = &buffer_device_address_features,
                   .synchronization2 = true,
             };
 
@@ -352,6 +358,8 @@ void Context::Init() {
             vma_allocator_create_info.instance = _instance;
             vma_allocator_create_info.vulkanApiVersion = VK_API_VERSION_1_3;
             vma_allocator_create_info.pVulkanFunctions = &vma_vulkan_func;
+            vma_allocator_create_info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT; // BDA!!!!
+
 
             if (vmaCreateAllocator(&vma_allocator_create_info, &_allocator) != VK_SUCCESS) {
                   MessageManager::Log(MessageType::Error, "Failed to create VMA allocator");
@@ -659,7 +667,7 @@ void Context::MapRenderTargetToWindow(entt::entity texture, entt::entity window)
       sp->SetMappedRenderTarget(texture);
 }
 
-void Context::CmdBindGraphicKernelToRenderPass(entt::entity kernel) {
+void Context::CmdBindKernel(entt::entity kernel) {
       if (!_world.valid(kernel)) {
             const auto err = "Context::CmdBindGraphicKernel - Invalid graphics kernel entity";
             MessageManager::Log(MessageType::Error, err);
@@ -673,16 +681,16 @@ void Context::CmdBindGraphicKernelToRenderPass(entt::entity kernel) {
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       } else {
-            if(ki) {
+            if (ki) {
                   entt::entity graphic_kernel = ki->GetParentGraphicsKernel();
-                  if(!_world.valid(graphic_kernel)) {
+                  if (!_world.valid(graphic_kernel)) {
                         const auto err = "Context::CmdBindGraphicKernel - Invalid graphics kernel entity";
                         MessageManager::Log(MessageType::Error, err);
                         throw std::runtime_error(err);
                   }
 
                   k = _world.try_get<Component::GraphicKernel>(graphic_kernel);
-                  if(!k) {
+                  if (!k) {
                         const auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel or a graphics kernel instance";
                         MessageManager::Log(MessageType::Error, err);
                         throw std::runtime_error(err);
@@ -699,21 +707,21 @@ void Context::CmdBindGraphicKernelToRenderPass(entt::entity kernel) {
 
       _currentGraphicsKernel = kernel;
 
-      if(ki) {
+      if (ki) {
             ki->PushBindlessInfo(GetCurrentCommandBuffer());
       }
 }
 
-void Context::SetGraphicKernelInstanceParamter(entt::entity frame_resource, const std::string& variable_name, const void* data) {
-      if(!variable_name.contains('.')) {
-            SetGraphicKernelInstanceParamterStruct(frame_resource, variable_name, data);
-      }else {
-            SetGraphicKernelInstanceParamterStructMember(frame_resource, variable_name, data);
+void Context::SetKernelParamter(entt::entity frame_resource, const std::string& variable_name, const void* data) {
+      if (!variable_name.contains('.')) {
+            SetKernelParamterStruct(frame_resource, variable_name, data);
+      } else {
+            SetKernelParamterStructMember(frame_resource, variable_name, data);
       }
 }
 
-void Context::SetGraphicKernelInstanceParamterStruct(entt::entity frame_resource, const std::string& struct_name, const void* data) {
-      if(!data) {
+void Context::SetKernelParamterStruct(entt::entity frame_resource, const std::string& struct_name, const void* data) {
+      if (!data) {
             const auto err = "Context::SetFrameResourceStruct - Invalid data, data is nullptr.";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
@@ -735,8 +743,8 @@ void Context::SetGraphicKernelInstanceParamterStruct(entt::entity frame_resource
       fr->SetParameterStruct(struct_name, data);
 }
 
-void Context::SetGraphicKernelInstanceParamterStructMember(entt::entity frame_resource, const std::string& struct_member_name, const void* data) {
-      if(!data) {
+void Context::SetKernelParamterStructMember(entt::entity frame_resource, const std::string& struct_member_name, const void* data) {
+      if (!data) {
             const auto err = "Context::SetFrameResourceStruct - Invalid data, data is nullptr.";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
@@ -758,34 +766,34 @@ void Context::SetGraphicKernelInstanceParamterStructMember(entt::entity frame_re
       fr->SetParameterStructMember(struct_member_name, data);
 }
 
-void Context::SetGraphicKernelInstanceParamterSampledTexture(entt::entity frame_resource, const std::string& texture_name, entt::entity texture) {
-        if (!_world.valid(frame_resource)) {
-                const auto err = "Context::SetFrameResourceSampledImage - Invalid frame resource entity.";
-                MessageManager::Log(MessageType::Error, err);
-                throw std::runtime_error(err);
-        }
+void Context::SetKernelTexture(entt::entity frame_resource, const std::string& texture_name, entt::entity texture) {
+      if (!_world.valid(frame_resource)) {
+            const auto err = "Context::SetGraphicKernelInstanceParamterSampledTexture - Invalid frame graphics kernel instance entity.";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
 
-        if (!_world.valid(texture)) {
-                const auto err = "Context::SetFrameResourceSampledImage - Invalid texture entity.";
-                MessageManager::Log(MessageType::Error, err);
-                throw std::runtime_error(err);
-        }
+      if (!_world.valid(texture)) {
+            const auto err = "Context::SetGraphicKernelInstanceParamterSampledTexture - Invalid texture entity.";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
 
-        auto fr = _world.try_get<Component::GrapicsKernelInstance>(frame_resource);
-        if (!fr) {
-                const auto err = "Context::SetFrameResourceSampledImage - this entity is not a frame resource.";
-                MessageManager::Log(MessageType::Error, err);
-                throw std::runtime_error(err);
-        }
+      auto fr = _world.try_get<Component::GrapicsKernelInstance>(frame_resource);
+      if (!fr) {
+            const auto err = "Context::SetGraphicKernelInstanceParamterSampledTexture - this entity is not a frame resource.";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
 
-        auto tex = _world.try_get<Component::Texture>(texture);
-        if (!tex) {
-                const auto err = "Context::SetFrameResourceSampledImage - this entity is not a texture.";
-                MessageManager::Log(MessageType::Error, err);
-                throw std::runtime_error(err);
-        }
+      auto tex = _world.try_get<Component::Texture>(texture);
+      if (!tex) {
+            const auto err = "Context::SetFrameResourceSampledImage - this entity is not a texture.";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
 
-        fr->SetParameterSampledTexture(texture_name, texture);
+      fr->SetParameterTexture(texture_name, texture);
 }
 
 // void Context::CmdBindLayoutVariable(const std::vector<LayoutVariableBindInfo>& layout_variable_info) {
@@ -955,6 +963,11 @@ entt::entity Context::CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, u
       return id;
 }
 
+entt::entity Context::CreateTexture2D(void* pixel_data, size_t size, VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts) {
+      const entt::entity tex =  CreateTexture2D(format, w, h, mipMapCounts);
+      FillTexture2D(tex, pixel_data, size);
+      return tex;
+}
 
 entt::entity Context::CreateBuffer(uint64_t size, bool cpu_access, bool bindless) {
       if (size == 0) {
@@ -968,7 +981,7 @@ entt::entity Context::CreateBuffer(uint64_t size, bool cpu_access, bool bindless
       buffer_ci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
       buffer_ci.size = size;
       buffer_ci.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
       buffer_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
       VmaAllocationCreateInfo alloc_ci{};
@@ -1005,13 +1018,23 @@ entt::entity Context::CreateGraphicKernel(entt::entity program) {
       bool success = kernel.CreateFromProgram(program);
       const auto& map = kernel.GetStructTable();
       const auto& map2 = kernel.GetStructMemberTable();
+      const auto& map3 = kernel.GetSampledTextureTable();
+
+      printf("Kernel Variable Table:\n");
+      printf("Structs:\n");
 
       for (const auto& i : map) {
-            printf("%s - index: %u, size: %u\n", i.first.c_str(), i.second.Index, i.second.Size);
+            printf("\t%s - index: %u, size: %u\n", i.first.c_str(), i.second.Index, i.second.Size);
       }
 
+      printf("Struct Members:\n");
       for (const auto& i : map2) {
-            printf("%s - index: %u, size: %u, offset: %u\n", i.first.c_str(), i.second.StructIndex, i.second.Size, i.second.Offset);
+            printf("\t%s - index: %u, size: %u, offset: %u\n", i.first.c_str(), i.second.StructIndex, i.second.Size, i.second.Offset);
+      }
+
+      printf("Sampled Textures:\n");
+      for (const auto& i : map3) {
+            printf("\t%s\n", i.first.c_str());
       }
 
       if (!success) {
@@ -1070,7 +1093,7 @@ void Context::SetBufferData(entt::entity buffer, void* data, uint64_t size) {
       buffer_component->SetData(data, size);
 }
 
-void Context::SetTexture2DData(entt::entity texture, void* data, uint64_t size) {
+void Context::FillTexture2D(entt::entity texture, void* data, uint64_t size) {
       if (!_world.valid(texture)) {
             const auto err = "Context::SetTexture2DData - Invalid texture entity";
             MessageManager::Log(MessageType::Error, err);
@@ -1113,12 +1136,16 @@ void Context::EnqueueCommand(const std::function<void(VkCommandBuffer)>& command
 }
 
 void Context::BeginFrame() {
-      const auto view = _world.view<Component::GrapicsKernelInstance, Component::TagGrapicsKernelInstanceParameterChanged>();
-      view.each([](entt::entity, Component::GrapicsKernelInstance& res) {
+      _world.view<Component::GrapicsKernelInstance, Component::TagGrapicsKernelInstanceParameterChanged>().each([](entt::entity, Component::GrapicsKernelInstance& res) {
             res.PushResourceChanged();
       });
 
-      _world.remove<Component::TagGrapicsKernelInstanceParameterChanged>(view.begin(), view.end());
+      auto buffer_udpate_completed = _world.view<
+            Component::GrapicsKernelInstance,
+            Component::TagGrapicsKernelInstanceParameterChanged,
+            Component::TagGrapicsKernelInstanceParameterUpdateCompleted>();
+
+      _world.remove<Component::TagGrapicsKernelInstanceParameterChanged, Component::TagGrapicsKernelInstanceParameterUpdateCompleted>(buffer_udpate_completed.begin(), buffer_udpate_completed.end());
 
       PrepareWindowRenderTarget();
       auto cmd = GetCurrentCommandBuffer();

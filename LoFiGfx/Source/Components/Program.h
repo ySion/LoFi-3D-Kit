@@ -116,5 +116,8 @@ namespace LoFi::Component {
             std::vector<VkFormat> _renderTargetFormat{};
 
             VkPushConstantRange _pushConstantRange{};
+
+            bool _autoVSInputStageBind = true;
+            entt::dense_map<uint32_t, VkVertexInputRate> _autoVSInputBindRateTable{};
       };
 }

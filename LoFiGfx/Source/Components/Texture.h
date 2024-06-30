@@ -64,11 +64,8 @@ namespace LoFi::Component {
             void SetData(const void* data, size_t size);
 
             void BarrierLayout(VkCommandBuffer cmd, VkImageLayout new_layout, std::optional<VkImageLayout> src_layout = std::nullopt,
-            std::optional<VkPipelineStageFlags2> src_stage = std::nullopt,
-            std::optional<VkPipelineStageFlags2> dst_stage = std::nullopt);
-
-
-            // [[nodiscard]] VkImageMemoryBarrier2KHR Barrier(VkImageLayout newLayout);
+                  std::optional<VkPipelineStageFlags2> src_stage = std::nullopt,
+                  std::optional<VkPipelineStageFlags2> dst_stage = std::nullopt);
 
       private:
             void SetSampler(VkSampler sampler) { _sampler = sampler; }

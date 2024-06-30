@@ -8,10 +8,12 @@
 #include "GraphicKernel.h"
 
 namespace LoFi::Component {
+
       struct TagGrapicsKernelInstanceParameterChanged {};
+      struct TagGrapicsKernelInstanceParameterUpdateCompleted {};
 
       struct FrameResourceBuffer {
-            bool IsModified = false;
+            uint32_t Modified = 0;
             std::vector<uint8_t> CachedBufferData{};
             std::array<entt::entity, 3> Buffers{};
       };
@@ -35,7 +37,7 @@ namespace LoFi::Component {
 
             bool SetParameterStructMember(const std::string& struct_member_name, const void* data); // likes "Info.time"
 
-            bool SetParameterSampledTexture(const std::string& texture_name, entt::entity texture);
+            bool SetParameterTexture(const std::string& texture_name, entt::entity texture);
 
       private:
             friend class Context;
@@ -52,6 +54,6 @@ namespace LoFi::Component {
 
             std::vector<FrameResourceBuffer> _buffers{};
 
-            std::array<std::vector<uint32_t>, 3> _pushConstantBindlessIndexInfoBuffer{}; // BindlessInfo
+            std::vector<uint32_t> _pushConstantBindlessIndexInfoBuffer{}; // BindlessInfo
       };
 }
