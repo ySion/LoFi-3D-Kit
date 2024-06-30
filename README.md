@@ -191,6 +191,8 @@
 ```
 
 ![image](https://github.com/ySion/LoFi-3D-Kit/assets/39912009/f7defe0b-1da2-41aa-a614-5191097aed3b)
+![image](https://github.com/ySion/LoFi-3D-Kit/assets/39912009/57b8480f-66b2-472e-9680-7464c720e5d8)
+
 
 ----
 
