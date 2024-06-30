@@ -11,59 +11,45 @@
 using namespace LoFi::Component;
 using namespace LoFi::Internal;
 
-GraphicKernel::GraphicKernel(entt::entity id) : _id(id) {
-}
+GraphicKernel::GraphicKernel(entt::entity id, entt::entity program) : _id(id) {
 
-GraphicKernel::~GraphicKernel() {
-      if (_pipeline) {
-            const ContextResourceRecoveryInfo info {
-                  .Type = ContextResourceType::PIPELINE,
-                  .Resource1 = (size_t)_pipeline
-            };
-            Context::Get()->RecoveryContextResource(info);
-      }
-
-      if (_pipelineLayout) {
-            const ContextResourceRecoveryInfo info {
-                  .Type = ContextResourceType::PIPELINE_LAYOUT,
-                  .Resource1 = (size_t)_pipelineLayout
-            };
-            Context::Get()->RecoveryContextResource(info);
-      }
-}
-
-bool GraphicKernel::CreateFromProgram(entt::entity program) {
       auto& world = *volkGetLoadedEcsWorld();
 
+      if(!world.valid(id)) {
+            const auto err = std::format("GraphicKernel::GraphicKernel - Invalid Entity ID\n");
+            MessageManager::Log(MessageType::Warning, err);
+            throw std::runtime_error(err);
+      }
+
       if (!world.valid(program)) {
-            auto str = std::format("GraphicKernel::CreateFromProgram - Invalid Program Entity\n");
-            MessageManager::Log(MessageType::Warning, str);
-            return false;
+            const auto err = std::format("GraphicKernel::CreateFromProgram - Invalid Program Entity\n");
+            MessageManager::Log(MessageType::Warning, err);
+            throw std::runtime_error(err);
       }
 
       auto prog = world.try_get<Program>(program);
       if (!prog) {
-            auto str = std::format("GraphicKernel::CreateFromProgram - Program Component Not Found\n");
-            MessageManager::Log(MessageType::Warning, str);
-            return false;
+            const auto err = std::format("GraphicKernel::CreateFromProgram - Program Component Not Found\n");
+            MessageManager::Log(MessageType::Warning, err);
+            throw std::runtime_error(err);
       }
 
       if (!prog->IsCompiled()) {
             const auto err = std::format("GraphicKernel::CreateFromProgram - Program Not Compiled\n");
             MessageManager::Log(MessageType::Warning, err);
-            return false;
+            throw std::runtime_error(err);
       }
 
       if (!prog->GetShaderModules().contains(glslang_stage_t::GLSLANG_STAGE_VERTEX)) {
-            auto str = std::format("GraphicKernel::CreateFromProgram - Vertex Shader Not Found\n");
-            MessageManager::Log(MessageType::Warning, str);
-            return false;
+            const auto err = std::format("GraphicKernel::CreateFromProgram - Vertex Part Not Found In Program\n");
+            MessageManager::Log(MessageType::Warning, err);
+            throw std::runtime_error(err);
       }
 
       if (!prog->GetShaderModules().contains(glslang_stage_t::GLSLANG_STAGE_FRAGMENT)) {
-            auto str = std::format("GraphicKernel::CreateFromProgram - Pixel Shader Not Found\n");
-            MessageManager::Log(MessageType::Warning, str);
-            return false;
+            const auto err = std::format("GraphicKernel::CreateFromProgram - Pixel Part Not Found In Program\n");
+            MessageManager::Log(MessageType::Warning, err);
+            throw std::runtime_error(err);
       }
 
       std::vector<VkPipelineShaderStageCreateInfo> stages{
@@ -121,9 +107,9 @@ bool GraphicKernel::CreateFromProgram(entt::entity program) {
       };
 
       if (vkCreatePipelineLayout(volkGetLoadedDevice(), &pipeline_layout_ci, nullptr, &_pipelineLayout) != VK_SUCCESS) {
-            auto str = std::format("GraphicKernel::CreateFromProgram - vkCreatePipelineLayout Failed\n");
-            MessageManager::Log(MessageType::Error, str);
-            return false;
+            const auto err = std::format("GraphicKernel::CreateFromProgram - Create Pipeline Layout Failed\n");
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       VkGraphicsPipelineCreateInfo pipeline_ci{
@@ -149,9 +135,9 @@ bool GraphicKernel::CreateFromProgram(entt::entity program) {
       };
 
       if (vkCreateGraphicsPipelines(volkGetLoadedDevice(), nullptr, 1, &pipeline_ci, nullptr, &_pipeline) != VK_SUCCESS) {
-            auto str = std::format("GraphicKernel::CreateFromProgram - vkCreateGraphicsPipelines Failed\n");
-            MessageManager::Log(MessageType::Error, str);
-            return false;
+            const auto err = std::format("GraphicKernel::CreateFromProgram - vkCreateGraphicsPipelines Failed\n");
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       _structTable = prog->_structTable;
@@ -159,13 +145,28 @@ bool GraphicKernel::CreateFromProgram(entt::entity program) {
       _sampledTextureTable = prog->_sampledTextureTable;
       _pushConstantRange = prog->_pushConstantRange;
       _marcoParserIdentifier = prog->_marcoParserIdentifier;
+      //
+      // for(int i = 0; i <  _marcoParserIdentifier.size(); i++) {
+      //       if(_marcoParserIdentifier[i].second == "TEXTURE") {
+      //             _sampledTextureTable[_marcoParserIdentifier[i].first] = i;
+      //       }
+      // }
+}
 
-      for(int i = 0; i <  _marcoParserIdentifier.size(); i++) {
-            if(_marcoParserIdentifier[i].second == "texture") {
-                  _sampledTextureTable[_marcoParserIdentifier[i].first] = i;
-            }
+GraphicKernel::~GraphicKernel() {
+      if (_pipeline) {
+            const ContextResourceRecoveryInfo info {
+                  .Type = ContextResourceType::PIPELINE,
+                  .Resource1 = (size_t)_pipeline
+            };
+            Context::Get()->RecoveryContextResource(info);
       }
 
-
-      return true;
+      if (_pipelineLayout) {
+            const ContextResourceRecoveryInfo info {
+                  .Type = ContextResourceType::PIPELINE_LAYOUT,
+                  .Resource1 = (size_t)_pipelineLayout
+            };
+            Context::Get()->RecoveryContextResource(info);
+      }
 }

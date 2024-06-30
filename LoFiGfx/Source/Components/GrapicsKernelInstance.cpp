@@ -18,9 +18,15 @@ GrapicsKernelInstance::~GrapicsKernelInstance() {
 }
 
 GrapicsKernelInstance::GrapicsKernelInstance(entt::entity id, entt::entity graphics_kernel, bool is_cpu_side) : _id(id), _isCpuSide(is_cpu_side) {
+      auto& world = *volkGetLoadedEcsWorld();
+
+      if(!world.valid(id)) {
+            const auto err = std::format("GrapicsKernelInstance::GrapicsKernelInstance - Invalid Entity ID\n");
+            MessageManager::Log(MessageType::Warning, err);
+            return;
+      }
 
       auto& ctx = *Context::Get();
-      auto& world = *volkGetLoadedEcsWorld();
 
       if (!world.valid(graphics_kernel)) {
             const auto err = std::format("GrapicsKernelInstance::GrapicsKernelInstance - Invalid Graphics Kernel Entity\n");
@@ -141,7 +147,7 @@ bool GrapicsKernelInstance::SetParameterStructMember(const std::string& struct_m
                   memcpy(struct_start_ptr + offset, data, size);
                   _buffers.at(index).Modified = 3;
             } else {
-                  const auto err = std::format("GrapicsKernelInstance::SetStructMember - Struct Member \"{}\" Not Found\n", struct_member_name);
+                  const auto err = std::format("GrapicsKernelInstance::SetStructMember - Struct Member \"{}\" Not Found", struct_member_name);
                   MessageManager::Log(MessageType::Error, err);
                   return false;
             }

@@ -14,19 +14,13 @@
 void GStart() {
       const char* vs = R"(
 
-            #set topology   = triangle_list
-            #set polygon_mode = fill
-            #set cull_mode   = none
-            #set depth_test  = less_or_equal
-            #set depth_write  = true
-
             layout(location = 0) in vec3 pos;
             layout(location = 1) in vec3 color;
 
             layout(location = 0) out vec3 out_color;
             layout(location = 1) out vec3 out_pos;
 
-            STRUCT Info {
+            STRUCTEXT Info {
                   float time;
                   float time2;
                   float time3;
@@ -34,8 +28,8 @@ void GStart() {
             }
 
             void VSMain() {
-                  float extendx = sin(GetVar(Info).time4 * 10.0f) / 5.0;
-                  float extendy = cos(GetVar(Info).time4 * 10.0f) / 5.0;
+                  float extendx = cos(GetVar(Info).time4 * 10.0f) / 5.0;
+                  float extendy = sin(GetVar(Info).time4 * 10.0f) / 5.0;
                   gl_Position = vec4(pos, 1.0f) + vec4(extendx, extendy, 0, 0);
                   out_pos = pos+ vec3(extendx, extendy, 0);
                   float t = sin(GetVar(Info).time * 10.0f) / 2.0f;
@@ -47,14 +41,15 @@ void GStart() {
 
             #set rt = r8g8b8a8_unorm
             #set ds = d32_sfloat
-            #set color_blend = false
+
+            #set color_blend = add
 
             layout(location = 0) in vec3 color;
             layout(location = 1) in vec3 pos;
 
             layout(location = 0) out vec4 outColor;
 
-            STRUCT Info {
+            STRUCTEXT Info {
                   float time;
                   float time2;
                   float time3;
@@ -68,7 +63,7 @@ void GStart() {
                   vec3 f = texture(GetTex2D(some_texture), vec2(pos.x, pos.y)).rgb;
                   vec3 f2 = texture(GetTex2D(some_texture2), vec2(pos.x, pos.y)).rgb;
                   vec3 f3 = f * f2;
-                  outColor =  vec4(f3, 1.0f);
+                  outColor =  vec4(f, 0.5f);
             }
       )";
 
@@ -97,7 +92,7 @@ void GStart() {
             for(int j = 0; j < 256; j++) {
                   noise_image[i*256*4 + j*4 + 0] = sin(i / 10.0f) * 0.5f + 0.5f;
                   noise_image[i*256*4 + j*4 + 1] = sin(j / 10.0f) * 0.5f + 0.5f;
-                  noise_image[i*256*4 + j*4 + 2] = 0.0f;
+                  noise_image[i*256*4 + j*4 + 2] = 1.0f;
                   noise_image[i*256*4 + j*4 + 3] = 1.0f;
             }
       }
@@ -127,7 +122,7 @@ void GStart() {
       //CreateWindows
       const auto win1 = ctx->CreateWindow("Triangle", 1920, 1080);
       const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
-      const auto win3 = ctx->CreateWindow("Depth", 800, 600);
+      const auto win3 = ctx->CreateWindow("Merge", 800, 600);
 
       const auto rt1 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 1920, 1080);
       const auto rt2 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 400, 400);

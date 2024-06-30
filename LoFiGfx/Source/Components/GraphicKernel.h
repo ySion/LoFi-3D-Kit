@@ -27,7 +27,7 @@ namespace LoFi::Component {
       public:
             NO_COPY_MOVE_CONS(GraphicKernel);
 
-            explicit GraphicKernel(entt::entity id);
+            explicit GraphicKernel(entt::entity id, entt::entity program);
 
             ~GraphicKernel();
 
@@ -49,10 +49,7 @@ namespace LoFi::Component {
 
       private:
 
-            bool CreateFromProgram(entt::entity program);
-
             friend class ::LoFi::Context;
-
       private:
             entt::entity _id = entt::null;
 

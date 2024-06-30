@@ -84,6 +84,7 @@ namespace LoFi {
             friend class Component::Buffer;
             friend class Component::Program;
             friend class Component::GraphicKernel;
+            friend class Component::ComputeKernel;
             friend class Component::Texture;
             friend class Component::GrapicsKernelInstance;
 

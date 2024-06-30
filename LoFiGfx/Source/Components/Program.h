@@ -2,6 +2,7 @@
 
 #include "../Helper.h"
 #include "GraphicKernel.h"
+#include "ComputeKernel.h"
 
 #include "glslang/Include/glslang_c_interface.h"
 
@@ -69,6 +70,8 @@ namespace LoFi::Component {
 
             friend class GraphicKernel;
 
+            friend class ComputeKernel;
+
       private:
             bool AnalyzeSetter(const std::pair<std::string, std::vector<std::string>>& setter, std::string& error_msg, glslang_stage_t shader_type);
 
@@ -92,7 +95,9 @@ namespace LoFi::Component {
 
             std::string _programName{};
 
-            std::vector<std::pair<std::string, std::string>> _marcoParserIdentifier{}; //Helper
+            std::vector<std::pair<std::string, std::string>> _marcoParserIdentifier{};
+
+            entt::dense_map<std::string, std::string> _marcoParserIdentifierTable{};
 
       private:
             VkPipelineInputAssemblyStateCreateInfo _inputAssemblyStateCreateInfo{};

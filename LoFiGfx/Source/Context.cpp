@@ -189,7 +189,6 @@ void Context::Init() {
             buffer_device_address_features.pNext = nullptr;
             buffer_device_address_features.bufferDeviceAddress = true;
 
-
             VkPhysicalDeviceSynchronization2FeaturesKHR synchronization2_features{
                   .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR,
                   .pNext = &buffer_device_address_features,
@@ -1014,8 +1013,7 @@ entt::entity Context::CreateBuffer(const void* data, uint64_t size, bool cpu_acc
 
 entt::entity Context::CreateGraphicKernel(entt::entity program) {
       auto id = _world.create();
-      auto& kernel = _world.emplace<Component::GraphicKernel>(id, id);
-      bool success = kernel.CreateFromProgram(program);
+      auto& kernel = _world.emplace<Component::GraphicKernel>(id, id, program);
       const auto& map = kernel.GetStructTable();
       const auto& map2 = kernel.GetStructMemberTable();
       const auto& map3 = kernel.GetSampledTextureTable();
@@ -1035,13 +1033,6 @@ entt::entity Context::CreateGraphicKernel(entt::entity program) {
       printf("Sampled Textures:\n");
       for (const auto& i : map3) {
             printf("\t%s\n", i.first.c_str());
-      }
-
-      if (!success) {
-            _world.destroy(id);
-            const auto err = "Context::CreateGraphicKernel - Failed to create graphic kernel from program";
-            MessageManager::Log(MessageType::Warning, err);
-            throw std::runtime_error(err);
       }
 
       return id;

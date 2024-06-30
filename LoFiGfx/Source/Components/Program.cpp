@@ -48,6 +48,13 @@ Program::~Program() {
 }
 
 Program::Program(entt::entity id) : _id(id) {
+      auto& world = *volkGetLoadedEcsWorld();
+
+      if (!world.valid(id)) {
+            const auto err = std::format("Program::Program - Invalid Entity ID\n");
+            MessageManager::Log(MessageType::Warning, err);
+            throw std::runtime_error(err);
+      }
       ProgramCompilerGroup::TryInit();
 }
 
@@ -509,7 +516,7 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
       };
 
       output_codes = "";
-      std::vector<std::string_view> marcos_to_find{"STRUCT", "TEXTURE"};
+      std::vector<std::string_view> marcos_to_find{"STRUCTEXT", "TEXTURE", "STRUCT"};
       while(true) {
             auto [front, after, marco] = FindFrontMarcos(source_code, marcos_to_find);
 
@@ -519,7 +526,7 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
             } else {
                   output_codes += front;
                   source_code = after;
-                  if(marco == "STRUCT") {
+                  if(marco == "STRUCTEXT") {
 
                         auto struct_type_eat_word = EatWord(source_code);
                         if(!struct_type_eat_word.has_value()) {
@@ -538,25 +545,52 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
 
                         const auto [code_block, code_after_block] = eat_code_block.value();
 
-                        output_codes += std::format("layout(set = 0, binding = BindlessStorageBinding) buffer {} {} _bindless{}[];", struct_typename, code_block, struct_typename);
+                        output_codes += std::format("layout(set = 0, binding = BindlessStorageBinding) readonly buffer {} {} _bindless{}[];", struct_typename, code_block, struct_typename);
                         source_code = code_after_block;
 
-                        bool found = false;
-                        for(auto& i : _marcoParserIdentifier) {
-                              if(i.first == struct_typename) {
-                                    if(i.second == "struct") {
-                                          found = true;
-                                          break;
-                                    } else {
-                                          error_message = std::format("Program::ParseMarco - In {}: struct name \"{}\" is already used as a {}.",ShaderTypeHelperGetName(shader_type), struct_typename, i.second);
-                                          return false;
-                                    }
+                        std::string str_struct_name = std::string{struct_typename.begin(), struct_typename.end()};
+                        if(_marcoParserIdentifierTable.contains(str_struct_name)) {
+                              if(_marcoParserIdentifierTable[str_struct_name] != "STRUCTEXT")  {
+                                    error_message = std::format("Program::ParseMarco - In {}: struct name \"{}\" is already used as a {}.", ShaderTypeHelperGetName(shader_type), str_struct_name, _marcoParserIdentifierTable[str_struct_name]);
+                                    return false;
                               }
-                        }
-                        if(!found){
-                              _marcoParserIdentifier.emplace_back(std::string{struct_typename.begin(), struct_typename.end()}, "struct");
+                        } else {
+                              _marcoParserIdentifier.emplace_back(str_struct_name, "STRUCTEXT");
+                              _marcoParserIdentifierTable.emplace(str_struct_name, "STRUCTEXT");
                         }
 
+                  } else if(marco == "STRUCT") {
+
+                        auto struct_type_eat_word = EatWord(source_code);
+                        if(!struct_type_eat_word.has_value()) {
+                              error_message = std::format("Program::ParseMarco - Invalid statement, need a struct name after \"{}\" key word.", marco);
+                              return false;
+                        }
+
+                        auto [struct_typename, code_after_struct_typename] = struct_type_eat_word.value(); // typename
+                        source_code = code_after_struct_typename;
+
+                        const auto eat_code_block = EatCodeBlock(source_code);
+                        if(!eat_code_block.has_value()) {
+                              error_message = std::format("Program::ParseMarco - Invalid statement, need a code block after struct type name \"{}\".", struct_typename);
+                              return false;
+                        }
+
+                        const auto [code_block, code_after_block] = eat_code_block.value();
+
+                        output_codes += std::format("layout(set = 0, binding = BindlessStorageBinding) readonly buffer {} {} _bindless{}[];", struct_typename, code_block, struct_typename);
+                        source_code = code_after_block;
+
+                        std::string str_struct_name = std::string{struct_typename.begin(), struct_typename.end()};
+                        if(_marcoParserIdentifierTable.contains(str_struct_name)) {
+                              if(_marcoParserIdentifierTable[str_struct_name] != "STRUCT")  {
+                                    error_message = std::format("Program::ParseMarco - In {}: struct name \"{}\" is already used as a {}.", ShaderTypeHelperGetName(shader_type), str_struct_name, _marcoParserIdentifierTable[str_struct_name]);
+                                    return false;
+                              }
+                        } else {
+                              _marcoParserIdentifier.emplace_back(str_struct_name, "STRUCT");
+                              _marcoParserIdentifierTable.emplace(str_struct_name, "STRUCT");
+                        }
 
                   } else if(marco == "TEXTURE") {
                         auto struct_type_eat_word = EatWord(source_code);
@@ -568,21 +602,15 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
                         auto [texture_var_name, code_after_struct_typename] = struct_type_eat_word.value(); // typename
                         source_code = code_after_struct_typename;
 
-                        //is name exist
-                        bool found = false;
-                        for(auto& i : _marcoParserIdentifier) {
-                              if(i.first == texture_var_name) {
-                                    if(i.second == "texture") {
-                                          found = true;
-                                          break;
-                                    } else {
-                                          error_message = std::format("Program::ParseMarco - In {}: texture name \"{}\" is already used as a {}.",ShaderTypeHelperGetName(shader_type), texture_var_name, i.second);
-                                          return false;
-                                    }
+                        std::string str_texture_var_name = std::string{texture_var_name.begin(), texture_var_name.end()};
+                        if(_marcoParserIdentifierTable.contains(str_texture_var_name)) {
+                              if(_marcoParserIdentifierTable[str_texture_var_name] != "TEXTURE")  {
+                                    error_message = std::format("Program::ParseMarco - In {}: texture name \"{}\" is already used as a {}.",ShaderTypeHelperGetName(shader_type), texture_var_name, _marcoParserIdentifierTable[str_texture_var_name]);
+                                    return false;
                               }
-                        }
-                        if(!found){
-                              _marcoParserIdentifier.emplace_back(std::string{texture_var_name.begin(), texture_var_name.end()}, "texture");
+                        } else {
+                              _marcoParserIdentifier.emplace_back(str_texture_var_name, "TEXTURE");
+                              _marcoParserIdentifierTable.emplace(str_texture_var_name, "TEXTURE");
                         }
                   }
             }
@@ -776,7 +804,6 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
       if(_autoVSInputStageBind) {
             std::vector<std::pair<uint32_t, uint32_t>> stage_input_info{};  //binding size
 
-
             for (auto& resource : resources.stage_inputs) {
                   const auto& name = comp.get_name(resource.id);
                   std::string type_name = "";
@@ -885,6 +912,9 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
             std::printf("%s\n", str1.c_str());
 
             _structTable.emplace(struct_type_name, GraphicKernelStructInfo{idx, (uint32_t)struct_size}); // push to table
+            if(!_marcoParserIdentifierTable.contains(struct_type_name) || _marcoParserIdentifierTable[struct_type_name] != "STRUCTEXT") { // STRUCTEXT 才会反射成员变量.  only STRUCTEXT reflects member
+                  continue;
+            }
 
             for (uint32_t i = 0; i < member_count; i++) {
                   auto& member_type = comp.get_type(struct_type.member_types[i]);
@@ -903,17 +933,17 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
             }
       }
 
-      for (auto& resource : resources.sampled_images) {
-            auto& type = comp.get_type(resource.base_type_id);
-            uint32_t member_count = type.member_types.size();
-
-            uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
-            uint32_t binding = comp.get_decoration(resource.id, spv::Decoration::DecorationBinding);
-
-            const std::string& res_name = comp.get_name(resource.id);
-            auto str1 = std::format("SampledTexture: Set: {}, Binding {}, name {}.", set, binding, res_name);
-            std::printf("%s\n", str1.c_str());
-      }
+      // for (auto& resource : resources.sampled_images) {
+      //       auto& type = comp.get_type(resource.base_type_id);
+      //       uint32_t member_count = type.member_types.size();
+      //
+      //       uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
+      //       uint32_t binding = comp.get_decoration(resource.id, spv::Decoration::DecorationBinding);
+      //
+      //       const std::string& res_name = comp.get_name(resource.id);
+      //       auto str1 = std::format("SampledTexture: Set: {}, Binding {}, name {}.", set, binding, res_name);
+      //       std::printf("%s\n", str1.c_str());
+      // }
 
       for (auto& resource : resources.push_constant_buffers) {
             auto& type = comp.get_type(resource.base_type_id);
@@ -1021,6 +1051,10 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
                   _structTable.emplace(struct_type_name, GraphicKernelStructInfo{idx, (uint32_t)struct_size}); // push to table
             }
 
+            if(!_marcoParserIdentifierTable.contains(struct_type_name) || _marcoParserIdentifierTable[struct_type_name] != "STRUCTEXT") {
+                  continue;
+            }
+
             for (uint32_t i = 0; i < member_count; i++) {
                   auto& member_type = comp.get_type(struct_type.member_types[i]);
                   const std::string& member_type_name = comp.get_name(member_type.self); // struct member name
@@ -1056,6 +1090,12 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
                   std::printf("%s\n", str.c_str());
             }
 
+      }
+
+      for(int i = 0; i <  _marcoParserIdentifier.size(); i++) {
+            if(_marcoParserIdentifier[i].second == "TEXTURE") {
+                  _sampledTextureTable[_marcoParserIdentifier[i].first] = i;
+            }
       }
 
       return true;
@@ -1428,25 +1468,14 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                         VkPipelineColorBlendAttachmentState additive_blend = {};
                         additive_blend.blendEnable = VK_TRUE;
                         additive_blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-                        additive_blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+                        additive_blend.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
                         additive_blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
                         additive_blend.colorBlendOp = VK_BLEND_OP_ADD;
                         additive_blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-                        additive_blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+                        additive_blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
                         additive_blend.alphaBlendOp = VK_BLEND_OP_ADD;
                         _colorBlendAttachmentState.push_back(additive_blend);
-                  } else if (values[0] == "multiply") {
-                        VkPipelineColorBlendAttachmentState multiplicative_blend = {};
-                        multiplicative_blend.blendEnable = VK_TRUE;
-                        multiplicative_blend.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-                        multiplicative_blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
-                        multiplicative_blend.colorBlendOp = VK_BLEND_OP_MULTIPLY_EXT;
-                        multiplicative_blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-                        multiplicative_blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-                        multiplicative_blend.alphaBlendOp = VK_BLEND_OP_MULTIPLY_EXT;
-                        multiplicative_blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-                        _colorBlendAttachmentState.push_back(multiplicative_blend);
-                  } else if (values[0] == "sub") {
+                  }  else if (values[0] == "sub") {
                         VkPipelineColorBlendAttachmentState subtractive_blend = {};
                         subtractive_blend.blendEnable = VK_TRUE;
                         subtractive_blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
@@ -1468,18 +1497,7 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                         alpha_blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
                         alpha_blend.alphaBlendOp = VK_BLEND_OP_ADD;
                         _colorBlendAttachmentState.push_back(alpha_blend);
-                  } else if (values[0] == "screen") {
-                        VkPipelineColorBlendAttachmentState screen_blend = {};
-                        screen_blend.blendEnable = VK_TRUE;
-                        screen_blend.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-                        screen_blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
-                        screen_blend.colorBlendOp = VK_BLEND_OP_SCREEN_EXT;
-                        screen_blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-                        screen_blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-                        screen_blend.alphaBlendOp = VK_BLEND_OP_SCREEN_EXT;
-                        screen_blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-                        _colorBlendAttachmentState.push_back(screen_blend);
-                  } else if (values[0] == "darken") {
+                  } else if (values[0] == "min") {
                         VkPipelineColorBlendAttachmentState darken_blend = {};
                         darken_blend.blendEnable = VK_TRUE;
                         darken_blend.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
@@ -1490,7 +1508,7 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                         darken_blend.alphaBlendOp = VK_BLEND_OP_MIN;
                         darken_blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
                         _colorBlendAttachmentState.push_back(darken_blend);
-                  } else if (values[0] == "lighten") {
+                  } else if (values[0] == "max") {
                         VkPipelineColorBlendAttachmentState lighten_blend = {};
                         lighten_blend.blendEnable = VK_TRUE;
                         lighten_blend.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
@@ -1501,32 +1519,33 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                         lighten_blend.alphaBlendOp = VK_BLEND_OP_MAX;
                         lighten_blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
                         _colorBlendAttachmentState.push_back(lighten_blend);
-                  } else if (values[0] == "difference") {
-                        VkPipelineColorBlendAttachmentState difference_blend = {};
-                        difference_blend.blendEnable = VK_TRUE;
-                        difference_blend.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-                        difference_blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
-                        difference_blend.colorBlendOp = VK_BLEND_OP_DIFFERENCE_EXT;
-                        difference_blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-                        difference_blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-                        difference_blend.alphaBlendOp = VK_BLEND_OP_DIFFERENCE_EXT;
-                        difference_blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-                        _colorBlendAttachmentState.push_back(difference_blend);
-                  } else if (values[0] == "exclusion") {
-                        VkPipelineColorBlendAttachmentState exclusion_blend = {};
-                        exclusion_blend.blendEnable = VK_TRUE;
-                        exclusion_blend.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-                        exclusion_blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
-                        exclusion_blend.colorBlendOp = VK_BLEND_OP_EXCLUSION_EXT;
-                        exclusion_blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-                        exclusion_blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-                        exclusion_blend.alphaBlendOp = VK_BLEND_OP_EXCLUSION_EXT;
-                        exclusion_blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-                        _colorBlendAttachmentState.push_back(exclusion_blend);
+                  } else if (values[0] == "mul") {
+                        VkPipelineColorBlendAttachmentState blend = {};
+                        blend.blendEnable = VK_TRUE;
+                        blend.srcColorBlendFactor = VK_BLEND_FACTOR_DST_COLOR;
+                        blend.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+                        blend.colorBlendOp = VK_BLEND_OP_ADD;
+                        blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+                        blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+                        blend.alphaBlendOp = VK_BLEND_OP_ADD;
+                        blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+                        _colorBlendAttachmentState.push_back(blend);
+                  } else if (values[0] == "screen") {
+                        VkPipelineColorBlendAttachmentState blend = {};
+                        blend.blendEnable = VK_TRUE;
+                        blend.srcColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+                        blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+                        blend.colorBlendOp = VK_BLEND_OP_ADD;
+                        blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+                        blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+                        blend.alphaBlendOp = VK_BLEND_OP_ADD;
+                        blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+                        _colorBlendAttachmentState.push_back(blend);
                   } else {
-                        return ErrorArgument(key, 1, values[0], error_msg, "(false) or (add, multiply, sub, alpha, screen, darken, lighten, difference, exclusion)");
+                        return ErrorArgument(key, 1, values[0], error_msg, "(false) or (add, sub, alpha, min, max, mul, screen)");
                         //return ErrorArgumentUnmatching(key, 1, values.size(), error_msg, "if you enable color blend, please use argument: (defualt) or (colorWriteMask, dstAlphaBlendFactor, srcAlphaBlendFactor, colorBlendOp, alphaBlendOp)");
                   }
+
                   _colorBlendStateCreateInfo.attachmentCount = _colorBlendAttachmentState.size();
                   _colorBlendStateCreateInfo.pAttachments = _colorBlendAttachmentState.data();
             } else {

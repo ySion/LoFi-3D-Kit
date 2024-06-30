@@ -22,6 +22,14 @@ Texture::Texture(const VkImageCreateInfo& image_ci, VkImage Image, bool isBorrow
 }
 
 Texture::Texture(entt::entity id, const VkImageCreateInfo& image_ci, const VmaAllocationCreateInfo& alloc_ci) {
+      auto& world = *volkGetLoadedEcsWorld();
+
+      if (!world.valid(id)) {
+            const auto err = std::format("Texture::Texture - Invalid Entity ID\n");
+            MessageManager::Log(MessageType::Warning, err);
+            throw std::runtime_error(err);
+      }
+
       const auto allocator = volkGetLoadedVmaAllocator();
       _imageCI = std::make_unique<VkImageCreateInfo>(image_ci);
       if (vmaCreateImage(allocator, &image_ci, &alloc_ci, &_image, &_memory, nullptr) != VK_SUCCESS) {

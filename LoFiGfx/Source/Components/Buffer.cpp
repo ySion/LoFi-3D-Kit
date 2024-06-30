@@ -3,22 +3,30 @@
 #include "../Context.h"
 
 using namespace LoFi::Internal;
+using namespace LoFi::Component;
 
-LoFi::Component::Buffer::~Buffer() {
+Buffer::~Buffer() {
       Clean();
 }
 
-LoFi::Component::Buffer::Buffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci) {
+Buffer::Buffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci) {
       CreateBuffer(buffer_ci, alloc_ci);
 }
 
-LoFi::Component::Buffer::Buffer(entt::entity id, const VkBufferCreateInfo& buffer_ci,
-const VmaAllocationCreateInfo& alloc_ci) {
+Buffer::Buffer(entt::entity id, const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci) {
+      auto& world = *volkGetLoadedEcsWorld();
+
+      if (!world.valid(id)) {
+            const auto err = std::format("Buffer::Buffer - Invalid Entity ID\n");
+            MessageManager::Log(MessageType::Warning, err);
+            throw std::runtime_error(err);
+      }
+
       _id = id;
       CreateBuffer(buffer_ci, alloc_ci);
 }
 
-VkBufferView LoFi::Component::Buffer::CreateView(VkBufferViewCreateInfo view_ci) {
+VkBufferView Buffer::CreateView(VkBufferViewCreateInfo view_ci) {
       view_ci.buffer = _buffer;
 
       VkBufferView view{};
@@ -33,13 +41,13 @@ VkBufferView LoFi::Component::Buffer::CreateView(VkBufferViewCreateInfo view_ci)
       return view;
 }
 
-void LoFi::Component::Buffer::ClearViews() {
+void Buffer::ClearViews() {
       ReleaseAllViews();
       _views.clear();
       _viewCIs.clear();
 }
 
-void* LoFi::Component::Buffer::Map() {
+void* Buffer::Map() {
       if (!_mappedPtr) {
             if (vmaMapMemory(volkGetLoadedVmaAllocator(), _memory, &_mappedPtr) != VK_SUCCESS) {
                   const std::string msg = "Failed to map buffer memory";
@@ -50,14 +58,14 @@ void* LoFi::Component::Buffer::Map() {
       return _mappedPtr;
 }
 
-void LoFi::Component::Buffer::Unmap() {
+void Buffer::Unmap() {
       if (_mappedPtr) {
             _mappedPtr = nullptr;
             vmaUnmapMemory(volkGetLoadedVmaAllocator(), _memory);
       }
 }
 
-void LoFi::Component::Buffer::SetData(const void* p, uint64_t size) {
+void Buffer::SetData(const void* p, uint64_t size) {
       if (!p) {
             std::string msg = "Buffer::SetData Invalid data pointer";
             MessageManager::Log(MessageType::Error, msg);
@@ -113,7 +121,7 @@ void LoFi::Component::Buffer::SetData(const void* p, uint64_t size) {
       }
 }
 
-void LoFi::Component::Buffer::Recreate(uint64_t size) {
+void Buffer::Recreate(uint64_t size) {
       if (GetCapacity() >= size) return;
 
       Unmap();
@@ -140,7 +148,7 @@ void LoFi::Component::Buffer::Recreate(uint64_t size) {
       MessageManager::Log(MessageType::Normal, str);
 }
 
-void LoFi::Component::Buffer::CreateBuffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci) {
+void Buffer::CreateBuffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci) {
       _bufferCI.reset(new VkBufferCreateInfo{buffer_ci});
       _memoryCI.reset(new VmaAllocationCreateInfo{alloc_ci});
 
@@ -164,7 +172,7 @@ void LoFi::Component::Buffer::CreateBuffer(const VkBufferCreateInfo& buffer_ci, 
       MessageManager::Log(MessageType::Normal, str);
 }
 
-void LoFi::Component::Buffer::ReleaseAllViews() const {
+void Buffer::ReleaseAllViews() const {
       for (const auto view : _views) {
             ContextResourceRecoveryInfo info{
                   .Type = ContextResourceType::BUFFER_VIEW,
@@ -174,13 +182,13 @@ void LoFi::Component::Buffer::ReleaseAllViews() const {
       }
 }
 
-void LoFi::Component::Buffer::RecreateAllViews() {
+void Buffer::RecreateAllViews() {
       ReleaseAllViews();
       _views.clear();
       CreateViewFromCurrentViewCIs();
 }
 
-void LoFi::Component::Buffer::CreateViewFromCurrentViewCIs() {
+void Buffer::CreateViewFromCurrentViewCIs() {
       for (auto& view_ci : _viewCIs) {
             VkBufferView view{};
             view_ci.buffer = _buffer;
@@ -192,17 +200,17 @@ void LoFi::Component::Buffer::CreateViewFromCurrentViewCIs() {
       }
 }
 
-void LoFi::Component::Buffer::Clean() {
+void Buffer::Clean() {
       ClearViews();
       DestroyBuffer();
       _vaildSize = 0;
 }
 
-void LoFi::Component::Buffer::SetBindlessIndex(std::optional<uint32_t> bindless_index) {
+void Buffer::SetBindlessIndex(std::optional<uint32_t> bindless_index) {
       _bindlessIndex = bindless_index;
 }
 
-void LoFi::Component::Buffer::DestroyBuffer() {
+void Buffer::DestroyBuffer() {
       ContextResourceRecoveryInfo info{
             .Type = ContextResourceType::BUFFER,
             .Resource1 = (size_t)_buffer,

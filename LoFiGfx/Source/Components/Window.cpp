@@ -2,11 +2,20 @@
 #include "Swapchain.h"
 #include "SDL3/SDL.h"
 #include "../Context.h"
+#include "../Message.h"
 
 using namespace LoFi::Component;
 using namespace LoFi::Internal;
 
 Window::Window(entt::entity id, const char* title, int w, int h) : _id(id) {
+      auto& world = *volkGetLoadedEcsWorld();
+
+      if (!world.valid(id)) {
+            const auto err = std::format("Window::Window - Invalid Entity ID\n");
+            MessageManager::Log(MessageType::Warning, err);
+            throw std::runtime_error(err);
+      }
+
       _window = SDL_CreateWindow(title, w, h, SDL_WINDOW_VULKAN);
       SDL_SetWindowMinimumSize(_window, 64, 64);
       SDL_SetWindowResizable(_window, true);

@@ -7,6 +7,15 @@ using namespace LoFi::Component;
 using namespace LoFi::Internal;
 
 Swapchain::Swapchain(entt::entity id) : _id(id) {
+
+      auto& world = *volkGetLoadedEcsWorld();
+
+      if (!world.valid(id)) {
+            const auto err = std::format("Swapchain::Swapchain - Invalid Entity ID\n");
+            MessageManager::Log(MessageType::Warning, err);
+            throw std::runtime_error(err);
+      }
+
       auto device = volkGetLoadedDevice();
 
       VkSemaphoreCreateInfo semaphore_ci{};
