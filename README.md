@@ -6,7 +6,7 @@
 
 ## LoFiGfx
 一个Vulkan GFX, 用于快速原型开发, 并且带有一个2D绘图库.
-### Very easy to use!
+### Very Fucking hard to use!
 
 ```c++
  
