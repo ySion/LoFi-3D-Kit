@@ -312,7 +312,7 @@ string CompilerHLSL::image_type_hlsl_modern(const SPIRType &type, uint32_t id)
 	if (typed_load && interlocked_resources.count(id))
 		rw = "RasterizerOrdered";
 
-	return join(rw, "Texture", dim, ms, arrayed, "<",
+	return join(rw, "SAMPLED", dim, ms, arrayed, "<",
 	            typed_load ? image_format_to_type(type.image.format, imagetype.basetype) :
 	                         join(type_to_glsl(imagetype), components),
 	            ">");

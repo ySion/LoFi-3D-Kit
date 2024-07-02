@@ -1,19 +1,45 @@
 ﻿#pragma once
 
 #include "../Helper.h"
-#include "GraphicKernel.h"
-#include "ComputeKernel.h"
 
 #include "glslang/Include/glslang_c_interface.h"
 
 namespace LoFi::Component {
-      class GraphicKernel;
+
+      struct ProgramParamMemberInfo {
+            uint32_t StructIndex;
+            uint32_t Size;
+            uint32_t Offset;
+      };
+
+      struct ProgramParamInfo {
+            uint32_t Index;
+            uint32_t Size;
+      };
 
       struct ShaderVariableRecord {
             std::string Name;
             uint32_t Offset;
             uint32_t Size;
       };
+
+      enum class ProgramShaderType {
+            UNKNOWN,
+            GRAPHICS,
+            COMPUTE,
+            MESH,
+            RAY_TRACING
+      };
+
+      enum class ProgramShaderReourceType {
+            UNKNOWN,
+            PARAM,
+            READ_BUFFER,
+            READ_WRITE_BUFFER,
+            READ_TEXTURE,
+            READ_WRITE_TEXTURE
+      };
+
 
       struct ProgramCompilerGroup {
             ProgramCompilerGroup();
@@ -40,21 +66,35 @@ namespace LoFi::Component {
 
             ~Program();
 
-            explicit Program(entt::entity id);
-
-            [[nodiscard]] bool CompileFromSourceCode(std::string_view name, const std::vector<std::string_view>& sources);
-
-            [[nodiscard]] bool IsCompiled() const { return _isCompiled; }
-
-            [[nodiscard]] const auto& GetStructTable() const {return _structTable;}
-
-            [[nodiscard]] const auto& GetSampledTextureTable() const {return _sampledTextureTable;}
-
-            [[nodiscard]] const auto& GetStructMemberTable() const {return _structMemberTable;}
+            explicit Program(entt::entity id, std::string_view name, const std::vector<std::string_view>& sources);
 
             // TODO: LoadFromCache
 
+            [[nodiscard]] bool IsCompiled() const { return _isCompiled; }
+
+            [[nodiscard]] bool IsGraphicsShader() const { return _shaderType == ProgramShaderType::GRAPHICS; }
+
+            [[nodiscard]] bool IsComputeShader() const { return _shaderType == ProgramShaderType::COMPUTE; }
+
+            [[nodiscard]] const auto& GetParamTable() const { return _paramTable; }
+
+            [[nodiscard]] const auto& GetParamMemberTable() const { return _paramMemberTable; }
+
+            [[nodiscard]] const auto& GetSampledTextureTable() const { return _sampledTextureTable; }
+
+            [[nodiscard]] const auto& GetBufferTable() const { return _bufferTable; }
+
+            [[nodiscard]] const auto& GetTextureTable() const { return _textureTable; }
+
+            [[nodiscard]] const auto& GetMarcoParserIdentifierTable() const {return _marcoParserIdentifier;}
+
       private:
+            bool CompileCompute(std::string_view source);
+
+            bool CompileGraphics(const std::vector<std::pair<std::string_view, glslang_stage_t>>& sources);
+
+            std::optional<glslang_stage_t> RecognitionShaderTypeFromSource(std::string_view source);
+
             static bool CompileFromCode(const char* source, glslang_stage_t shader_type, std::vector<uint32_t>& spv, std::string& err_msg);
 
             bool ParseMarco(std::string_view input_code, std::string& output_codes, std::string& error_message, glslang_stage_t shader_type);
@@ -68,6 +108,8 @@ namespace LoFi::Component {
 
             bool ParseFS(const std::vector<uint32_t>& spv);
 
+            bool ParseCS(const std::vector<uint32_t>& spv);
+
             friend class GraphicKernel;
 
             friend class ComputeKernel;
@@ -78,26 +120,34 @@ namespace LoFi::Component {
             entt::dense_map<glslang_stage_t, std::pair<std::vector<uint32_t>, VkShaderModule>>& GetShaderModules() { return _shaderModules; }
 
       private:
-
-            bool _isCompiled{};
-
-            std::vector<std::string> _sampleTexture{};
-
-            entt::dense_map<glslang_stage_t, std::pair<std::vector<uint32_t>, VkShaderModule>> _shaderModules{};
-
-            entt::dense_map<std::string, GraphicKernelStructInfo> _structTable{};
-
-            entt::dense_map<std::string, uint32_t> _sampledTextureTable{};
-
-            entt::dense_map<std::string, GraphicKernelStructMemberInfo> _structMemberTable{};
-
             entt::entity _id{};
 
             std::string _programName{};
 
+      private:
+            bool _isCompiled{};
+
+            entt::dense_map<glslang_stage_t, std::pair<std::vector<uint32_t>, VkShaderModule>> _shaderModules{};
+
+            entt::dense_map<std::string, ProgramParamInfo> _paramTable{};
+
+            entt::dense_map<std::string, ProgramParamMemberInfo> _paramMemberTable{};
+
+            entt::dense_map<std::string, uint32_t> _sampledTextureTable{};
+
+            entt::dense_map<std::string, uint32_t> _bufferTable{};
+
+            entt::dense_map<std::string, uint32_t> _textureTable{};
+
             std::vector<std::pair<std::string, std::string>> _marcoParserIdentifier{};
 
             entt::dense_map<std::string, std::string> _marcoParserIdentifierTable{};
+
+            bool _autoVSInputStageBind = true;
+
+            ProgramShaderType _shaderType = ProgramShaderType::UNKNOWN;
+
+            entt::dense_map<uint32_t, VkVertexInputRate> _autoVSInputBindRateTable{};
 
       private:
             VkPipelineInputAssemblyStateCreateInfo _inputAssemblyStateCreateInfo{};
@@ -121,8 +171,5 @@ namespace LoFi::Component {
             std::vector<VkFormat> _renderTargetFormat{};
 
             VkPushConstantRange _pushConstantRange{};
-
-            bool _autoVSInputStageBind = true;
-            entt::dense_map<uint32_t, VkVertexInputRate> _autoVSInputBindRateTable{};
       };
 }

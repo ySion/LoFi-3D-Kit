@@ -20,7 +20,7 @@ void GStart() {
             layout(location = 0) out vec3 out_color;
             layout(location = 1) out vec3 out_pos;
 
-            STRUCTEXT Info {
+            PARAM Info {
                   float time;
                   float time2;
                   float time3;
@@ -49,15 +49,15 @@ void GStart() {
 
             layout(location = 0) out vec4 outColor;
 
-            STRUCTEXT Info {
+            PARAM Info {
                   float time;
                   float time2;
                   float time3;
                   float time4;
             }
 
-            TEXTURE some_texture;
-            TEXTURE some_texture2;
+            SAMPLED some_texture;
+            SAMPLED some_texture2;
 
             void FSMain() {
                   vec3 f = texture(GetTex2D(some_texture), vec2(pos.x, pos.y)).rgb;
@@ -65,6 +65,58 @@ void GStart() {
                   vec3 f3 = f * f2;
                   outColor =  vec4(f, 0.5f);
             }
+      )";
+
+
+      //PARAM Info {
+//      float deltaTime;
+//}
+//
+//struct Particle {
+//      vec2 position;
+//      vec2 velocity;
+//      vec4 color;
+//};
+//
+//BUFFER ParticleSSBOIn {
+//      Particle particlesIn[];
+//}
+//
+//BUFFER ParticleSSBOOut {
+//      Particle particlesOut[];
+//}
+
+      const auto cs = R"(
+
+            PARAM UBO {
+                float deltaTime;
+            };
+
+            struct Particle {
+                vec2 position;
+                vec2 velocity;
+                vec4 color;
+            };
+
+            BUFFER ParticleSSBOIn {
+                Particle particlesIn[];
+            };
+
+            BUFFER ParticleSSBOOut {
+                Particle particlesOut[];
+            };
+
+            layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+            void CSMain() {
+                uint index = gl_GlobalInvocationID.x;
+
+                Particle particleIn = GetVar(ParticleSSBOIn).particlesIn[index];
+
+                GetVar(ParticleSSBOOut).particlesOut[index].position = particleIn.position + particleIn.velocity.xy * GetVar(UBO).deltaTime;
+                GetVar(ParticleSSBOOut).particlesOut[index].velocity = particleIn.velocity;
+            }
+
       )";
 
       //triangle
@@ -136,7 +188,10 @@ void GStart() {
 
       //Compile Shader and Create "Material"
       const auto program = ctx->CreateProgram({vs, ps});
+      const auto cs_program = ctx->CreateProgram({cs});
+
       const auto kernel = ctx->CreateGraphicKernel(program);
+      const auto cs_kernel = ctx->CreateComputeKernel(cs_program);
 
       //Create "Material Intance"
       const auto kernel_instance = ctx->CreateGraphicsKernelInstance(kernel);
@@ -177,6 +232,9 @@ void GStart() {
                   ctx->CmdBindVertexBuffer(triangle_vert);
                   ctx->CmdDrawIndex(triangle_index);
                   ctx->CmdEndRenderPass();
+
+                  ctx->CmdBindKernel(cs_kernel);
+
 
                   ctx->EndFrame();
             }

@@ -140,17 +140,16 @@ GraphicKernel::GraphicKernel(entt::entity id, entt::entity program) : _id(id) {
             throw std::runtime_error(err);
       }
 
-      _structTable = prog->_structTable;
-      _structMemberTable = prog->_structMemberTable;
+      _paramTable = prog->_paramTable;
+      _paramMemberTable = prog->_paramMemberTable;
       _sampledTextureTable = prog->_sampledTextureTable;
+
+      _bufferTable = prog->_bufferTable;
+      _rwtextureTable = prog->_textureTable;
+
       _pushConstantRange = prog->_pushConstantRange;
       _marcoParserIdentifier = prog->_marcoParserIdentifier;
-      //
-      // for(int i = 0; i <  _marcoParserIdentifier.size(); i++) {
-      //       if(_marcoParserIdentifier[i].second == "TEXTURE") {
-      //             _sampledTextureTable[_marcoParserIdentifier[i].first] = i;
-      //       }
-      // }
+
 }
 
 GraphicKernel::~GraphicKernel() {

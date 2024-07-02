@@ -570,6 +570,11 @@ void Context::Shutdown() {
       }
 
       {
+            auto view = _world.view<Component::ComputeKernel>();
+            _world.destroy(view.begin(), view.end());
+      }
+
+      {
             auto view = _world.view<Component::Program>();
             _world.destroy(view.begin(), view.end());
       }
@@ -580,6 +585,8 @@ void Context::Shutdown() {
             auto view = _world.view<Component::GrapicsKernelInstance>();
             _world.destroy(view.begin(), view.end());
       }
+
+
 
       for (int i = 0; i < 3; i++) {
             vkDestroyFence(_device, _mainCommandFence[i], nullptr);
@@ -673,41 +680,51 @@ void Context::CmdBindKernel(entt::entity kernel) {
             throw std::runtime_error(err);
       }
 
-      auto k = _world.try_get<Component::GraphicKernel>(kernel);
-      auto ki = _world.try_get<Component::GrapicsKernelInstance>(kernel);
-      if (!k && !ki) {
-            const auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel or a graphics kernel instance";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      } else {
-            if (ki) {
-                  entt::entity graphic_kernel = ki->GetParentGraphicsKernel();
-                  if (!_world.valid(graphic_kernel)) {
-                        const auto err = "Context::CmdBindGraphicKernel - Invalid graphics kernel entity";
-                        MessageManager::Log(MessageType::Error, err);
-                        throw std::runtime_error(err);
-                  }
 
-                  k = _world.try_get<Component::GraphicKernel>(graphic_kernel);
-                  if (!k) {
-                        const auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel or a graphics kernel instance";
-                        MessageManager::Log(MessageType::Error, err);
-                        throw std::runtime_error(err);
+      auto kcs = _world.try_get<Component::ComputeKernel>(kernel);
+      if(kcs) {
+            vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, kcs->GetPipeline());
+            vkCmdBindDescriptorSets(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, kcs->GetPipelineLayout(), 0, 1, &_bindlessDescriptorSet, 0, nullptr);
+            _currentKernel = kernel;
+      } else {
+
+            auto k = _world.try_get<Component::GraphicKernel>(kernel);
+            auto ki = _world.try_get<Component::GrapicsKernelInstance>(kernel);
+
+            if (!k && !ki) {
+                  const auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel or a graphics kernel instance";
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
+            } else {
+                  if (ki) {
+                        entt::entity graphic_kernel = ki->GetParentGraphicsKernel();
+                        if (!_world.valid(graphic_kernel)) {
+                              const auto err = "Context::CmdBindGraphicKernel - Invalid graphics kernel entity";
+                              MessageManager::Log(MessageType::Error, err);
+                              throw std::runtime_error(err);
+                        }
+
+                        k = _world.try_get<Component::GraphicKernel>(graphic_kernel);
+                        if (!k) {
+                              const auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel, a graphics kernel instance, or a compute kernel.";
+                              MessageManager::Log(MessageType::Error, err);
+                              throw std::runtime_error(err);
+                        }
                   }
             }
-      }
 
-      vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, k->GetPipeline());
-      vkCmdBindDescriptorSets(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, k->GetPipelineLayout(), 0, 1, &_bindlessDescriptorSet, 0, nullptr);
-      const VkViewport viewport = VkViewport{0, (float)_frameRenderingRenderArea.extent.height, (float)_frameRenderingRenderArea.extent.width, -(float)_frameRenderingRenderArea.extent.height, 0, 1};
-      vkCmdSetViewport(GetCurrentCommandBuffer(), 0, 1, &viewport);
-      const VkRect2D scissor = VkRect2D{0, 0, _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height};
-      vkCmdSetScissor(GetCurrentCommandBuffer(), 0, 1, &scissor);
+            vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, k->GetPipeline());
+            vkCmdBindDescriptorSets(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, k->GetPipelineLayout(), 0, 1, &_bindlessDescriptorSet, 0, nullptr);
+            const VkViewport viewport = VkViewport{0, (float)_frameRenderingRenderArea.extent.height, (float)_frameRenderingRenderArea.extent.width, -(float)_frameRenderingRenderArea.extent.height, 0, 1};
+            vkCmdSetViewport(GetCurrentCommandBuffer(), 0, 1, &viewport);
+            const VkRect2D scissor = VkRect2D{0, 0, _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height};
+            vkCmdSetScissor(GetCurrentCommandBuffer(), 0, 1, &scissor);
 
-      _currentGraphicsKernel = kernel;
+            _currentKernel = kernel;
 
-      if (ki) {
-            ki->PushBindlessInfo(GetCurrentCommandBuffer());
+            if (ki) {
+                  ki->PushBindlessInfo(GetCurrentCommandBuffer());
+            }
       }
 }
 
@@ -1014,8 +1031,35 @@ entt::entity Context::CreateBuffer(const void* data, uint64_t size, bool cpu_acc
 entt::entity Context::CreateGraphicKernel(entt::entity program) {
       auto id = _world.create();
       auto& kernel = _world.emplace<Component::GraphicKernel>(id, id, program);
-      const auto& map = kernel.GetStructTable();
-      const auto& map2 = kernel.GetStructMemberTable();
+      const auto& map = kernel.GetParamTable();
+      const auto& map2 = kernel.GetParamMemberTable();
+      const auto& map3 = kernel.GetSampledTextureTable();
+
+      printf("Kernel Variable Table:\n");
+      printf("Structs:\n");
+
+      for (const auto& i : map) {
+            printf("\t%s - index: %u, size: %u\n", i.first.c_str(), i.second.Index, i.second.Size);
+      }
+
+      printf("Struct Members:\n");
+      for (const auto& i : map2) {
+            printf("\t%s - index: %u, size: %u, offset: %u\n", i.first.c_str(), i.second.StructIndex, i.second.Size, i.second.Offset);
+      }
+
+      printf("Sampled Textures:\n");
+      for (const auto& i : map3) {
+            printf("\t%s\n", i.first.c_str());
+      }
+
+      return id;
+}
+
+entt::entity Context::CreateComputeKernel(entt::entity program) {
+      auto id = _world.create();
+      auto& kernel = _world.emplace<Component::ComputeKernel>(id, id, program);
+      const auto& map = kernel.GetParamTable();
+      const auto& map2 = kernel.GetParamMemberTable();
       const auto& map3 = kernel.GetSampledTextureTable();
 
       printf("Kernel Variable Table:\n");
@@ -1040,11 +1084,7 @@ entt::entity Context::CreateGraphicKernel(entt::entity program) {
 
 entt::entity Context::CreateProgram(const std::vector<std::string_view>& source_code) {
       auto id = _world.create();
-      auto& comp = _world.emplace<Component::Program>(id, id);
-      if (!comp.CompileFromSourceCode("hello", source_code)) {
-            _world.destroy(id);
-            return entt::null;
-      }
+      auto& comp = _world.emplace<Component::Program>(id, id, "hello", source_code);
       return id;
 }
 
@@ -1379,7 +1419,7 @@ void Context::CmdEndRenderPass() {
       if (_isRenderPassOpen) {
             vkCmdEndRendering(GetCurrentCommandBuffer());
             _isRenderPassOpen = false;
-            _currentGraphicsKernel = entt::null;
+            _currentKernel = entt::null;
       }
 }
 

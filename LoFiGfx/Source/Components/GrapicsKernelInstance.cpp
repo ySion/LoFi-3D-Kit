@@ -46,7 +46,7 @@ GrapicsKernelInstance::GrapicsKernelInstance(entt::entity id, entt::entity graph
       _pushConstantBindlessIndexInfoBuffer.resize(arg_count);
       _buffers.resize(arg_count);
 
-      const auto& struct_table = kernel->GetStructTable();
+      const auto& struct_table = kernel->GetParamTable();
       for (const auto& i : struct_table) {
 
             FrameResourceBuffer& buffer = _buffers.at(i.second.Index);
@@ -94,9 +94,9 @@ bool GrapicsKernelInstance::SetParameterStruct(const std::string& struct_name, c
       }
 
       if (const auto parent_kernel = world.try_get<GraphicKernel>(_parent); parent_kernel) {
-            const auto& map = parent_kernel->GetStructTable();
+            const auto& map = parent_kernel->GetParamTable();
             if (const auto finder = map.find(struct_name); finder != map.end()) {
-                  GraphicKernelStructInfo info = finder->second;
+                  ProgramParamInfo info = finder->second;
                   const auto index = info.Index;
                   const auto size = info.Size;
 
@@ -135,10 +135,10 @@ bool GrapicsKernelInstance::SetParameterStructMember(const std::string& struct_m
       }
 
       if (const auto parent_kernel = world.try_get<GraphicKernel>(_parent); parent_kernel) {
-            const auto& map = parent_kernel->GetStructMemberTable();
+            const auto& map = parent_kernel->GetParamMemberTable();
 
             if (const auto finder = map.find(struct_member_name); finder != map.end()) {
-                  GraphicKernelStructMemberInfo info = finder->second;
+                  ProgramParamMemberInfo info = finder->second;
                   const auto index = info.StructIndex;
                   const auto size = info.Size;
                   const auto offset = info.Offset;

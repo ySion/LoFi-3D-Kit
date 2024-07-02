@@ -85,6 +85,15 @@ ComputeKernel::ComputeKernel(entt::entity id, entt::entity program) {
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
+
+      _paramTable = prog->_paramTable;
+      _paramMemberTable = prog->_paramMemberTable;
+      _sampledTextureTable = prog->_sampledTextureTable;
+
+      _bufferTable = prog->_bufferTable;
+      _textureTable = prog->_textureTable;
+
+      _marcoParserIdentifier = prog->_marcoParserIdentifier;
 }
 
 ComputeKernel::~ComputeKernel() {

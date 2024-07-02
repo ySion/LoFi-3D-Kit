@@ -5,23 +5,13 @@
 #pragma once
 
 #include "../Helper.h"
+#include "Program.h"
 
 namespace LoFi {
       class Context;
 }
 
 namespace LoFi::Component {
-
-      struct GraphicKernelStructMemberInfo {
-            uint32_t StructIndex;
-            uint32_t Size;
-            uint32_t Offset;
-      };
-
-      struct GraphicKernelStructInfo {
-            uint32_t Index;
-            uint32_t Size;
-      };
 
       class GraphicKernel {
       public:
@@ -37,15 +27,20 @@ namespace LoFi::Component {
 
             [[nodiscard]] VkPipelineLayout* GetPipelineLayoutPtr() { return &_pipelineLayout; }
 
-            [[nodiscard]] const entt::dense_map<std::string, GraphicKernelStructInfo>& GetStructTable() const {return _structTable;}
 
-            [[nodiscard]] const entt::dense_map<std::string, uint32_t>& GetSampledTextureTable() const {return _sampledTextureTable;}
+            [[nodiscard]] const auto& GetParamTable() const { return _paramTable; }
 
-            [[nodiscard]] const entt::dense_map<std::string, GraphicKernelStructMemberInfo>& GetStructMemberTable() const {return _structMemberTable;}
+            [[nodiscard]] const auto& GetParamMemberTable() const { return _paramMemberTable; }
 
-            [[nodiscard]] const std::vector<std::pair<std::string, std::string>>& GetMarcoParserIdentifierTable() const {return _marcoParserIdentifier;}
+            [[nodiscard]] const auto& GetSampledTextureTable() const { return _sampledTextureTable; }
 
-            [[nodiscard]] const VkPushConstantRange& GetBindlessInfoPushConstantRange() const {return _pushConstantRange;}
+            [[nodiscard]] const auto& GetBufferTable() const { return _bufferTable; }
+
+            [[nodiscard]] const auto& GetRWTextureTable() const { return _rwtextureTable; }
+
+            [[nodiscard]] const auto& GetMarcoParserIdentifierTable() const {return _marcoParserIdentifier;}
+
+            [[nodiscard]] const VkPushConstantRange& GetBindlessInfoPushConstantRange() const { return _pushConstantRange; }
 
       private:
 
@@ -57,15 +52,19 @@ namespace LoFi::Component {
 
             VkPipelineLayout _pipelineLayout{};
 
-            entt::dense_map<std::string, GraphicKernelStructInfo> _structTable{};
+            VkPushConstantRange _pushConstantRange{};
+
+            entt::dense_map<std::string, ProgramParamInfo> _paramTable{};
+
+            entt::dense_map<std::string, ProgramParamMemberInfo> _paramMemberTable{};
 
             entt::dense_map<std::string, uint32_t> _sampledTextureTable{};
 
-            entt::dense_map<std::string, GraphicKernelStructMemberInfo> _structMemberTable{};
+            entt::dense_map<std::string, uint32_t> _bufferTable{};
+
+            entt::dense_map<std::string, uint32_t> _rwtextureTable{};
 
             std::vector<std::pair<std::string, std::string>> _marcoParserIdentifier{};
-
-            VkPushConstantRange _pushConstantRange{};
 
       };
 }

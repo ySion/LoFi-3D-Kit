@@ -13,6 +13,7 @@
 #include "Components/Program.h"
 #include "Components/GraphicKernel.h"
 #include "Components/GrapicsKernelInstance.h"
+#include "Components/ComputeKernel.h"
 
 #include "../Third/xxHash/xxh3.h"
 
@@ -145,6 +146,8 @@ namespace LoFi {
             }
 
             [[nodiscard]] entt::entity CreateGraphicKernel(entt::entity program);
+
+            [[nodiscard]] entt::entity CreateComputeKernel(entt::entity program);
 
             [[nodiscard]] entt::entity CreateProgram(const std::vector<std::string_view>& source_code);
 
@@ -316,7 +319,7 @@ namespace LoFi {
       private:
             VkRect2D _frameRenderingRenderArea{};
 
-            entt::entity _currentGraphicsKernel{};
+            entt::entity _currentKernel{};
 
             bool _isRenderPassOpen = false;
       };
