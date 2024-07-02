@@ -47,7 +47,7 @@ Program::~Program() {
       _shaderModules.clear();
 }
 
-Program::Program(entt::entity id) : _id(id) {
+Program::Program(entt::entity id, std::string_view name, const std::vector<std::string_view>& sources) : _id(id) {
       auto& world = *volkGetLoadedEcsWorld();
 
       if (!world.valid(id)) {
@@ -56,10 +56,57 @@ Program::Program(entt::entity id) : _id(id) {
             throw std::runtime_error(err);
       }
       ProgramCompilerGroup::TryInit();
+
+      _programName = name;
+
+      std::vector<std::pair<std::string_view, glslang_stage_t>> graphics_sources{};
+
+      entt::dense_map<glslang_stage_t, std::string_view> source_types{};
+      for(auto source  : sources) {
+            auto shader_type = RecognitionShaderTypeFromSource(source);
+            if(shader_type.has_value()) {
+                  if(source_types.contains(shader_type.value())) { //repeat
+                        const auto err = std::format("Program::Program - Shader Type {} is repeat.", ShaderTypeHelperGetName(shader_type.value()));
+                        MessageManager::Log(MessageType::Warning, err);
+                        throw std::runtime_error(err);
+                  }else {
+                        source_types.insert({shader_type.value(), source});
+                  }
+            }
+      }
+
+      //try pick graphics sources
+      if(source_types.contains(glslang_stage_t::GLSLANG_STAGE_VERTEX) && source_types.contains(glslang_stage_t::GLSLANG_STAGE_FRAGMENT)) {
+            graphics_sources.emplace_back(source_types.at(glslang_stage_t::GLSLANG_STAGE_VERTEX), glslang_stage_t::GLSLANG_STAGE_VERTEX);
+            graphics_sources.emplace_back(source_types.at(glslang_stage_t::GLSLANG_STAGE_FRAGMENT), glslang_stage_t::GLSLANG_STAGE_FRAGMENT);
+            _shaderType = ProgramShaderType::GRAPHICS;
+            if(!CompileGraphics(graphics_sources)) {
+                  const auto err = std::format("Program::Program - Failed to compile Grahpics shader.");
+                  throw std::runtime_error(err);
+            }
+      } else if(source_types.contains(glslang_stage_t::GLSLANG_STAGE_COMPUTE)) {
+            _shaderType = ProgramShaderType::COMPUTE;
+            if(!CompileCompute(source_types.at(glslang_stage_t::GLSLANG_STAGE_COMPUTE))) {
+                  const auto err = std::format("Program::Program - Failed to compile Compute shader.");
+                  throw std::runtime_error(err);
+            }
+      } else {
+            const auto err = std::format("Program::Program - Failed to find shader type for shader program \"{}\", unknown shader type.",
+            _programName);
+            MessageManager::Log(MessageType::Warning, err);
+            throw std::runtime_error(err);
+      }
 }
 
-bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std::string_view>& sources) {
-      _programName = name;
+
+bool Program::CompileCompute(std::string_view sources) {
+
+
+
+      return false;
+}
+
+bool Program::CompileGraphics(const std::vector<std::pair<std::string_view, glslang_stage_t>>& sources) {
 
       //Init Pipeline CIs, use default profile
       _inputAssemblyStateCreateInfo = VkPipelineInputAssemblyStateCreateInfo{
@@ -153,32 +200,13 @@ bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std
 
       entt::dense_map<std::string, std::vector<std::string>> setters{}; // TODO: setter
 
-      std::vector<std::string> source_after_marco{};
+      std::vector<std::pair<std::string, glslang_stage_t>> source_after_marco{};
 
-      for (auto source : sources) {
+      for (auto item : sources) {
 
-            std::optional<glslang_stage_t> find_shader_type = std::nullopt;
-            for (auto& i : ShaderTypeMap) {
-                  if (source.find(i.first) != std::string::npos) {
-                        find_shader_type = i.second;
-                        break;
-                  }
-            }
+            glslang_stage_t shader_type = item.second;
+            std::string_view source = item.first;
 
-            glslang_stage_t shader_type;
-            if (!find_shader_type.has_value()) {
-                  const auto err = std::format("Program::CompileFromSourceCode - Failed to find shader type for shader program \"{}\", unknown shader type.",
-                  _programName);
-                  MessageManager::Log(MessageType::Warning, err);
-                  return false;
-            }
-
-            // if(shader_type == GLSLANG_STAGE_VERTEX) { // 筛选器
-            //       source_after_marco.push_back(source);
-            //       continue;
-            // }
-
-            shader_type = find_shader_type.value();
             std::string shader_type_str = ShaderTypeHelperGetName(shader_type);
 
             std::string marco_parse_source_output{};
@@ -189,7 +217,7 @@ bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std
                   MessageManager::Log(MessageType::Warning, err);
                   return false;
             }
-            source_after_marco.push_back(std::move(marco_parse_source_output));
+            source_after_marco.emplace_back(std::move(marco_parse_source_output), shader_type);
       }
 
       //Head Gen
@@ -208,7 +236,6 @@ bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std
       header += "layout(set = 0, binding = BindlessSamplerBinding) uniform samplerCube _bindlessSamperCube[];\n";
       header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1DArray _bindlessSampler1DArray[];\n";
       header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2DArray _bindlessSampler2DArray[];\n";
-      //header += "layout(set = 0, binding = BindlessSamplerBinding) uniform samplerCubeArray _bindlessSamplerCubeArray[];\n";
 
       header += "#define GetTex1D(Name) _bindlessSamper1D[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
       header += "#define GetTex2D(Name) _bindlessSamper2D[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
@@ -216,8 +243,6 @@ bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std
       header += "#define GetTexCube(Name) _bindlessSamperCube[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
       header += "#define GetTex1DArray(Name) _bindlessSampler1DArray[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
       header += "#define GetTex2DArray(Name) _bindlessSampler2DArray[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
-     // header += "#define GetTexCubeArray(Name) _bindlessSamplerCubeArray[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
-
       std::string push_constantsCode = "layout(push_constant) uniform _BindlessPushConstant {\n";
       for(auto i : _marcoParserIdentifier) {
             push_constantsCode += "\tuint " + i.first + ";\n";
@@ -226,17 +251,10 @@ bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std
 
       header += push_constantsCode;
 
-      for (auto& source : source_after_marco) {
+      for (auto& item : source_after_marco) {
 
-            std::optional<glslang_stage_t> find_shader_type = std::nullopt;
-            for (auto& i : ShaderTypeMap) {
-                  if (source.find(i.first) != std::string::npos) {
-                        find_shader_type = i.second;
-                        break;
-                  }
-            }
-
-            glslang_stage_t shader_type = find_shader_type.value();
+            glslang_stage_t shader_type = item.second;
+            std::string& source = item.first;
 
             //if(shader_type == ??) // 筛选器
 
@@ -245,37 +263,28 @@ bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std
             printf("\n=============================\n%s\n=============================\n", source.c_str());
       }
 
+      for (const auto& item : source_after_marco) {
+            glslang_stage_t shader_type = item.second;
+            const std::string& source = item.first;
 
-
-      for (const auto& source : source_after_marco) {
             setters.clear();
 
             std::string setter_parse_err_msg{};
             std::string source_code_output{};
-
-            std::optional<glslang_stage_t> find_shader_type = std::nullopt;
-            for (auto& i : ShaderTypeMap) {
-                  if (source.find(i.first) != std::string::npos) {
-                        find_shader_type = i.second;
-                        break;
-                  }
-            }
-
-            const glslang_stage_t shader_type = find_shader_type.value();
 
             std::string shader_type_str = ShaderTypeHelperGetName(shader_type);
             std::vector<uint32_t> spv{};
             VkShaderModule shader_module{};
 
             if (!ParseSetters(source, setters, source_code_output, setter_parse_err_msg, shader_type)) {
-                  auto err = std::format("Program::CompileFromSourceCode - Failed to parse setters for shader program \"{}\" shader type :\"{}\".\nSetterCompiler:\n{}",
+                  auto err = std::format("Program::CompileGraphics - Failed to parse setters for shader program \"{}\" shader type :\"{}\".\nSetterCompiler:\n{}",
                   _programName, shader_type_str, setter_parse_err_msg);
                   MessageManager::Log(MessageType::Warning, err);
                   return false;
             }
 
             if (!CompileFromCode(source_code_output.data(), shader_type, spv, setter_parse_err_msg)) {
-                  const auto err = std::format("Program::CompileFromSourceCode - Failed to compile shader program \"{}\", shader type :\"{}\".\nShaderCompiler:\n{}",
+                  const auto err = std::format("Program::CompileGraphics - Failed to compile shader program \"{}\", shader type :\"{}\".\nShaderCompiler:\n{}",
                   _programName, shader_type_str, setter_parse_err_msg);
                   MessageManager::Log(MessageType::Warning, err);
                   return false;
@@ -293,7 +302,7 @@ bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std
             }
 
             if (!parse_result) {
-                  const auto err = std::format("Program::CompileFromSourceCode - Failed to parse shader program \"{}\", shader type :\"{}\".",
+                  const auto err = std::format("Program::CompileGraphics - Failed to parse shader program \"{}\", shader type :\"{}\".",
                   _programName, shader_type_str);
                   MessageManager::Log(MessageType::Warning, err);
                   return false;
@@ -303,20 +312,31 @@ bool Program::CompileFromSourceCode(std::string_view name, const std::vector<std
             shader_ci.pCode = spv.data();
 
             if (auto res = vkCreateShaderModule(volkGetLoadedDevice(), &shader_ci, nullptr, &shader_module); res != VK_SUCCESS) {
-                  const auto err = std::format("Program::CompileFromSourceCode - Failed to create shader module for shader program \"{}\", shader type :\"{}\".",
+                  const auto err = std::format("Program::CompileGraphics - Failed to create shader module for shader program \"{}\", shader type :\"{}\".",
                   _programName, shader_type_str);
                   MessageManager::Log(MessageType::Warning, err);
                   return false;
             }
 
             _shaderModules[shader_type] = std::make_pair(std::move(spv), shader_module);
-            const auto success = std::format("Program::CompileFromSourceCode - Successfully compiled shader program \"{}\", shader type :\"{}\".",
+            const auto success = std::format("Program::CompileGraphics - Successfully compiled shader program \"{}\", shader type :\"{}\".",
             _programName, shader_type_str);
             MessageManager::Log(MessageType::Normal, success);
       }
 
       _isCompiled = true;
       return true;
+}
+
+std::optional<glslang_stage_t> Program::RecognitionShaderTypeFromSource(std::string_view source) {
+
+      for (auto& i : ShaderTypeMap) {
+            if (source.find(i.first) != std::string::npos) {
+                  return i.second;
+            }
+      }
+
+      return std::nullopt;
 }
 
 bool Program::CompileFromCode(const char* source, glslang_stage_t shader_type, std::vector<uint32_t>& spv, std::string& err_msg) {
@@ -578,7 +598,7 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
 
                         const auto [code_block, code_after_block] = eat_code_block.value();
 
-                        output_codes += std::format("layout(set = 0, binding = BindlessStorageBinding) readonly buffer {} {} _bindless{}[];", struct_typename, code_block, struct_typename);
+                        output_codes += std::format("layout(set = 0, binding = BindlessStorageBinding) buffer {} {} _bindless{}[];", struct_typename, code_block, struct_typename);
                         source_code = code_after_block;
 
                         std::string str_struct_name = std::string{struct_typename.begin(), struct_typename.end()};

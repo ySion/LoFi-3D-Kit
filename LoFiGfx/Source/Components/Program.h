@@ -26,6 +26,14 @@ namespace LoFi::Component {
             }
       };
 
+      enum class ProgramShaderType {
+            UNKNOWN,
+            GRAPHICS,
+            COMPUTE,
+            MESH,
+            RAY_TRACING
+      };
+
       class Program {
             static inline std::map<std::string, glslang_stage_t> ShaderTypeMap{
                   {"VSMain", glslang_stage_t::GLSLANG_STAGE_VERTEX},
@@ -40,11 +48,13 @@ namespace LoFi::Component {
 
             ~Program();
 
-            explicit Program(entt::entity id);
-
-            [[nodiscard]] bool CompileFromSourceCode(std::string_view name, const std::vector<std::string_view>& sources);
+            explicit Program(entt::entity id, std::string_view name, const std::vector<std::string_view>& sources);
 
             [[nodiscard]] bool IsCompiled() const { return _isCompiled; }
+
+            [[nodiscard]] bool IsGraphicsShader() const { return _shaderType == ProgramShaderType::GRAPHICS; }
+
+            [[nodiscard]] bool IsComputeShader() const { return _shaderType == ProgramShaderType::COMPUTE; }
 
             [[nodiscard]] const auto& GetStructTable() const {return _structTable;}
 
@@ -55,6 +65,13 @@ namespace LoFi::Component {
             // TODO: LoadFromCache
 
       private:
+
+            bool CompileCompute(std::string_view sources);
+
+            bool CompileGraphics(const std::vector<std::pair<std::string_view, glslang_stage_t>>& sources);
+
+            std::optional<glslang_stage_t> RecognitionShaderTypeFromSource(std::string_view source);
+
             static bool CompileFromCode(const char* source, glslang_stage_t shader_type, std::vector<uint32_t>& spv, std::string& err_msg);
 
             bool ParseMarco(std::string_view input_code, std::string& output_codes, std::string& error_message, glslang_stage_t shader_type);
@@ -123,6 +140,9 @@ namespace LoFi::Component {
             VkPushConstantRange _pushConstantRange{};
 
             bool _autoVSInputStageBind = true;
+
+            ProgramShaderType _shaderType = ProgramShaderType::UNKNOWN;
+
             entt::dense_map<uint32_t, VkVertexInputRate> _autoVSInputBindRateTable{};
       };
 }

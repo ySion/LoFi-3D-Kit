@@ -1040,11 +1040,7 @@ entt::entity Context::CreateGraphicKernel(entt::entity program) {
 
 entt::entity Context::CreateProgram(const std::vector<std::string_view>& source_code) {
       auto id = _world.create();
-      auto& comp = _world.emplace<Component::Program>(id, id);
-      if (!comp.CompileFromSourceCode("hello", source_code)) {
-            _world.destroy(id);
-            return entt::null;
-      }
+      auto& comp = _world.emplace<Component::Program>(id, id, "hello", source_code);
       return id;
 }
 
