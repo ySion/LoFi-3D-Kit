@@ -23,24 +23,6 @@ namespace LoFi::Component {
             uint32_t Size;
       };
 
-      enum class ProgramShaderType {
-            UNKNOWN,
-            GRAPHICS,
-            COMPUTE,
-            MESH,
-            RAY_TRACING
-      };
-
-      enum class ProgramShaderReourceType {
-            UNKNOWN,
-            PARAM,
-            READ_BUFFER,
-            READ_WRITE_BUFFER,
-            READ_TEXTURE,
-            READ_WRITE_TEXTURE
-      };
-
-
       struct ProgramCompilerGroup {
             ProgramCompilerGroup();
 
@@ -58,6 +40,15 @@ namespace LoFi::Component {
             COMPUTE,
             MESH,
             RAY_TRACING
+      };
+
+      enum class ProgramShaderReourceType {
+            UNKNOWN,
+            PARAM,
+            READ_BUFFER,
+            READ_WRITE_BUFFER,
+            READ_TEXTURE,
+            READ_WRITE_TEXTURE
       };
 
       class Program {

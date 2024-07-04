@@ -98,11 +98,11 @@ void GStart() {
                 vec4 color;
             };
 
-            BUFFER ParticleSSBOIn {
+            RBUFFER ParticleSSBOIn {
                 Particle particlesIn[];
             };
 
-            BUFFER ParticleSSBOOut {
+            RWBUFFER ParticleSSBOOut {
                 Particle particlesOut[];
             };
 

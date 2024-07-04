@@ -739,7 +739,7 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
 
                         const auto [code_block, code_after_block] = eat_code_block.value();
 
-                        output_codes += std::format("layout(std140, set = 0, binding = BindlessStorageBinding) readonly buffer {} {} _bindless{}[];", struct_typename, code_block, struct_typename);
+                        output_codes += std::format("layout(std140, set = 0, binding = BindlessStorageBinding) buffer {} {} _bindless{}[];", struct_typename, code_block, struct_typename);
                         source_code = code_after_block;
 
                         std::string str_struct_name = std::string{struct_typename.begin(), struct_typename.end()};
