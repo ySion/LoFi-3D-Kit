@@ -1,20 +1,18 @@
 //
-// Created by Arzuo on 2024/6/28.
+// Created by Arzuo on 2024/7/4.
 //
-
 #pragma once
 
-#include "GraphicKernel.h"
+#include "ComputeKernel.h"
 
 namespace LoFi::Component {
-
-      class GrapicsKernelInstance {
+      class ComputeKernelInstance {
       public:
-            NO_COPY_MOVE_CONS(GrapicsKernelInstance);
+            NO_COPY_MOVE_CONS(ComputeKernelInstance);
 
-            ~GrapicsKernelInstance();
+            explicit ComputeKernelInstance(entt::entity id, entt::entity compute_kernel, bool is_cpu_side = true);
 
-            explicit GrapicsKernelInstance(entt::entity id, entt::entity graphics_kernel, bool is_cpu_side = true);
+            ~ComputeKernelInstance();
 
             [[nodiscard]] entt::entity GetHandle() const { return _id; }
 
@@ -22,11 +20,15 @@ namespace LoFi::Component {
 
             [[nodiscard]] entt::entity GetParentGraphicsKernel() const { return _parent; }
 
-            bool SetParam(const std::string& param_struct_name, const void* data); // likes "Info"
+            bool SetParam(const std::string& struct_name, const void* data);
 
-            bool SetParamMember(const std::string& param_struct_member_name, const void* data); // likes "Info.time"
+            bool SetParamMember(const std::string& struct_member_name, const void* data);
 
             bool SetSampled(const std::string& sampled_name, entt::entity texture);
+
+            bool SetTexture(const std::string& sampled_name, entt::entity texture);
+
+            bool SetBuffer(const std::string& sampled_name, entt::entity buffer);
 
       private:
             friend class Context;

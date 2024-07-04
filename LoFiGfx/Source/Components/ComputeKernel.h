@@ -4,8 +4,8 @@
 
 #pragma once
 
+#include "Kernel.h"
 #include "Program.h"
-#include "../Helper.h"
 
 namespace LoFi {
       class Context;

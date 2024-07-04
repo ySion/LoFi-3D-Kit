@@ -197,16 +197,16 @@ void GStart() {
       const auto kernel_instance = ctx->CreateGraphicsKernelInstance(kernel);
 
       //Set "Material Intance" Paramter
-      ctx->SetKernelTexture(kernel_instance, "some_texture", noise);
-      ctx->SetKernelTexture(kernel_instance, "some_texture2", noise2);
+      ctx->SetKernelSampled(kernel_instance, "some_texture", noise);
+      ctx->SetKernelSampled(kernel_instance, "some_texture2", noise2);
 
       std::atomic<bool> should_close = false;
       auto func = std::async(std::launch::async, [&] {
             while (!should_close) {
                   float time = (float)((double)SDL_GetTicks() / 1000.0);
-                  ctx->SetKernelParamter(kernel_instance, "Info.time", time * 2);
-                  ctx->SetKernelParamter(kernel_instance, "Info.time4", time);
-                  ctx->SetKernelParamter(kernel_instance, "Info.time3", 0.0f);
+                  ctx->SetKernelParam(kernel_instance, "Info.time", time * 2);
+                  ctx->SetKernelParam(kernel_instance, "Info.time4", time);
+                  ctx->SetKernelParam(kernel_instance, "Info.time3", 0.0f);
 
                   ctx->BeginFrame();
 

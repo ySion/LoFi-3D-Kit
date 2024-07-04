@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../Helper.h"
+#include "Kernel.h"
 #include "Program.h"
 
 namespace LoFi {
