@@ -142,13 +142,9 @@ GraphicKernel::GraphicKernel(entt::entity id, entt::entity program) : _id(id) {
 
       _paramTable = prog->_paramTable;
       _paramMemberTable = prog->_paramMemberTable;
-      _sampledTextureTable = prog->_sampledTextureTable;
-
-      _bufferTable = prog->_bufferTable;
-      _rwtextureTable = prog->_textureTable;
+      _resourceDefineTable = prog->_resourceDefineTable;
 
       _pushConstantRange = prog->_pushConstantRange;
-      _marcoParserIdentifier = prog->_marcoParserIdentifier;
 
 }
 

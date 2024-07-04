@@ -14,11 +14,12 @@ namespace LoFi::Component {
 
             ~GrapicsKernelInstance();
 
-            explicit GrapicsKernelInstance(entt::entity id, entt::entity graphics_kernel, bool is_cpu_side = true);
+            //if param_high_dynamic is true, param buffer will emplace with host access, it might be slow to read for gpu;
+            explicit GrapicsKernelInstance(entt::entity id, entt::entity graphics_kernel, bool param_high_dynamic = true);
 
             [[nodiscard]] entt::entity GetHandle() const { return _id; }
 
-            [[nodiscard]] bool IsCpuSide() const { return _isCpuSide; }
+            [[nodiscard]] bool IsParamHighDynamic() const { return _isParamHighDynamic; }
 
             [[nodiscard]] entt::entity GetParentGraphicsKernel() const { return _parent; }
 
@@ -39,10 +40,12 @@ namespace LoFi::Component {
 
             entt::entity _parent; // Graphics kernel or FrameResource
 
-            bool _isCpuSide;
+            bool _isParamHighDynamic;
 
-            std::vector<KernelParamResource> _buffers{};
+            std::vector<KernelParamResource> _paramBuffers{};
 
             std::vector<uint32_t> _pushConstantBindlessIndexInfoBuffer{}; // BindlessInfo
+
+            std::vector<std::optional<std::pair<entt::entity, ProgramShaderReourceType>>> _resourceBind{};
       };
 }

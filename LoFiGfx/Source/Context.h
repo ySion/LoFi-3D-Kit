@@ -12,8 +12,9 @@
 #include "Components/Buffer.h"
 #include "Components/Program.h"
 #include "Components/GraphicKernel.h"
-#include "Components/GrapicsKernelInstance.h"
 #include "Components/ComputeKernel.h"
+#include "Components/GrapicsKernelInstance.h"
+#include "Components/ComputeKernelInstance.h"
 
 #include "../Third/xxHash/xxh3.h"
 
@@ -84,10 +85,11 @@ namespace LoFi {
       class Context {
             friend class Component::Buffer;
             friend class Component::Program;
+            friend class Component::Texture;
             friend class Component::GraphicKernel;
             friend class Component::ComputeKernel;
-            friend class Component::Texture;
             friend class Component::GrapicsKernelInstance;
+            friend class Component::ComputeKernelInstance;
 
             struct SamplerCIHash {
                   std::size_t operator()(const VkSamplerCreateInfo& s) const noexcept {

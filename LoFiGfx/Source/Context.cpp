@@ -1033,7 +1033,7 @@ entt::entity Context::CreateGraphicKernel(entt::entity program) {
       auto& kernel = _world.emplace<Component::GraphicKernel>(id, id, program);
       const auto& map = kernel.GetParamTable();
       const auto& map2 = kernel.GetParamMemberTable();
-      const auto& map3 = kernel.GetSampledTextureTable();
+      const auto& map3 = kernel.GetReourceDefineTable();
 
       printf("Kernel Variable Table:\n");
       printf("Structs:\n");
@@ -1047,9 +1047,9 @@ entt::entity Context::CreateGraphicKernel(entt::entity program) {
             printf("\t%s - index: %u, size: %u, offset: %u\n", i.first.c_str(), i.second.StructIndex, i.second.Size, i.second.Offset);
       }
 
-      printf("Sampled Textures:\n");
+      printf("Resource:\n");
       for (const auto& i : map3) {
-            printf("\t%s\n", i.first.c_str());
+            printf("\t%s : %s\n", i.first.c_str(), Component::HelperMapResourceTypeToString(i.second.Type));
       }
 
       return id;
@@ -1060,7 +1060,7 @@ entt::entity Context::CreateComputeKernel(entt::entity program) {
       auto& kernel = _world.emplace<Component::ComputeKernel>(id, id, program);
       const auto& map = kernel.GetParamTable();
       const auto& map2 = kernel.GetParamMemberTable();
-      const auto& map3 = kernel.GetSampledTextureTable();
+      const auto& map3 = kernel.GetReourceDefineTable();
 
       printf("Kernel Variable Table:\n");
       printf("Structs:\n");
@@ -1074,9 +1074,9 @@ entt::entity Context::CreateComputeKernel(entt::entity program) {
             printf("\t%s - index: %u, size: %u, offset: %u\n", i.first.c_str(), i.second.StructIndex, i.second.Size, i.second.Offset);
       }
 
-      printf("Sampled Textures:\n");
+      printf("Resource:\n");
       for (const auto& i : map3) {
-            printf("\t%s\n", i.first.c_str());
+            printf("\t%s : %s\n", i.first.c_str(), Component::HelperMapResourceTypeToString(i.second.Type));
       }
 
       return id;

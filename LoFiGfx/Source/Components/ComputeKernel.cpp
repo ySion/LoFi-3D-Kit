@@ -88,12 +88,7 @@ ComputeKernel::ComputeKernel(entt::entity id, entt::entity program) {
 
       _paramTable = prog->_paramTable;
       _paramMemberTable = prog->_paramMemberTable;
-      _sampledTextureTable = prog->_sampledTextureTable;
-
-      _bufferTable = prog->_bufferTable;
-      _textureTable = prog->_textureTable;
-
-      _marcoParserIdentifier = prog->_marcoParserIdentifier;
+      _resourceDefineTable = prog->_resourceDefineTable;
 }
 
 ComputeKernel::~ComputeKernel() {

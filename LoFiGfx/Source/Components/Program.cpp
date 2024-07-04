@@ -10,7 +10,7 @@
 using namespace LoFi::Component;
 using namespace LoFi::Internal;
 
-static const char* ShaderTypeHelperGetName(glslang_stage_t type) {
+const char* LoFi::Component::HelperShaderStageToString(glslang_stage_t type) {
       switch (type) {
             case GLSLANG_STAGE_VERTEX: return "Vertex_shader";
             case GLSLANG_STAGE_TESSCONTROL: return "Tesscontrol_shader";
@@ -27,6 +27,18 @@ static const char* ShaderTypeHelperGetName(glslang_stage_t type) {
             case GLSLANG_STAGE_TASK: return "Task_shader";
             case GLSLANG_STAGE_MESH: return "Mesh_shader";
             default: return "err shader";
+      }
+}
+
+const char* LoFi::Component::HelperMapResourceTypeToString(ProgramShaderReourceType type) {
+      switch (type) {
+            case ProgramShaderReourceType::PARAM: return "Param";
+            case ProgramShaderReourceType::SAMPLED: return "Sampled";
+            case ProgramShaderReourceType::READ_BUFFER: return "ReadBuffer";
+            case ProgramShaderReourceType::READ_WRITE_BUFFER: return "ReadWriteBuffer";
+            case ProgramShaderReourceType::READ_TEXTURE: return "ReadTexture";
+            case ProgramShaderReourceType::READ_WRITE_TEXTURE: return "ReadWriteTexture";
+            default: return "err";
       }
 }
 
@@ -62,31 +74,32 @@ Program::Program(entt::entity id, std::string_view name, const std::vector<std::
       std::vector<std::pair<std::string_view, glslang_stage_t>> graphics_sources{};
 
       entt::dense_map<glslang_stage_t, std::string_view> source_types{};
-      for(auto source  : sources) {
+      for (auto source : sources) {
             auto shader_type = RecognitionShaderTypeFromSource(source);
-            if(shader_type.has_value()) {
-                  if(source_types.contains(shader_type.value())) { //repeat
-                        const auto err = std::format("Program::Program - Shader Type {} is repeat.", ShaderTypeHelperGetName(shader_type.value()));
+            if (shader_type.has_value()) {
+                  if (source_types.contains(shader_type.value())) {
+                        //repeat
+                        const auto err = std::format("Program::Program - Shader Type {} is repeat.", HelperShaderStageToString(shader_type.value()));
                         MessageManager::Log(MessageType::Warning, err);
                         throw std::runtime_error(err);
-                  }else {
+                  } else {
                         source_types.insert({shader_type.value(), source});
                   }
             }
       }
 
       //try pick graphics sources
-      if(source_types.contains(glslang_stage_t::GLSLANG_STAGE_VERTEX) && source_types.contains(glslang_stage_t::GLSLANG_STAGE_FRAGMENT)) {
+      if (source_types.contains(glslang_stage_t::GLSLANG_STAGE_VERTEX) && source_types.contains(glslang_stage_t::GLSLANG_STAGE_FRAGMENT)) {
             graphics_sources.emplace_back(source_types.at(glslang_stage_t::GLSLANG_STAGE_VERTEX), glslang_stage_t::GLSLANG_STAGE_VERTEX);
             graphics_sources.emplace_back(source_types.at(glslang_stage_t::GLSLANG_STAGE_FRAGMENT), glslang_stage_t::GLSLANG_STAGE_FRAGMENT);
             _shaderType = ProgramShaderType::GRAPHICS;
-            if(!CompileGraphics(graphics_sources)) {
+            if (!CompileGraphics(graphics_sources)) {
                   const auto err = std::format("Program::Program - Failed to compile Grahpics shader.");
                   throw std::runtime_error(err);
             }
-      } else if(source_types.contains(glslang_stage_t::GLSLANG_STAGE_COMPUTE)) {
+      } else if (source_types.contains(glslang_stage_t::GLSLANG_STAGE_COMPUTE)) {
             _shaderType = ProgramShaderType::COMPUTE;
-            if(!CompileCompute(source_types.at(glslang_stage_t::GLSLANG_STAGE_COMPUTE))) {
+            if (!CompileCompute(source_types.at(glslang_stage_t::GLSLANG_STAGE_COMPUTE))) {
                   const auto err = std::format("Program::Program - Failed to compile Compute shader.");
                   throw std::runtime_error(err);
             }
@@ -100,7 +113,6 @@ Program::Program(entt::entity id, std::string_view name, const std::vector<std::
 
 
 bool Program::CompileCompute(std::string_view source) {
-
       entt::dense_map<std::string, std::vector<std::string>> setters{}; // TODO: setter
 
       _pushConstantRange = VkPushConstantRange{
@@ -117,13 +129,13 @@ bool Program::CompileCompute(std::string_view source) {
             .pCode = nullptr
       };
 
-      std::string shader_type_str = ShaderTypeHelperGetName(GLSLANG_STAGE_COMPUTE);
+      std::string shader_type_str = HelperShaderStageToString(GLSLANG_STAGE_COMPUTE);
 
       std::string source_output{};
       std::string marco_parse_err_msg{};
-      if(!ParseMarco(source, source_output, marco_parse_err_msg, GLSLANG_STAGE_COMPUTE)) {
+      if (!ParseMarco(source, source_output, marco_parse_err_msg, GLSLANG_STAGE_COMPUTE)) {
             auto err = std::format("Program::ParseMarco - Failed to parse marco for shader program \"{}\" shader type :\"{}\".\nMarcoCompiler:\n{}",
-           _programName, shader_type_str, marco_parse_err_msg);
+            _programName, shader_type_str, marco_parse_err_msg);
             MessageManager::Log(MessageType::Warning, err);
             return false;
       }
@@ -151,9 +163,9 @@ bool Program::CompileCompute(std::string_view source) {
       header += "#define GetTex1DArray(Name) _bindlessSampler1DArray[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
       header += "#define GetTex2DArray(Name) _bindlessSampler2DArray[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
 
-      if(!_marcoParserIdentifier.empty()) {
+      if (!_resourceDefineTable.empty()) {
             std::string push_constantsCode = "layout(push_constant) uniform _BindlessPushConstant {\n";
-            for(auto i : _marcoParserIdentifier) {
+            for (const auto& i : _resourceDefineTable) {
                   push_constantsCode += "\tuint " + i.first + ";\n";
             }
             push_constantsCode += "} _pushConstantBindlessIndexInfo;\n";
@@ -186,7 +198,7 @@ bool Program::CompileCompute(std::string_view source) {
             return false;
       }
 
-      if(!ParseCS(spv)){
+      if (!ParseCS(spv)) {
             const auto err = std::format("Program::CompileCompute - Failed to parse shader program \"{}\", shader type :\"{}\".",
             _programName, shader_type_str);
             MessageManager::Log(MessageType::Warning, err);
@@ -204,8 +216,7 @@ bool Program::CompileCompute(std::string_view source) {
       }
 
       _shaderModules[GLSLANG_STAGE_COMPUTE] = std::make_pair(std::move(spv), shader_module);
-      const auto success = std::format("Program::CompileCompute - Successfully compiled shader program \"{}\", shader type :\"{}\".",
-      _programName, shader_type_str);
+      const auto success = std::format("Program::CompileCompute - Successfully compiled shader program \"{}\".", _programName);
       MessageManager::Log(MessageType::Normal, success);
 
       _isCompiled = true;
@@ -213,7 +224,6 @@ bool Program::CompileCompute(std::string_view source) {
 }
 
 bool Program::CompileGraphics(const std::vector<std::pair<std::string_view, glslang_stage_t>>& sources) {
-
       //Init Pipeline CIs, use default profile
       _inputAssemblyStateCreateInfo = VkPipelineInputAssemblyStateCreateInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
@@ -309,17 +319,16 @@ bool Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
       std::vector<std::pair<std::string, glslang_stage_t>> source_after_marco{};
 
       for (auto item : sources) {
-
             glslang_stage_t shader_type = item.second;
             std::string_view source = item.first;
 
-            std::string shader_type_str = ShaderTypeHelperGetName(shader_type);
+            std::string shader_type_str = HelperShaderStageToString(shader_type);
 
             std::string marco_parse_source_output{};
             std::string marco_parse_err_msg{};
-            if(!ParseMarco(source, marco_parse_source_output, marco_parse_err_msg, shader_type)) {
+            if (!ParseMarco(source, marco_parse_source_output, marco_parse_err_msg, shader_type)) {
                   auto err = std::format("Program::ParseMarco - Failed to parse marco for shader program \"{}\" shader type :\"{}\".\nMarcoCompiler:\n{}",
-                 _programName, shader_type_str, marco_parse_err_msg);
+                  _programName, shader_type_str, marco_parse_err_msg);
                   MessageManager::Log(MessageType::Warning, err);
                   return false;
             }
@@ -350,9 +359,9 @@ bool Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
       header += "#define GetTex1DArray(Name) _bindlessSampler1DArray[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
       header += "#define GetTex2DArray(Name) _bindlessSampler2DArray[nonuniformEXT(uint(_pushConstantBindlessIndexInfo.Name))]\n";
 
-      if(!_marcoParserIdentifier.empty()) {
+      if (!_resourceDefineTable.empty()) {
             std::string push_constantsCode = "layout(push_constant) uniform _BindlessPushConstant {\n";
-            for(auto i : _marcoParserIdentifier) {
+            for (const auto& i : _resourceDefineTable) {
                   push_constantsCode += "\tuint " + i.first + ";\n";
             }
             push_constantsCode += "} _pushConstantBindlessIndexInfo;\n";
@@ -360,7 +369,6 @@ bool Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
       }
 
       for (auto& item : source_after_marco) {
-
             glslang_stage_t shader_type = item.second;
             std::string& source = item.first;
 
@@ -380,7 +388,7 @@ bool Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
             std::string setter_parse_err_msg{};
             std::string source_code_output{};
 
-            std::string shader_type_str = ShaderTypeHelperGetName(shader_type);
+            std::string shader_type_str = HelperShaderStageToString(shader_type);
             std::vector<uint32_t> spv{};
             VkShaderModule shader_module{};
 
@@ -427,8 +435,7 @@ bool Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
             }
 
             _shaderModules[shader_type] = std::make_pair(std::move(spv), shader_module);
-            const auto success = std::format("Program::CompileGraphics - Successfully compiled shader program \"{}\", shader type :\"{}\".",
-            _programName, shader_type_str);
+            const auto success = std::format("Program::CompileGraphics - Successfully compiled shader program \"{}\".", _programName);
             MessageManager::Log(MessageType::Normal, success);
       }
 
@@ -437,7 +444,6 @@ bool Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
 }
 
 std::optional<glslang_stage_t> Program::RecognitionShaderTypeFromSource(std::string_view source) {
-
       for (auto& i : ShaderTypeMap) {
             if (source.find(i.first) != std::string::npos) {
                   return i.second;
@@ -534,7 +540,7 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
 
             index = word_start;
             for (; index < str.size(); index++) {
-                  if (std::isalnum(str[index]) || str[index] == '_') { continue; } else {break;}
+                  if (std::isalnum(str[index]) || str[index] == '_') { continue; } else { break; }
             }
 
             if (index == word_start) {
@@ -550,7 +556,7 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
 
       //return <code in front of marco, code after marco>
       auto FindMarco = [](std::string_view codes, std::string_view marco) -> std::pair<std::string_view, std::string_view> {
-            if(const auto find_pos = codes.find(marco); find_pos != std::string_view::npos) {
+            if (const auto find_pos = codes.find(marco); find_pos != std::string_view::npos) {
                   return std::make_pair(codes.substr(0, find_pos), codes.substr(find_pos + marco.size(), codes.size() - find_pos - marco.size()));
             } else {
                   return std::make_pair(codes, std::string_view{});
@@ -560,16 +566,16 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
       auto FindFrontMarcos = [&](std::string_view codes, const std::vector<std::string_view>& marcos) -> std::tuple<std::string_view, std::string_view, std::string_view> {
             size_t find_pos = std::string_view::npos;
             std::string_view marco = {};
-            for(auto i: marcos) {
-                  if(const auto res = codes.find(i); res != std::string_view::npos) {
-                        if(res < find_pos) {
+            for (auto i : marcos) {
+                  if (const auto res = codes.find(i); res != std::string_view::npos) {
+                        if (res < find_pos) {
                               find_pos = res;
                               marco = i;
                         }
                   }
             }
 
-            if(!marco.empty()) {
+            if (!marco.empty()) {
                   const auto temp = FindMarco(codes, marco);
                   return std::make_tuple(temp.first, temp.second, marco);
             } else {
@@ -577,25 +583,22 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
             }
       };
 
-     // return <code after bracket, optional<bracket type>>
+      // return <code after bracket, optional<bracket type>>
       auto EatBracket = [](std::string_view str) -> std::pair<std::string_view, std::optional<char>> {
             std::string_view::size_type word = 0;
-            for(; word < str.size(); word++) {
-                  if (str[word] == ' ' || str[word] == '\t'|| str[word] == '\n'|| str[word] == '\r') { continue; } else { break; }
+            for (; word < str.size(); word++) {
+                  if (str[word] == ' ' || str[word] == '\t' || str[word] == '\n' || str[word] == '\r') { continue; } else { break; }
             }
 
             char bracket_type = 0;
-            if (str[word] == '(') { bracket_type = '('; }
-            else if (str[word] == '{') { bracket_type = '{'; }
-            else if (str[word] == '[') { bracket_type = '['; }
-            else if (str[word] == ')') { bracket_type = ')'; }
-            else if (str[word] == '}') { bracket_type = '}'; }
-            else if (str[word] == ']') { bracket_type = ']'; }
+            if (str[word] == '(') { bracket_type = '('; } else if (str[word] == '{') { bracket_type = '{'; } else if (str[word] == '[') { bracket_type = '['; } else if (str[word] == ')') {
+                  bracket_type = ')';
+            } else if (str[word] == '}') { bracket_type = '}'; } else if (str[word] == ']') { bracket_type = ']'; }
 
-            if(bracket_type == 0) {
+            if (bracket_type == 0) {
                   return {str, std::nullopt};
-            }else {
-                  if(word + 1 >= str.size()) {
+            } else {
+                  if (word + 1 >= str.size()) {
                         return std::make_pair(std::string_view{}, bracket_type);
                   } else {
                         return std::make_pair(str.substr(word + 1, str.size() - word - 1), bracket_type);
@@ -612,28 +615,28 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
             int64_t bracket_match_index = 0;
 
             bool finded = false;
-            while(index < str.size()) {
-                  if(str[index] == '{') {
-                        if(finded) {
+            while (index < str.size()) {
+                  if (str[index] == '{') {
+                        if (finded) {
                               bracket_match_index++;
                         } else {
                               finded = true;
                               start = index;
                               bracket_match_index++;
                         }
-                  }else if(str[index] == '}') {
-                        if(finded) {
+                  } else if (str[index] == '}') {
+                        if (finded) {
                               bracket_match_index--;
-                              if(bracket_match_index == 0) {
+                              if (bracket_match_index == 0) {
                                     end = index;
 
-                                    if(end + 1 >= str.size())
+                                    if (end + 1 >= str.size())
                                           return std::make_pair(std::string_view{str.begin() + start, str.begin() + end + 1}, std::string_view{});
                                     else
                                           return std::make_pair(
-                                                      std::string_view{str.begin() + start, str.begin() + end + 1},
-                                                      std::string_view{str.begin() + end + 1, str.begin() + (int64_t)str.size()}
-                                                );
+                                          std::string_view{str.begin() + start, str.begin() + end + 1},
+                                          std::string_view{str.begin() + end + 1, str.begin() + (int64_t)str.size()}
+                                          );
                               }
                         }
                   }
@@ -645,19 +648,18 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
 
       output_codes = "";
       std::vector<std::string_view> marcos_to_find{"PARAM", "SAMPLED", "RBUFFER", "RWBUFFER", "RTEXTURE", "RWTEXTURE"};
-      while(true) {
+      while (true) {
             auto [front, after, marco] = FindFrontMarcos(source_code, marcos_to_find);
 
-            if(after.empty()) {
+            if (after.empty()) {
                   output_codes += front;
                   break;
             } else {
                   output_codes += front;
                   source_code = after;
-                  if(marco == "PARAM") {
-
+                  if (marco == "PARAM") {
                         auto struct_type_eat_word = EatWord(source_code);
-                        if(!struct_type_eat_word.has_value()) {
+                        if (!struct_type_eat_word.has_value()) {
                               error_message = std::format("Program::ParseMarco - Invalid statement, need a param name after \"{}\" key word.", marco);
                               return false;
                         }
@@ -666,7 +668,7 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
                         source_code = code_after_struct_typename;
 
                         const auto eat_code_block = EatCodeBlock(source_code);
-                        if(!eat_code_block.has_value()) {
+                        if (!eat_code_block.has_value()) {
                               error_message = std::format("Program::ParseMarco - Invalid statement, need a code block after PARAM type name \"{}\".", struct_typename);
                               return false;
                         }
@@ -676,21 +678,19 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
                         output_codes += std::format("layout(std140, set = 0, binding = BindlessStorageBinding) readonly buffer {} {} _bindless{}[];", struct_typename, code_block, struct_typename);
                         source_code = code_after_block;
 
-                        std::string str_struct_name = std::string{struct_typename.begin(), struct_typename.end()};
-                        if(_marcoParserIdentifierTable.contains(str_struct_name)) {
-                              if(_marcoParserIdentifierTable[str_struct_name] != "PARAM")  {
-                                    error_message = std::format("Program::ParseMarco - In {}: PARAM name \"{}\" is already used as a {}.", ShaderTypeHelperGetName(shader_type), str_struct_name, _marcoParserIdentifierTable[str_struct_name]);
+                        const std::string& str_struct_name = std::string{struct_typename.begin(), struct_typename.end()};
+                        if (_resourceDefineTable.contains(str_struct_name)) {
+                              if (_resourceDefineTable[str_struct_name].Type != ProgramShaderReourceType::PARAM) {
+                                    error_message = std::format("Program::ParseMarco - In {}: PARAM name \"{}\" is already used as a {}.",
+                                    HelperShaderStageToString(shader_type), str_struct_name, HelperMapResourceTypeToString(_resourceDefineTable[str_struct_name].Type));
                                     return false;
                               }
                         } else {
-                              _marcoParserIdentifier.emplace_back(str_struct_name, "PARAM");
-                              _marcoParserIdentifierTable.emplace(str_struct_name, "PARAM");
+                              _resourceDefineTable.emplace(str_struct_name, ProgramShaderReourceDefine{(uint32_t)_resourceDefineTable.size(), ProgramShaderReourceType::PARAM });
                         }
-
-                  } else if(marco == "RBUFFER") {
-
+                  } else if (marco == "RBUFFER") {
                         auto struct_type_eat_word = EatWord(source_code);
-                        if(!struct_type_eat_word.has_value()) {
+                        if (!struct_type_eat_word.has_value()) {
                               error_message = std::format("Program::ParseMarco - Invalid statement, need a RBUFFER name after \"{}\" key word.", marco);
                               return false;
                         }
@@ -699,7 +699,7 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
                         source_code = code_after_struct_typename;
 
                         const auto eat_code_block = EatCodeBlock(source_code);
-                        if(!eat_code_block.has_value()) {
+                        if (!eat_code_block.has_value()) {
                               error_message = std::format("Program::ParseMarco - Invalid statement, need a code block after RBUFFER type name \"{}\".", struct_typename);
                               return false;
                         }
@@ -709,21 +709,19 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
                         output_codes += std::format("layout(std140, set = 0, binding = BindlessStorageBinding) readonly buffer {} {} _bindless{}[];", struct_typename, code_block, struct_typename);
                         source_code = code_after_block;
 
-                        std::string str_struct_name = std::string{struct_typename.begin(), struct_typename.end()};
-                        if(_marcoParserIdentifierTable.contains(str_struct_name)) {
-                              if(_marcoParserIdentifierTable[str_struct_name] != "RBUFFER")  {
-                                    error_message = std::format("Program::ParseMarco - In {}: RBUFFER name \"{}\" is already used as a {}.", ShaderTypeHelperGetName(shader_type), str_struct_name, _marcoParserIdentifierTable[str_struct_name]);
+                        const std::string& str_struct_name = std::string{struct_typename.begin(), struct_typename.end()};
+                        if (_resourceDefineTable.contains(str_struct_name)) {
+                              if (_resourceDefineTable[str_struct_name].Type != ProgramShaderReourceType::READ_BUFFER) {
+                                    error_message = std::format("Program::ParseMarco - In {}: RBUFFER name \"{}\" is already used as a {}.",
+                                    HelperShaderStageToString(shader_type), str_struct_name, HelperMapResourceTypeToString(_resourceDefineTable[str_struct_name].Type));
                                     return false;
                               }
                         } else {
-                              _marcoParserIdentifier.emplace_back(str_struct_name, "RBUFFER");
-                              _marcoParserIdentifierTable.emplace(str_struct_name, "RBUFFER");
+                              _resourceDefineTable.emplace(str_struct_name, ProgramShaderReourceDefine{(uint32_t)_resourceDefineTable.size(), ProgramShaderReourceType::READ_BUFFER });
                         }
-
-                  } else if(marco == "RWBUFFER") {
-
+                  } else if (marco == "RWBUFFER") {
                         auto struct_type_eat_word = EatWord(source_code);
-                        if(!struct_type_eat_word.has_value()) {
+                        if (!struct_type_eat_word.has_value()) {
                               error_message = std::format("Program::ParseMarco - Invalid statement, need a RWBUFFER name after \"{}\" key word.", marco);
                               return false;
                         }
@@ -732,7 +730,7 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
                         source_code = code_after_struct_typename;
 
                         const auto eat_code_block = EatCodeBlock(source_code);
-                        if(!eat_code_block.has_value()) {
+                        if (!eat_code_block.has_value()) {
                               error_message = std::format("Program::ParseMarco - Invalid statement, need a code block after RWBUFFER type name \"{}\".", struct_typename);
                               return false;
                         }
@@ -743,19 +741,18 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
                         source_code = code_after_block;
 
                         std::string str_struct_name = std::string{struct_typename.begin(), struct_typename.end()};
-                        if(_marcoParserIdentifierTable.contains(str_struct_name)) {
-                              if(_marcoParserIdentifierTable[str_struct_name] != "RWBUFFER")  {
-                                    error_message = std::format("Program::ParseMarco - In {}: RWBUFFER name \"{}\" is already used as a {}.", ShaderTypeHelperGetName(shader_type), str_struct_name, _marcoParserIdentifierTable[str_struct_name]);
+                        if (_resourceDefineTable.contains(str_struct_name)) {
+                              if (_resourceDefineTable[str_struct_name].Type != ProgramShaderReourceType::READ_WRITE_BUFFER) {
+                                    error_message = std::format("Program::ParseMarco - In {}: RWBUFFER name \"{}\" is already used as a {}.",
+                                    HelperShaderStageToString(shader_type), str_struct_name, HelperMapResourceTypeToString(_resourceDefineTable[str_struct_name].Type));
                                     return false;
                               }
                         } else {
-                              _marcoParserIdentifier.emplace_back(str_struct_name, "RWBUFFER");
-                              _marcoParserIdentifierTable.emplace(str_struct_name, "RWBUFFER");
+                              _resourceDefineTable.emplace(str_struct_name, ProgramShaderReourceDefine{(uint32_t)_resourceDefineTable.size(), ProgramShaderReourceType::READ_WRITE_BUFFER });
                         }
-
-                  } else if(marco == "SAMPLED") {
+                  } else if (marco == "SAMPLED") {
                         auto struct_type_eat_word = EatWord(source_code);
-                        if(!struct_type_eat_word.has_value()) {
+                        if (!struct_type_eat_word.has_value()) {
                               error_message = std::format("Program::ParseMarco - Invalid statement, need a SAMPELD texture name after \"{}\" key word.", marco);
                               return false;
                         }
@@ -764,18 +761,18 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
                         source_code = code_after_struct_typename;
 
                         std::string str_texture_var_name = std::string{texture_var_name.begin(), texture_var_name.end()};
-                        if(_marcoParserIdentifierTable.contains(str_texture_var_name)) {
-                              if(_marcoParserIdentifierTable[str_texture_var_name] != "SAMPLED")  {
-                                    error_message = std::format("Program::ParseMarco - In {}: SAMPELD texture name \"{}\" is already used as a {}.",ShaderTypeHelperGetName(shader_type), texture_var_name, _marcoParserIdentifierTable[str_texture_var_name]);
+                        if (_resourceDefineTable.contains(str_texture_var_name)) {
+                              if (_resourceDefineTable[str_texture_var_name].Type != ProgramShaderReourceType::SAMPLED) {
+                                    error_message = std::format("Program::ParseMarco - In {}: SAMPELD texture name \"{}\" is already used as a {}.",
+                                    HelperShaderStageToString(shader_type), texture_var_name, HelperMapResourceTypeToString(_resourceDefineTable[str_texture_var_name].Type));
                                     return false;
                               }
                         } else {
-                              _marcoParserIdentifier.emplace_back(str_texture_var_name, "SAMPLED");
-                              _marcoParserIdentifierTable.emplace(str_texture_var_name, "SAMPLED");
+                              _resourceDefineTable.emplace(str_texture_var_name, ProgramShaderReourceDefine{(uint32_t)_resourceDefineTable.size(), ProgramShaderReourceType::SAMPLED });
                         }
-                  } else if(marco == "RWTEXTURE") {
+                  } else if (marco == "RWTEXTURE") {
                         auto struct_type_eat_word = EatWord(source_code);
-                        if(!struct_type_eat_word.has_value()) {
+                        if (!struct_type_eat_word.has_value()) {
                               error_message = std::format("Program::ParseMarco - Invalid statement, need a RWTEXTURE name after \"{}\" key word.", marco);
                               return false;
                         }
@@ -783,19 +780,19 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
                         auto [texture_var_name, code_after_struct_typename] = struct_type_eat_word.value(); // typename
                         source_code = code_after_struct_typename;
 
-                        std::string str_texture_var_name = std::string{texture_var_name.begin(), texture_var_name.end()};
-                        if(_marcoParserIdentifierTable.contains(str_texture_var_name)) {
-                              if(_marcoParserIdentifierTable[str_texture_var_name] != "RWTEXTURE")  {
-                                    error_message = std::format("Program::ParseMarco - In {}: RWTEXTURE name \"{}\" is already used as a {}.",ShaderTypeHelperGetName(shader_type), texture_var_name, _marcoParserIdentifierTable[str_texture_var_name]);
+                        const std::string& str_texture_var_name = std::string{texture_var_name.begin(), texture_var_name.end()};
+                        if (_resourceDefineTable.contains(str_texture_var_name)) {
+                              if (_resourceDefineTable[str_texture_var_name].Type != ProgramShaderReourceType::READ_WRITE_BUFFER) {
+                                    error_message = std::format("Program::ParseMarco - In {}: RWTEXTURE name \"{}\" is already used as a {}.",
+                                    HelperShaderStageToString(shader_type), texture_var_name, HelperMapResourceTypeToString(_resourceDefineTable[str_texture_var_name].Type));
                                     return false;
                               }
                         } else {
-                              _marcoParserIdentifier.emplace_back(str_texture_var_name, "RWTEXTURE");
-                              _marcoParserIdentifierTable.emplace(str_texture_var_name, "RWTEXTURE");
+                              _resourceDefineTable.emplace(str_texture_var_name, ProgramShaderReourceDefine{(uint32_t)_resourceDefineTable.size(), ProgramShaderReourceType::READ_WRITE_BUFFER });
                         }
-                  } else if(marco == "RTEXTURE") {
+                  } else if (marco == "RTEXTURE") {
                         auto struct_type_eat_word = EatWord(source_code);
-                        if(!struct_type_eat_word.has_value()) {
+                        if (!struct_type_eat_word.has_value()) {
                               error_message = std::format("Program::ParseMarco - Invalid statement, need a RTEXTURE name after \"{}\" key word.", marco);
                               return false;
                         }
@@ -804,14 +801,14 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
                         source_code = code_after_struct_typename;
 
                         std::string str_texture_var_name = std::string{texture_var_name.begin(), texture_var_name.end()};
-                        if(_marcoParserIdentifierTable.contains(str_texture_var_name)) {
-                              if(_marcoParserIdentifierTable[str_texture_var_name] != "RTEXTURE")  {
-                                    error_message = std::format("Program::ParseMarco - In {}: RTEXTURE name \"{}\" is already used as a {}.",ShaderTypeHelperGetName(shader_type), texture_var_name, _marcoParserIdentifierTable[str_texture_var_name]);
+                        if (_resourceDefineTable.contains(str_texture_var_name)) {
+                              if (_resourceDefineTable[str_texture_var_name].Type != ProgramShaderReourceType::READ_TEXTURE) {
+                                    error_message = std::format("Program::ParseMarco - In {}: RTEXTURE name \"{}\" is already used as a {}.",
+                                    HelperShaderStageToString(shader_type), texture_var_name, HelperMapResourceTypeToString(_resourceDefineTable[str_texture_var_name].Type));
                                     return false;
                               }
                         } else {
-                              _marcoParserIdentifier.emplace_back(str_texture_var_name, "RTEXTURE");
-                              _marcoParserIdentifierTable.emplace(str_texture_var_name, "RTEXTURE");
+                              _resourceDefineTable.emplace(str_texture_var_name, ProgramShaderReourceDefine{(uint32_t)_resourceDefineTable.size(), ProgramShaderReourceType::READ_TEXTURE });
                         }
                   }
             }
@@ -998,12 +995,11 @@ std::string& output_codes, std::string& error_message, glslang_stage_t shader_ty
 }
 
 bool Program::ParseVS(const std::vector<uint32_t>& spv) {
-      MessageManager::Log(MessageType::Normal, "Program::ParseVS - Parsing Vertex Shader");
       spirv_cross::Compiler comp(spv);
       spirv_cross::ShaderResources resources = comp.get_shader_resources();
 
-      if(_autoVSInputStageBind) {
-            std::vector<std::pair<uint32_t, uint32_t>> stage_input_info{};  //binding size
+      if (_autoVSInputStageBind) {
+            std::vector<std::pair<uint32_t, uint32_t>> stage_input_info{}; //binding size
 
             for (auto& resource : resources.stage_inputs) {
                   const auto& name = comp.get_name(resource.id);
@@ -1017,45 +1013,54 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
 
                   bool missing_binding = true;
                   for (auto& i : stage_input_info) {
-                        if(i.first == binding) {
+                        if (i.first == binding) {
                               crruent_binding_info = &i;
                               missing_binding = false;
                               break;
                         }
                   }
-                  if(missing_binding) {
+                  if (missing_binding) {
                         crruent_binding_info = &stage_input_info.emplace_back(binding, 0);
                   }
 
                   int curr_size = 0;
 
-                  if(type.basetype == spirv_cross::SPIRType::Float && type.vecsize <= 4) {
-                        switch(type.vecsize) {
-                              case 1: input_format = VK_FORMAT_R32_SFLOAT; curr_size = 4;break;
-                              case 2: input_format = VK_FORMAT_R32G32_SFLOAT; curr_size = 8;break;
-                              case 3: input_format = VK_FORMAT_R32G32B32_SFLOAT; curr_size = 12;break;
-                              case 4: input_format = VK_FORMAT_R32G32B32A32_SFLOAT; curr_size = 16;break;
-                              default: {
-                                    auto err = std::format("Program::ParseVS - stage inputs has invalid vecsize: {}, at location {}, binding {}", type.vecsize, location, binding);
-                                    MessageManager::Log(MessageType::Warning, err);
-                                    return false;
-                              }
+                  if (type.basetype == spirv_cross::SPIRType::Float && type.vecsize <= 4) {
+                        switch (type.vecsize) {
+                              case 1: input_format = VK_FORMAT_R32_SFLOAT;
+                                    curr_size = 4;
+                                    break;
+                              case 2: input_format = VK_FORMAT_R32G32_SFLOAT;
+                                    curr_size = 8;
+                                    break;
+                              case 3: input_format = VK_FORMAT_R32G32B32_SFLOAT;
+                                    curr_size = 12;
+                                    break;
+                              case 4: input_format = VK_FORMAT_R32G32B32A32_SFLOAT;
+                                    curr_size = 16;
+                                    break;
+                              default:
+                                    {
+                                          auto err = std::format("Program::ParseVS - stage inputs has invalid vecsize: {}, at location {}, binding {}", type.vecsize, location, binding);
+                                          MessageManager::Log(MessageType::Warning, err);
+                                          return false;
+                                    }
                         }
-                  }else if(type.basetype == spirv_cross::SPIRType::Int) {
+                  } else if (type.basetype == spirv_cross::SPIRType::Int) {
                         input_format = VK_FORMAT_R32_SINT;
                         curr_size = 4;
-                  }else if(type.basetype == spirv_cross::SPIRType::UInt) {
+                  } else if (type.basetype == spirv_cross::SPIRType::UInt) {
                         input_format = VK_FORMAT_R32_UINT;
                         curr_size = 4;
                   }
 
-                  if(input_format == VK_FORMAT_UNDEFINED) {
+                  if (input_format == VK_FORMAT_UNDEFINED) {
                         const auto err = std::format("Program::ParseVS - stage inputs has invalid type at location {}, binding {}", location, binding);
                         MessageManager::Log(MessageType::Warning, err);
                         return false;
                   }
 
-                  VkVertexInputAttributeDescription att_desc {
+                  VkVertexInputAttributeDescription att_desc{
                         .location = location,
                         .binding = binding,
                         .format = input_format,
@@ -1073,19 +1078,19 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
                   _vertexInputStateCreateInfo.vertexAttributeDescriptionCount = _vertexInputAttributeDescription.size();
             }
 
-            for(auto& i : stage_input_info) {
+            for (auto& i : stage_input_info) {
                   VkVertexInputRate rate = VK_VERTEX_INPUT_RATE_VERTEX;
-                  if(_autoVSInputBindRateTable.contains(std::get<0>(i))) {
+                  if (_autoVSInputBindRateTable.contains(std::get<0>(i))) {
                         rate = _autoVSInputBindRateTable[std::get<0>(i)];
                   }
 
-                  VkVertexInputBindingDescription binding_desc {
+                  VkVertexInputBindingDescription binding_desc{
                         .binding = i.first,
                         .stride = i.second,
                         .inputRate = rate
                   };
 
-                  auto str1 = std::format("\tInput: Binding: {}, offset {}.",  i.first, i.second);
+                  auto str1 = std::format("\tInput: Binding: {}, offset {}.", i.first, i.second);
                   std::printf("%s\n", str1.c_str());
 
                   _vertexInputBindingDescription.push_back(binding_desc);
@@ -1095,7 +1100,7 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
       }
 
 
-      for(uint32_t idx = 0; idx< resources.storage_buffers.size(); idx++) {
+      for (uint32_t idx = 0; idx < resources.storage_buffers.size(); idx++) {
             auto& resource = resources.storage_buffers[idx];
             auto& struct_type = comp.get_type(resource.base_type_id);
 
@@ -1108,12 +1113,13 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
             uint32_t member_count = struct_type.member_types.size();
             uint32_t struct_size = comp.get_declared_struct_size(struct_type); //struct size
 
-            auto str1 = std::format("StorageBuffer : Set: {}, Binding {}, resourece name {}, struct type name: {}, struct member: {}, struct_size: {}.",
-            set, binding, struct_buffer_resourece_name, struct_type_name, member_count, struct_size);
-            std::printf("%s\n", str1.c_str());
+            // auto str1 = std::format("StorageBuffer : Set: {}, Binding {}, resourece name {}, struct type name: {}, struct member: {}, struct_size: {}.",
+            // set, binding, struct_buffer_resourece_name, struct_type_name, member_count, struct_size);
+            // std::printf("%s\n", str1.c_str());
 
             _paramTable.emplace(struct_type_name, ProgramParamInfo{idx, (uint32_t)struct_size}); // push to table
-            if(!_marcoParserIdentifierTable.contains(struct_type_name) || _marcoParserIdentifierTable[struct_type_name] != "PARAM") { // PARAM 才会反射成员变量.  only PARAM reflects member
+            if (!_resourceDefineTable.contains(struct_type_name) || _resourceDefineTable[struct_type_name].Type != ProgramShaderReourceType::PARAM) {
+                  // PARAM 才会反射成员变量.  only PARAM reflects member
                   continue;
             }
 
@@ -1146,9 +1152,9 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
                   size_t member_size = comp.get_declared_struct_member_size(type, i);
                   size_t offset = comp.type_struct_member_offset(type, i);
 
-                  const std::string& member_name = comp.get_member_name(type.self, i);
-                  auto str = std::format("PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
-                  std::printf("%s\n", str.c_str());
+                  // const std::string& member_name = comp.get_member_name(type.self, i);
+                  // auto str = std::format("PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
+                  // std::printf("%s\n", str.c_str());
 
                   if (i == member_count - 1) {
                         _pushConstantRange.offset = 0;
@@ -1161,7 +1167,6 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
 }
 
 bool Program::ParseFS(const std::vector<uint32_t>& spv) {
-      MessageManager::Log(MessageType::Normal, "Program::ParseFS - Parsing Pixel Shader");
       spirv_cross::Compiler comp(spv);
       spirv_cross::ShaderResources resources = comp.get_shader_resources();
 
@@ -1196,13 +1201,13 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
                   size_t member_size = comp.get_declared_struct_member_size(type, i);
                   size_t offset = comp.type_struct_member_offset(type, i);
 
-                  const std::string& member_name = comp.get_member_name(type.self, i);
-                  auto str = std::format("PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
-                  std::printf("%s\n", str.c_str());
+                  // const std::string& member_name = comp.get_member_name(type.self, i);
+                  // auto str = std::format("PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
+                  // std::printf("%s\n", str.c_str());
 
                   if (i == member_count - 1) {
                         uint32_t ps_size = offset + member_size;
-                        if(ps_size != _pushConstantRange.size) {
+                        if (ps_size != _pushConstantRange.size) {
                               const auto err = std::format("Program::ParseFS - fs's struct not match with vs, please copy it from vs to fs, expected {}, got {}.", _pushConstantRange.size, ps_size);
                               MessageManager::Log(MessageType::Warning, err);
                               return false;
@@ -1211,7 +1216,7 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
             }
       }
 
-      for(uint32_t idx = 0; idx< resources.storage_buffers.size(); idx++) {
+      for (uint32_t idx = 0; idx < resources.storage_buffers.size(); idx++) {
             auto& resource = resources.storage_buffers[idx];
             auto& struct_type = comp.get_type(resource.base_type_id);
 
@@ -1224,13 +1229,14 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
             uint32_t member_count = struct_type.member_types.size();
             uint32_t struct_size = comp.get_declared_struct_size(struct_type); //struct size
 
-             auto str1 = std::format("StorageBuffer : Set: {}, Binding {}, resourece name {}, struct type name: {}, struct member: {}, struct_size: {}.",
-             set, binding, struct_buffer_resourece_name, struct_type_name, member_count, struct_size);
-             std::printf("%s\n", str1.c_str());
+            // auto str1 = std::format("StorageBuffer : Set: {}, Binding {}, resourece name {}, struct type name: {}, struct member: {}, struct_size: {}.",
+            // set, binding, struct_buffer_resourece_name, struct_type_name, member_count, struct_size);
+            // std::printf("%s\n", str1.c_str());
 
             bool contained = false;
-            if(_paramTable.contains(struct_type_name)) {
-                  if(_paramTable[struct_type_name].Size != struct_size) {
+
+            if (_paramTable.contains(struct_type_name)) {
+                  if (_paramTable[struct_type_name].Size != struct_size) {
                         const auto err = std::format("Program::ParseFS - struct \"{}\"'s size is not matching with exist, please check it.", struct_type_name);
                         MessageManager::Log(MessageType::Warning, err);
                         return false;
@@ -1240,7 +1246,7 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
                   _paramTable.emplace(struct_type_name, ProgramParamInfo{idx, (uint32_t)struct_size}); // push to table
             }
 
-            if(!_marcoParserIdentifierTable.contains(struct_type_name) || _marcoParserIdentifierTable[struct_type_name] != "PARAM") {
+            if (!_resourceDefineTable.contains(struct_type_name) || _resourceDefineTable[struct_type_name].Type != ProgramShaderReourceType::PARAM) {
                   continue;
             }
 
@@ -1254,15 +1260,16 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
                   const std::string& member_name = comp.get_member_name(struct_type.self, i);
 
                   std::string full_member_name = std::format("{}.{}", struct_type_name, member_name);
-                  if(contained) {
-                        if(_paramMemberTable.contains(full_member_name)) {
-                              if(_paramMemberTable[full_member_name].Size != member_size) {
+                  if (contained) {
+                        if (_paramMemberTable.contains(full_member_name)) {
+                              if (_paramMemberTable[full_member_name].Size != member_size) {
                                     const auto err = std::format("Program::ParseFS - struct \"{}\"'s member \"{}\"'s size is not matching with exist, please check it.", struct_type_name, member_name);
                                     MessageManager::Log(MessageType::Warning, err);
                                     return false;
                               }
-                              if(_paramMemberTable[full_member_name].Offset != member_offset) {
-                                    const auto err = std::format("Program::ParseFS - struct \"{}\"'s member \"{}\"'s offset is not matching with exist, please check it.", struct_type_name, member_name);
+                              if (_paramMemberTable[full_member_name].Offset != member_offset) {
+                                    const auto err = std::format("Program::ParseFS - struct \"{}\"'s member \"{}\"'s offset is not matching with exist, please check it.", struct_type_name,
+                                    member_name);
                                     MessageManager::Log(MessageType::Warning, err);
                                     return false;
                               }
@@ -1278,28 +1285,16 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
                   auto str = std::format("\t\tMember: {}, offset {}, size {}", member_name, member_offset, member_size);
                   std::printf("%s\n", str.c_str());
             }
-
-      }
-
-      for(int i = 0; i <  _marcoParserIdentifier.size(); i++) {
-            if(_marcoParserIdentifier[i].second == "SAMPLED") {
-                  _sampledTextureTable[_marcoParserIdentifier[i].first] = i;
-            } else if(_marcoParserIdentifier[i].second == "BUFFER") {
-                  _bufferTable[_marcoParserIdentifier[i].first] = i;
-            } else if(_marcoParserIdentifier[i].second == "RWTEXTURE") {
-                  _textureTable[_marcoParserIdentifier[i].first] = i;
-            }
       }
 
       return true;
 }
 
 bool Program::ParseCS(const std::vector<uint32_t>& spv) {
-      MessageManager::Log(MessageType::Normal, "Program::ParseCS - Parsing Compute Shader");
       spirv_cross::Compiler comp(spv);
       spirv_cross::ShaderResources resources = comp.get_shader_resources();
 
-      for(uint32_t idx = 0; idx< resources.storage_buffers.size(); idx++) {
+      for (uint32_t idx = 0; idx < resources.storage_buffers.size(); idx++) {
             auto& resource = resources.storage_buffers[idx];
             auto& struct_type = comp.get_type(resource.base_type_id);
 
@@ -1312,12 +1307,13 @@ bool Program::ParseCS(const std::vector<uint32_t>& spv) {
             uint32_t member_count = struct_type.member_types.size();
             uint32_t struct_size = comp.get_declared_struct_size(struct_type); //struct size
 
-            auto str1 = std::format("StorageBuffer : Set: {}, Binding {}, resourece name {}, struct type name: {}, struct member: {}, struct_size: {}.",
-            set, binding, struct_buffer_resourece_name, struct_type_name, member_count, struct_size);
-            std::printf("%s\n", str1.c_str());
+            // auto str1 = std::format("StorageBuffer : Set: {}, Binding {}, resourece name {}, struct type name: {}, struct member: {}, struct_size: {}.",
+            // set, binding, struct_buffer_resourece_name, struct_type_name, member_count, struct_size);
+            // std::printf("%s\n", str1.c_str());
 
             _paramTable.emplace(struct_type_name, ProgramParamInfo{idx, (uint32_t)struct_size}); // push to table
-            if(!_marcoParserIdentifierTable.contains(struct_type_name) || _marcoParserIdentifierTable[struct_type_name] != "PARAM") { // PARAM 才会反射成员变量.  only PARAM reflects member
+            if (!_resourceDefineTable.contains(struct_type_name) || _resourceDefineTable[struct_type_name].Type != ProgramShaderReourceType::PARAM) {
+                  // PARAM 才会反射成员变量.  only PARAM reflects member
                   continue;
             }
 
@@ -1333,8 +1329,8 @@ bool Program::ParseCS(const std::vector<uint32_t>& spv) {
                   std::string full_member_name = std::format("{}.{}", struct_type_name, member_name);
                   _paramMemberTable.emplace(full_member_name, ProgramParamMemberInfo{idx, (uint32_t)member_size, (uint32_t)offset});
 
-                  auto str = std::format("\t\tMember: {}, offset {}, size {}", member_name, offset, member_size);
-                  std::printf("%s\n", str.c_str());
+                  // auto str = std::format("\t\tMember: {}, offset {}, size {}", member_name, offset, member_size);
+                  // std::printf("%s\n", str.c_str());
             }
       }
 
@@ -1350,9 +1346,9 @@ bool Program::ParseCS(const std::vector<uint32_t>& spv) {
                   size_t member_size = comp.get_declared_struct_member_size(type, i);
                   size_t offset = comp.type_struct_member_offset(type, i);
 
-                  const std::string& member_name = comp.get_member_name(type.self, i);
-                  auto str = std::format("PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
-                  std::printf("%s\n", str.c_str());
+                  // const std::string& member_name = comp.get_member_name(type.self, i);
+                  // auto str = std::format("PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
+                  // std::printf("%s\n", str.c_str());
 
                   if (i == member_count - 1) {
                         _pushConstantRange.offset = 0;
@@ -1499,7 +1495,7 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
       };
 
       auto ErrorSetInShaderType = [](const std::string& key, glslang_stage_t shader_type, std::string& error_msg) -> bool {
-            error_msg = std::format("Invalid setter key \"{}\" for shader type \"{}\".", key, ShaderTypeHelperGetName(shader_type));
+            error_msg = std::format("Invalid setter key \"{}\" for shader type \"{}\".", key, HelperShaderStageToString(shader_type));
             return false;
       };
 
@@ -1513,7 +1509,7 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
       }
 
       if (!vaild_setters->second.contains(key)) {
-            error_msg = std::format("Invalid setter key \"{}\" for shader type \"{}\".", key, ShaderTypeHelperGetName(shader_type));
+            error_msg = std::format("Invalid setter key \"{}\" for shader type \"{}\".", key, HelperShaderStageToString(shader_type));
             return false;
       }
 
@@ -1616,8 +1612,9 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                   _vertexInputBindingDescription.push_back(binding_desc);
                   _vertexInputStateCreateInfo.pVertexBindingDescriptions = _vertexInputBindingDescription.data();
                   _vertexInputStateCreateInfo.vertexBindingDescriptionCount = _vertexInputBindingDescription.size();
-            } if (values.size() == 2) {
-                  if(!_autoVSInputStageBind) {
+            }
+            if (values.size() == 2) {
+                  if (!_autoVSInputStageBind) {
                         error_msg = "Auto vertex input stage bind is disabled, please disable it by adding #set vs_binding = [binding, stride_size, binding_rate] in shader source code.";
                         return false;
                   }
@@ -1638,7 +1635,6 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                   } else {
                         return ErrorArgument(key, 3, values[2], error_msg, "vertex, instance");
                   }
-
             } else {
                   return ErrorArgumentUnmatching(key, 4, values.size(), error_msg, "binding, stride_size, binding_rate");
             }
@@ -1738,7 +1734,7 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                         additive_blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
                         additive_blend.alphaBlendOp = VK_BLEND_OP_ADD;
                         _colorBlendAttachmentState.push_back(additive_blend);
-                  }  else if (values[0] == "sub") {
+                  } else if (values[0] == "sub") {
                         VkPipelineColorBlendAttachmentState subtractive_blend = {};
                         subtractive_blend.blendEnable = VK_TRUE;
                         subtractive_blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;

@@ -32,16 +32,11 @@ namespace LoFi::Component {
 
             [[nodiscard]] const auto& GetParamMemberTable() const { return _paramMemberTable; }
 
-            [[nodiscard]] const auto& GetSampledTextureTable() const { return _sampledTextureTable; }
-
-            [[nodiscard]] const auto& GetBufferTable() const { return _bufferTable; }
-
-            [[nodiscard]] const auto& GetRWTextureTable() const { return _rwtextureTable; }
-
-            [[nodiscard]] const auto& GetMarcoParserIdentifierTable() const {return _marcoParserIdentifier;}
+            [[nodiscard]] const auto& GetReourceDefineTable() const { return _resourceDefineTable; }
 
             [[nodiscard]] const VkPushConstantRange& GetBindlessInfoPushConstantRange() const { return _pushConstantRange; }
 
+      
       private:
 
             friend class ::LoFi::Context;
@@ -58,13 +53,6 @@ namespace LoFi::Component {
 
             entt::dense_map<std::string, ProgramParamMemberInfo> _paramMemberTable{};
 
-            entt::dense_map<std::string, uint32_t> _sampledTextureTable{};
-
-            entt::dense_map<std::string, uint32_t> _bufferTable{};
-
-            entt::dense_map<std::string, uint32_t> _rwtextureTable{};
-
-            std::vector<std::pair<std::string, std::string>> _marcoParserIdentifier{};
-
+            entt::dense_map<std::string, ProgramShaderReourceDefine> _resourceDefineTable{};
       };
 }

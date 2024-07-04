@@ -10,14 +10,14 @@ using namespace LoFi::Internal;
 
 GrapicsKernelInstance::~GrapicsKernelInstance() {
       auto& world = *volkGetLoadedEcsWorld();
-      for (const auto& resourece_buffer : _buffers) {
+      for (const auto& resourece_buffer : _paramBuffers) {
             for (int i = 0; i < 3; i++) {
                   world.destroy(resourece_buffer.Buffers[i]);
             }
       }
 }
 
-GrapicsKernelInstance::GrapicsKernelInstance(entt::entity id, entt::entity graphics_kernel, bool is_cpu_side) : _id(id), _isCpuSide(is_cpu_side) {
+GrapicsKernelInstance::GrapicsKernelInstance(entt::entity id, entt::entity graphics_kernel, bool param_high_dynamic) : _id(id), _isParamHighDynamic(param_high_dynamic) {
       auto& world = *volkGetLoadedEcsWorld();
 
       if(!world.valid(id)) {
@@ -41,22 +41,23 @@ GrapicsKernelInstance::GrapicsKernelInstance(entt::entity id, entt::entity graph
             throw std::runtime_error(err);
       }
 
-      const auto& arg_count = kernel->GetMarcoParserIdentifierTable().size();
-
-      _pushConstantBindlessIndexInfoBuffer.resize(arg_count);
-      _buffers.resize(arg_count);
+      const auto& arg_count = kernel->GetReourceDefineTable().size();
+      _pushConstantBindlessIndexInfoBuffer.resize(arg_count); //resize push constant buffer
+      _resourceBind.resize(arg_count); // RESOURCE bind
 
       const auto& struct_table = kernel->GetParamTable();
+      _paramBuffers.resize(struct_table.size()); // PARAM buffers
+
       for (const auto& i : struct_table) {
 
-            KernelParamResource& buffer = _buffers.at(i.second.Index);
+            KernelParamResource& buffer = _paramBuffers.at(i.second.Index);
             const auto buffer_index = i.second.Index;
             buffer.CachedBufferData.resize(i.second.Size);
            
             for (int idx = 0; idx < 3; idx++) {
 
                   auto& it = buffer.Buffers[idx];
-                  const auto buffer_created = ctx.CreateBuffer(buffer.CachedBufferData.size(), is_cpu_side);
+                  const auto buffer_created = ctx.CreateBuffer(buffer.CachedBufferData.size(), param_high_dynamic);
 
                   if(!world.valid(buffer_created)) { //if happend, all dead
                         const auto err = std::format("GrapicsKernelInstance::GrapicsKernelInstance - Can't Allocate buffer! crashed\n");
@@ -96,13 +97,11 @@ bool GrapicsKernelInstance::SetParam(const std::string& param_struct_name, const
       if (const auto parent_kernel = world.try_get<GraphicKernel>(_parent); parent_kernel) {
             const auto& map = parent_kernel->GetParamTable();
             if (const auto finder = map.find(param_struct_name); finder != map.end()) {
-                  ProgramParamInfo info = finder->second;
-                  const auto index = info.Index;
-                  const auto size = info.Size;
+                  const auto& [index, size] = finder->second;
 
-                  uint8_t* ptr = _buffers.at(index).CachedBufferData.data();
+                  uint8_t* ptr = _paramBuffers.at(index).CachedBufferData.data();
                   std::memcpy(ptr, data, size);
-                  _buffers.at(index).Modified = 3;
+                  _paramBuffers.at(index).Modified = 3;
             } else {
                   const auto err = std::format("GrapicsKernelInstance::SetParam - PARAM \"{}\" Not Found\n", param_struct_name);
                   MessageManager::Log(MessageType::Error, err);
@@ -138,14 +137,11 @@ bool GrapicsKernelInstance::SetParamMember(const std::string& param_struct_membe
             const auto& map = parent_kernel->GetParamMemberTable();
 
             if (const auto finder = map.find(param_struct_member_name); finder != map.end()) {
-                  ProgramParamMemberInfo info = finder->second;
-                  const auto index = info.StructIndex;
-                  const auto size = info.Size;
-                  const auto offset = info.Offset;
+                  auto [index, size, offset] = finder->second;
 
-                  uint8_t* struct_start_ptr = _buffers.at(index).CachedBufferData.data();
+                  uint8_t* struct_start_ptr = _paramBuffers.at(index).CachedBufferData.data();
                   memcpy(struct_start_ptr + offset, data, size);
-                  _buffers.at(index).Modified = 3;
+                  _paramBuffers.at(index).Modified = 3;
             } else {
                   const auto err = std::format("GrapicsKernelInstance::SetParamMember - Struct Member \"{}\" Not Found", param_struct_member_name);
                   MessageManager::Log(MessageType::Error, err);
@@ -198,9 +194,16 @@ bool GrapicsKernelInstance::SetSampled(const std::string& sampled_name, entt::en
       }
 
       if (const auto parent_kernel = world.try_get<GraphicKernel>(_parent); parent_kernel) {
-            const auto& map = parent_kernel->GetSampledTextureTable();
+            const auto& map = parent_kernel->GetReourceDefineTable();
             if (const auto finder = map.find(sampled_name); finder != map.end()) {
-                  _pushConstantBindlessIndexInfoBuffer.at(finder->second) = bindless_index.value();
+                  if(finder->second.Type == ProgramShaderReourceType::SAMPLED) {
+                        _resourceBind.at(finder->second.Index) = std::make_pair(texture, finder->second.Type);
+                        _pushConstantBindlessIndexInfoBuffer.at(finder->second.Index) = bindless_index.value();
+                  } else {
+                        const auto err = std::format("GrapicsKernelInstance::SetSampled - Resource \"{}\" is not a sampled resource\n", sampled_name);
+                        MessageManager::Log(MessageType::Error, err);
+                        return false;
+                  }
             } else {
                   const auto err = std::format("GrapicsKernelInstance::SetSampled - Texture \"{}\" Not Found\n", sampled_name);
                   MessageManager::Log(MessageType::Error, err);
@@ -221,7 +224,7 @@ void GrapicsKernelInstance::PushResourceChanged() {
       if(!world.any_of<TagKernelInstanceParamChanged>(_id))  return;
 
       const auto current_frame = Context::Get()->GetCurrentFrameIndex();
-      for (auto& buffer : _buffers) {
+      for (auto& buffer : _paramBuffers) {
             if (buffer.Modified > 0) {
                   const auto buf = buffer.Buffers[current_frame];
                   world.get<Buffer>(buf).SetData(buffer.CachedBufferData.data(), buffer.CachedBufferData.size());
@@ -236,7 +239,7 @@ void GrapicsKernelInstance::PushResourceChanged() {
 void GrapicsKernelInstance::PushBindlessInfo(VkCommandBuffer buf) const {
       auto& world = *volkGetLoadedEcsWorld();
       if (!world.valid(_parent)) {
-            const auto err = std::format("GrapicsKernelInstance::SetParamMember - Invalid Parent Graphics Kernel Entity!\n");
+            const auto err = std::format("GrapicsKernelInstance::PushBindlessInfo - Invalid Parent Graphics Kernel Entity!\n");
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
@@ -245,7 +248,7 @@ void GrapicsKernelInstance::PushBindlessInfo(VkCommandBuffer buf) const {
             const auto& push_constant_range = parent_kernel->GetBindlessInfoPushConstantRange();
             vkCmdPushConstants(buf, parent_kernel->GetPipelineLayout(), VK_SHADER_STAGE_ALL, push_constant_range.offset, push_constant_range.size, _pushConstantBindlessIndexInfoBuffer.data());
       } else {
-            const auto err = std::format("GrapicsKernelInstance::SetParamMember - Parent Entity is not a Graphics Kernel\n");
+            const auto err = std::format("GrapicsKernelInstance::PushBindlessInfo - Parent Entity is not a Graphics Kernel\n");
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }

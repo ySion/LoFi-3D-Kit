@@ -45,11 +45,21 @@ namespace LoFi::Component {
       enum class ProgramShaderReourceType {
             UNKNOWN,
             PARAM,
+            SAMPLED,
             READ_BUFFER,
             READ_WRITE_BUFFER,
             READ_TEXTURE,
             READ_WRITE_TEXTURE
       };
+
+      struct ProgramShaderReourceDefine {
+            uint32_t Index = 0;
+            ProgramShaderReourceType Type = ProgramShaderReourceType::UNKNOWN;
+      };
+
+      const char* HelperShaderStageToString(glslang_stage_t type);
+
+      const char* HelperMapResourceTypeToString(ProgramShaderReourceType type);
 
       class Program {
             static inline std::map<std::string, glslang_stage_t> ShaderTypeMap{
@@ -79,13 +89,7 @@ namespace LoFi::Component {
 
             [[nodiscard]] const auto& GetParamMemberTable() const { return _paramMemberTable; }
 
-            [[nodiscard]] const auto& GetSampledTextureTable() const { return _sampledTextureTable; }
-
-            [[nodiscard]] const auto& GetBufferTable() const { return _bufferTable; }
-
-            [[nodiscard]] const auto& GetTextureTable() const { return _textureTable; }
-
-            [[nodiscard]] const auto& GetMarcoParserIdentifierTable() const {return _marcoParserIdentifier;}
+            [[nodiscard]] const auto& GetReourceDefineTable() const { return _resourceDefineTable; }
 
       private:
             bool CompileCompute(std::string_view source);
@@ -132,15 +136,7 @@ namespace LoFi::Component {
 
             entt::dense_map<std::string, ProgramParamMemberInfo> _paramMemberTable{};
 
-            entt::dense_map<std::string, uint32_t> _sampledTextureTable{};
-
-            entt::dense_map<std::string, uint32_t> _bufferTable{};
-
-            entt::dense_map<std::string, uint32_t> _textureTable{};
-
-            std::vector<std::pair<std::string, std::string>> _marcoParserIdentifier{};
-
-            entt::dense_map<std::string, std::string> _marcoParserIdentifierTable{};
+            entt::dense_map<std::string, ProgramShaderReourceDefine> _resourceDefineTable{};
 
             bool _autoVSInputStageBind = true;
 
