@@ -52,6 +52,14 @@ namespace LoFi::Component {
             }
       };
 
+      enum class ProgramShaderType {
+            UNKNOWN,
+            GRAPHICS,
+            COMPUTE,
+            MESH,
+            RAY_TRACING
+      };
+
       class Program {
             static inline std::map<std::string, glslang_stage_t> ShaderTypeMap{
                   {"VSMain", glslang_stage_t::GLSLANG_STAGE_VERTEX},
