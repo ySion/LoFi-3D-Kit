@@ -19,7 +19,7 @@ namespace LoFi::Component {
 
             [[nodiscard]] bool IsParamHighDynamic() const { return _isParamHighDynamic; }
 
-            [[nodiscard]] entt::entity GetParentGraphicsKernel() const { return _parent; }
+            [[nodiscard]] entt::entity GetParentComputeKernel() const { return _parent; }
 
             bool SetParam(const std::string& struct_name, const void* data);
 
@@ -38,7 +38,7 @@ namespace LoFi::Component {
 
             void PushBindlessInfo(VkCommandBuffer buf) const;
 
-            void ResourceBarrierPrepare(VkCommandBuffer buf) const;
+            void ResourceBarrierPrepare(VkCommandBuffer cmd, KernelType prev_kernel_type) const;
 
             entt::entity _id;
 

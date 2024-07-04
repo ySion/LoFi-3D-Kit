@@ -14,7 +14,7 @@ using namespace LoFi::Internal;
 ComputeKernelInstance::ComputeKernelInstance(entt::entity id, entt::entity compute_kernel, bool param_high_dynamic) : _id(id), _isParamHighDynamic(param_high_dynamic) {
       auto& world = *volkGetLoadedEcsWorld();
 
-      if(!world.valid(id)) {
+      if (!world.valid(id)) {
             const auto err = std::format("ComputeKernelInstance::ComputeKernelInstance - Invalid Entity ID\n");
             MessageManager::Log(MessageType::Warning, err);
             return;
@@ -43,27 +43,29 @@ ComputeKernelInstance::ComputeKernelInstance(entt::entity id, entt::entity compu
       _paramBuffers.resize(struct_table.size()); // PARAM buffers
 
       for (const auto& i : struct_table) {
-
             KernelParamResource& buffer = _paramBuffers.at(i.second.Index);
+
             const auto buffer_index = i.second.Index;
             buffer.CachedBufferData.resize(i.second.Size);
 
             for (int idx = 0; idx < 3; idx++) {
-                  auto& it = buffer.Buffers[idx];
+
+                  auto& it = buffer.Buffers.at(idx);
                   const auto buffer_created = ctx.CreateBuffer(buffer.CachedBufferData.size(), param_high_dynamic);
 
-                  if(!world.valid(buffer_created)) { //if happend, all dead
+                  if (!world.valid(buffer_created)) {
+                        //if happend, all dead
                         const auto err = std::format("ComputeKernelInstance::ComputeKernelInstance - Can't Allocate buffer! crashed\n");
                         MessageManager::Log(MessageType::Error, err);
                         throw std::runtime_error(err);
                   }
 
-                  buffer.Buffers[idx] = buffer_created;
-
+                  buffer.Buffers.at(idx) = buffer_created;
                   const auto& buffer_comp = world.get<Buffer>(buffer_created);
                   const auto buffer_bindless_index = buffer_comp.GetBindlessIndex();
 
-                  if(!buffer_bindless_index.has_value()) { //should not happend
+                  if (!buffer_bindless_index.has_value()) {
+                        //should not happend
                         const auto err = std::format("ComputeKernelInstance::ComputeKernelInstance - Buffer has no bindless index ? it's should not happened\n");
                         MessageManager::Log(MessageType::Error, err);
                         throw std::runtime_error(err);
@@ -119,7 +121,7 @@ bool ComputeKernelInstance::SetParam(const std::string& param_struct_name, const
             return false;
       }
 
-      if(!world.any_of<TagKernelInstanceParamChanged>(_id)) {
+      if (!world.any_of<TagKernelInstanceParamChanged>(_id)) {
             world.emplace<TagKernelInstanceParamChanged>(_id);
       }
 
@@ -159,7 +161,7 @@ bool ComputeKernelInstance::SetParamMember(const std::string& param_struct_membe
             return false;
       }
 
-      if(!world.any_of<TagKernelInstanceParamChanged>(_id)) {
+      if (!world.any_of<TagKernelInstanceParamChanged>(_id)) {
             world.emplace<TagKernelInstanceParamChanged>(_id);
       }
 
@@ -169,21 +171,21 @@ bool ComputeKernelInstance::SetParamMember(const std::string& param_struct_membe
 bool ComputeKernelInstance::SetSampled(const std::string& sampled_name, entt::entity texture) {
       auto& world = *volkGetLoadedEcsWorld();
 
-      if(!world.valid(texture)) {
+      if (!world.valid(texture)) {
             const auto err = std::format("ComputeKernelInstance::SetSampled - Invalid Texture Entity\n");
             MessageManager::Log(MessageType::Error, err);
             return false;
       }
 
       auto texture_comp = world.try_get<Texture>(texture);
-      if(!texture_comp) {
+      if (!texture_comp) {
             const auto err = std::format("ComputeKernelInstance::SetSampled - This entity is not a texture.\n");
             MessageManager::Log(MessageType::Error, err);
             return false;
       }
 
       auto bindless_index = texture_comp->GetBindlessIndexForSampler();
-      if(!bindless_index.has_value()) {
+      if (!bindless_index.has_value()) {
             const auto err = std::format("ComputeKernelInstance::SetSampled - Texture has no bindless index\n");
             MessageManager::Log(MessageType::Error, err);
             return false;
@@ -198,7 +200,7 @@ bool ComputeKernelInstance::SetSampled(const std::string& sampled_name, entt::en
       if (const auto parent_kernel = world.try_get<ComputeKernel>(_parent); parent_kernel) {
             const auto& map = parent_kernel->GetReourceDefineTable();
             if (const auto finder = map.find(sampled_name); finder != map.end()) {
-                  if(finder->second.Type == ProgramShaderReourceType::SAMPLED) {
+                  if (finder->second.Type == ProgramShaderReourceType::SAMPLED) {
                         _resourceBind.at(finder->second.Index) = std::make_pair(texture, finder->second.Type);
                         _pushConstantBindlessIndexInfoBuffer.at(finder->second.Index) = bindless_index.value();
                   } else {
@@ -223,21 +225,21 @@ bool ComputeKernelInstance::SetSampled(const std::string& sampled_name, entt::en
 bool ComputeKernelInstance::SetTexture(const std::string& sampled_name, entt::entity texture) {
       auto& world = *volkGetLoadedEcsWorld();
 
-      if(!world.valid(texture)) {
+      if (!world.valid(texture)) {
             const auto err = std::format("ComputeKernelInstance::SetTexture - Invalid Texture Entity\n");
             MessageManager::Log(MessageType::Error, err);
             return false;
       }
 
       auto texture_comp = world.try_get<Texture>(texture);
-      if(!texture_comp) {
+      if (!texture_comp) {
             const auto err = std::format("ComputeKernelInstance::SetTexture - This entity is not a texture \n");
             MessageManager::Log(MessageType::Error, err);
             return false;
       }
 
       auto bindless_index = texture_comp->GetBindlessIndexForComputeKernel();
-      if(!bindless_index.has_value()) {
+      if (!bindless_index.has_value()) {
             const auto err = std::format("ComputeKernelInstance::SetTexture - Texture has no bindless index\n");
             MessageManager::Log(MessageType::Error, err);
             return false;
@@ -252,7 +254,7 @@ bool ComputeKernelInstance::SetTexture(const std::string& sampled_name, entt::en
       if (const auto parent_kernel = world.try_get<ComputeKernel>(_parent); parent_kernel) {
             const auto& map = parent_kernel->GetReourceDefineTable();
             if (const auto finder = map.find(sampled_name); finder != map.end()) {
-                  if(finder->second.Type == ProgramShaderReourceType::READ_TEXTURE || finder->second.Type == ProgramShaderReourceType::READ_WRITE_TEXTURE) {
+                  if (finder->second.Type == ProgramShaderReourceType::READ_TEXTURE || finder->second.Type == ProgramShaderReourceType::READ_WRITE_TEXTURE) {
                         _resourceBind.at(finder->second.Index) = std::make_pair(texture, finder->second.Type);
                         _pushConstantBindlessIndexInfoBuffer.at(finder->second.Index) = bindless_index.value();
                   } else {
@@ -277,21 +279,21 @@ bool ComputeKernelInstance::SetTexture(const std::string& sampled_name, entt::en
 bool ComputeKernelInstance::SetBuffer(const std::string& sampled_name, entt::entity buffer) {
       auto& world = *volkGetLoadedEcsWorld();
 
-      if(!world.valid(buffer)) {
+      if (!world.valid(buffer)) {
             const auto err = std::format("ComputeKernelInstance::SetBuffer - Invalid Buffer Entity\n");
             MessageManager::Log(MessageType::Error, err);
             return false;
       }
 
       auto buffer_comp = world.try_get<Buffer>(buffer);
-      if(!buffer_comp) {
+      if (!buffer_comp) {
             const auto err = std::format("ComputeKernelInstance::SetBuffer - This entity is not a buffer \n");
             MessageManager::Log(MessageType::Error, err);
             return false;
       }
 
       auto bindless_index = buffer_comp->GetBindlessIndex();
-      if(!bindless_index.has_value()) {
+      if (!bindless_index.has_value()) {
             const auto err = std::format("ComputeKernelInstance::SetBuffer - Buffer has no bindless index\n");
             MessageManager::Log(MessageType::Error, err);
             return false;
@@ -306,7 +308,7 @@ bool ComputeKernelInstance::SetBuffer(const std::string& sampled_name, entt::ent
       if (const auto parent_kernel = world.try_get<ComputeKernel>(_parent); parent_kernel) {
             const auto& map = parent_kernel->GetReourceDefineTable();
             if (const auto finder = map.find(sampled_name); finder != map.end()) {
-                  if(finder->second.Type == ProgramShaderReourceType::READ_BUFFER || finder->second.Type == ProgramShaderReourceType::READ_WRITE_BUFFER) {
+                  if (finder->second.Type == ProgramShaderReourceType::READ_BUFFER || finder->second.Type == ProgramShaderReourceType::READ_WRITE_BUFFER) {
                         _resourceBind.at(finder->second.Index) = std::make_pair(buffer, finder->second.Type);
                         _pushConstantBindlessIndexInfoBuffer.at(finder->second.Index) = bindless_index.value();
                   } else {
@@ -330,7 +332,7 @@ bool ComputeKernelInstance::SetBuffer(const std::string& sampled_name, entt::ent
 
 void ComputeKernelInstance::PushResourceChanged() {
       auto& world = *volkGetLoadedEcsWorld();
-      if(!world.any_of<TagKernelInstanceParamChanged>(_id)) return;
+      if (!world.any_of<TagKernelInstanceParamChanged>(_id)) return;
 
       const auto current_frame = Context::Get()->GetCurrentFrameIndex();
       for (auto& buffer : _paramBuffers) {
@@ -338,7 +340,7 @@ void ComputeKernelInstance::PushResourceChanged() {
                   const auto buf = buffer.Buffers[current_frame];
                   world.get<Buffer>(buf).SetData(buffer.CachedBufferData.data(), buffer.CachedBufferData.size());
                   buffer.Modified--;
-                  if(buffer.Modified == 0) {
+                  if (buffer.Modified == 0) {
                         world.emplace<TagKernelInstanceParamUpdateCompleted>(_id);
                   }
             }
@@ -363,7 +365,118 @@ void ComputeKernelInstance::PushBindlessInfo(VkCommandBuffer buf) const {
       }
 }
 
-void ComputeKernelInstance::ResourceBarrierPrepare(VkCommandBuffer buf) const {
+void ComputeKernelInstance::ResourceBarrierPrepare(VkCommandBuffer cmd, KernelType prev_kernel_type) const {
+      auto& world = *volkGetLoadedEcsWorld();
+      for (const auto& res : _resourceBind) {
+            if (res.has_value()) {
+                  const auto [entity, type] = res.value();
 
+                  switch (type) {
+                        case ProgramShaderReourceType::SAMPLED:
+                              {
+                                    const auto texture = world.try_get<Texture>(entity);
+                                    if (!texture) {
+                                          const auto err = std::format("GrapicsKernelInstance::ResourceBarrierPrepare - Entity is not a Texture\n");
+                                          MessageManager::Log(MessageType::Error, err);
+                                          throw std::runtime_error(err);
+                                    }
 
+                                    if(prev_kernel_type == KernelType::COMPUTE)
+                                          texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+                                    else if(prev_kernel_type == KernelType::GRAPHICS)
+                                          if(texture->IsTextureFormatDepthStencil())
+                                                texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+                                          else
+                                                texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+                                    else
+                                          texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+
+                                    break;
+                              }
+
+                        case ProgramShaderReourceType::READ_TEXTURE:
+                              {
+                                    const auto texture = world.try_get<Texture>(entity);
+                                    if (!texture) {
+                                          const auto err = std::format("GrapicsKernelInstance::ResourceBarrierPrepare - Entity is not a Texture\n");
+                                          MessageManager::Log(MessageType::Error, err);
+                                          throw std::runtime_error(err);
+                                    }
+
+                                    if(prev_kernel_type == KernelType::COMPUTE)
+                                          texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+                                    else if(prev_kernel_type == KernelType::GRAPHICS)
+                                          if(texture->IsTextureFormatDepthStencil())
+                                                texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+                                          else
+                                                texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+                                    else
+                                          texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+
+                                    break;
+                              }
+
+                        case ProgramShaderReourceType::READ_WRITE_TEXTURE:
+                              {
+                                    const auto texture = world.try_get<Texture>(entity);
+                                    if (!texture) {
+                                          const auto err = std::format("GrapicsKernelInstance::ResourceBarrierPrepare - Entity is not a Texture\n");
+                                          MessageManager::Log(MessageType::Error, err);
+                                          throw std::runtime_error(err);
+                                    }
+
+                                    if(prev_kernel_type == KernelType::COMPUTE)
+                                          texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_GENERAL, std::nullopt, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+                                    else if(prev_kernel_type == KernelType::GRAPHICS)
+                                          if(texture->IsTextureFormatDepthStencil())
+                                                texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_GENERAL, std::nullopt, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+                                          else
+                                                texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_GENERAL, std::nullopt, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+                                    else
+                                          texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_GENERAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+
+                                    break;
+                              }
+
+                        case ProgramShaderReourceType::READ_BUFFER:
+                              {
+                                    const auto buffer = world.try_get<Buffer>(entity);
+                                    if (!buffer) {
+                                          const auto err = std::format("GrapicsKernelInstance::ResourceBarrierPrepare - Entity is not a Buffer\n");
+                                          MessageManager::Log(MessageType::Error, err);
+                                          throw std::runtime_error(err);
+                                    }
+
+                                    if(prev_kernel_type == KernelType::COMPUTE)
+                                          buffer->BarrierLayout(cmd, VK_ACCESS_2_SHADER_STORAGE_READ_BIT, std::nullopt, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+                                    else if(prev_kernel_type == KernelType::GRAPHICS)
+                                          buffer->BarrierLayout(cmd, VK_ACCESS_2_SHADER_STORAGE_READ_BIT, std::nullopt, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+                                    else
+                                          buffer->BarrierLayout(cmd, VK_ACCESS_2_SHADER_STORAGE_READ_BIT, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+
+                                    break;
+                              }
+
+                        case ProgramShaderReourceType::READ_WRITE_BUFFER:
+                              {
+                                    const auto buffer = world.try_get<Buffer>(entity);
+                                    if (!buffer) {
+                                          const auto err = std::format("GrapicsKernelInstance::ResourceBarrierPrepare - Entity is not a Buffer\n");
+                                          MessageManager::Log(MessageType::Error, err);
+                                          throw std::runtime_error(err);
+                                    }
+
+                                    if(prev_kernel_type == KernelType::COMPUTE)
+                                          buffer->BarrierLayout(cmd, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT, std::nullopt, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+                                    else if(prev_kernel_type == KernelType::GRAPHICS)
+                                          buffer->BarrierLayout(cmd, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT, std::nullopt, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+                                    else
+                                          buffer->BarrierLayout(cmd, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+
+                                    break;
+                              }
+                        default: break;
+                  }
+            }
+      }
 }

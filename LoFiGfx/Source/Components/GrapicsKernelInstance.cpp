@@ -254,3 +254,29 @@ void GrapicsKernelInstance::PushBindlessInfo(VkCommandBuffer buf) const {
       }
 }
 
+void GrapicsKernelInstance::ResourceBarrierPrepare(VkCommandBuffer cmd, KernelType prev_kernel_type) const {
+      auto& world = *volkGetLoadedEcsWorld();
+      for (const auto& res : _resourceBind) {
+            if (res.has_value()) {
+                  const auto [entity, type] = res.value();
+                  if (type == ProgramShaderReourceType::SAMPLED) {
+                        const auto texture = world.try_get<Texture>(entity);
+                        if (!texture) {
+                              const auto err = std::format("GrapicsKernelInstance::ResourceBarrierPrepare - Texture Entity is not a Texture\n");
+                              MessageManager::Log(MessageType::Error, err);
+                              throw std::runtime_error(err);
+                        }
+                        if(prev_kernel_type == KernelType::COMPUTE)
+                              texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT);
+                        else if(prev_kernel_type == KernelType::GRAPHICS)
+                              if(texture->IsTextureFormatDepthStencil())
+                                    texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT);
+                              else
+                                    texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT);
+                        else
+                              texture->BarrierLayout(cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, std::nullopt, std::nullopt,VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT);
+                  }
+            }
+      }
+}
+

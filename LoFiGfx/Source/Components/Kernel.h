@@ -8,6 +8,12 @@
 
 namespace LoFi::Component {
 
+      enum KernelType {
+            None,
+            GRAPHICS,
+            COMPUTE,
+      };
+
       struct TagKernelInstanceParamChanged {};
 
       struct TagKernelInstanceParamUpdateCompleted {};

@@ -151,9 +151,11 @@ namespace LoFi {
 
             [[nodiscard]] entt::entity CreateComputeKernel(entt::entity program);
 
-            [[nodiscard]] entt::entity CreateProgram(const std::vector<std::string_view>& source_code);
+            [[nodiscard]] entt::entity CreateProgram(const std::vector<std::string_view>& source_codes);
 
             [[nodiscard]] entt::entity CreateGraphicsKernelInstance(entt::entity graphics_kernel, bool is_cpu_side = true);
+
+            [[nodiscard]] entt::entity CreateComputeKernelInstance(entt::entity compute_kernel, bool is_cpu_side = true);
 
             void DestroyHandle(entt::entity);
 
@@ -321,6 +323,7 @@ namespace LoFi {
       private:
             VkRect2D _frameRenderingRenderArea{};
 
+            Component::KernelType _currentKernelType{};
             entt::entity _currentKernel{};
 
             bool _isRenderPassOpen = false;

@@ -195,6 +195,7 @@ void GStart() {
 
       //Create "Material Intance"
       const auto kernel_instance = ctx->CreateGraphicsKernelInstance(kernel);
+      const auto cs_instance = ctx->CreateComputeKernelInstance(cs_kernel);
 
       //Set "Material Intance" Paramter
       ctx->SetKernelSampled(kernel_instance, "some_texture", noise);
@@ -233,7 +234,7 @@ void GStart() {
                   ctx->CmdDrawIndex(triangle_index);
                   ctx->CmdEndRenderPass();
 
-                  ctx->CmdBindKernel(cs_kernel);
+                  ctx->CmdBindKernel(cs_instance);
 
 
                   ctx->EndFrame();

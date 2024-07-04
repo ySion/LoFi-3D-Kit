@@ -681,36 +681,48 @@ void Context::CmdBindKernel(entt::entity kernel) {
       }
 
 
-      auto kcs = _world.try_get<Component::ComputeKernel>(kernel);
+      auto kcs = _world.try_get<Component::ComputeKernelInstance>(kernel);
+      auto kgs = _world.try_get<Component::GrapicsKernelInstance>(kernel);
+
       if(kcs) {
-            vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, kcs->GetPipeline());
-            vkCmdBindDescriptorSets(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, kcs->GetPipelineLayout(), 0, 1, &_bindlessDescriptorSet, 0, nullptr);
-            _currentKernel = kernel;
-      } else {
+            auto compute_kernel = kcs->GetParentComputeKernel();
 
-            auto k = _world.try_get<Component::GraphicKernel>(kernel);
-            auto ki = _world.try_get<Component::GrapicsKernelInstance>(kernel);
-
-            if (!k && !ki) {
-                  const auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel or a graphics kernel instance";
+            if (!_world.valid(compute_kernel)) {
+                  const auto err = "Context::CmdBindGraphicKernel - Compute Kernel Instance's parent kernel is empty";
                   MessageManager::Log(MessageType::Error, err);
                   throw std::runtime_error(err);
-            } else {
-                  if (ki) {
-                        entt::entity graphic_kernel = ki->GetParentGraphicsKernel();
-                        if (!_world.valid(graphic_kernel)) {
-                              const auto err = "Context::CmdBindGraphicKernel - Invalid graphics kernel entity";
-                              MessageManager::Log(MessageType::Error, err);
-                              throw std::runtime_error(err);
-                        }
+            }
 
-                        k = _world.try_get<Component::GraphicKernel>(graphic_kernel);
-                        if (!k) {
-                              const auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel, a graphics kernel instance, or a compute kernel.";
-                              MessageManager::Log(MessageType::Error, err);
-                              throw std::runtime_error(err);
-                        }
-                  }
+            auto kc = _world.try_get<Component::ComputeKernel>(compute_kernel);
+            if (!kc) {
+                  const auto err = "Context::CmdBindGraphicKernel - Compute Kernel Instance's parent kernel is invaild.";
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
+            }
+
+            vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, kc->GetPipeline());
+            vkCmdBindDescriptorSets(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, kc->GetPipelineLayout(), 0, 1, &_bindlessDescriptorSet, 0, nullptr);
+
+            kcs->PushBindlessInfo(GetCurrentCommandBuffer());
+            //kcs->ResourceBarrierPrepare(GetCurrentCommandBuffer(), _currentKernelType);
+
+            _currentKernel = kernel;
+            _currentKernelType = Component::KernelType::COMPUTE;
+
+      } else if(kgs) {
+
+            entt::entity graphic_kernel = kgs->GetParentGraphicsKernel();
+            if (!_world.valid(graphic_kernel)) {
+                  const auto err = "Context::CmdBindGraphicKernel - Graphics Kernel Instance's parent kernel is empty";
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
+            }
+
+            auto k = _world.try_get<Component::GraphicKernel>(graphic_kernel);
+            if (!k) {
+                  const auto err = "Context::CmdBindGraphicKernel - Graphics Kernel Instance's parent kernel is Invalid";
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
             }
 
             vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, k->GetPipeline());
@@ -721,10 +733,15 @@ void Context::CmdBindKernel(entt::entity kernel) {
             vkCmdSetScissor(GetCurrentCommandBuffer(), 0, 1, &scissor);
 
             _currentKernel = kernel;
+            _currentKernelType = Component::KernelType::GRAPHICS;
 
-            if (ki) {
-                  ki->PushBindlessInfo(GetCurrentCommandBuffer());
-            }
+            kgs->PushBindlessInfo(GetCurrentCommandBuffer());
+            //kgs->ResourceBarrierPrepare(GetCurrentCommandBuffer(), _currentKernelType);
+
+      } else {
+            const auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel instance or a compute kernel instance.";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 }
 
@@ -1082,21 +1099,33 @@ entt::entity Context::CreateComputeKernel(entt::entity program) {
       return id;
 }
 
-entt::entity Context::CreateProgram(const std::vector<std::string_view>& source_code) {
+entt::entity Context::CreateProgram(const std::vector<std::string_view>& source_codes) {
       auto id = _world.create();
-      auto& comp = _world.emplace<Component::Program>(id, id, "hello", source_code);
+      _world.emplace<Component::Program>(id, id, "hello", source_codes);
       return id;
 }
 
 entt::entity Context::CreateGraphicsKernelInstance(entt::entity graphics_kernel, bool is_cpu_side) {
       if (!_world.valid(graphics_kernel)) {
-            const auto err = "Context::CreateFrameResource - Invalid graphics kernel entity";
+            const auto err = "Context::CreateGraphicsKernelInstance - Invalid graphics kernel entity";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       auto id = _world.create();
       _world.emplace<Component::GrapicsKernelInstance>(id, id, graphics_kernel, is_cpu_side);
+      return id;
+}
+
+entt::entity Context::CreateComputeKernelInstance(entt::entity compute_kernel, bool is_cpu_side) {
+      if (!_world.valid(compute_kernel)) {
+            const auto err = "Context::CreateComputeKernelInstance - Invalid compute kernel entity";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      auto id = _world.create();
+      _world.emplace<Component::ComputeKernelInstance>(id, id, compute_kernel, is_cpu_side);
       return id;
 }
 

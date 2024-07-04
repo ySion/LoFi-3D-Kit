@@ -42,6 +42,16 @@ const char* LoFi::Component::HelperMapResourceTypeToString(ProgramShaderReourceT
       }
 }
 
+std::optional<glslang_stage_t> Program::RecognitionShaderTypeFromSource(std::string_view source) {
+      for (auto& i : ShaderTypeMap) {
+            if (source.find(i.first) != std::string::npos) {
+                  return i.second;
+            }
+      }
+      return std::nullopt;
+}
+
+
 ProgramCompilerGroup::ProgramCompilerGroup() {
       glslang_initialize_process();
 }
@@ -92,13 +102,13 @@ Program::Program(entt::entity id, std::string_view name, const std::vector<std::
       if (source_types.contains(glslang_stage_t::GLSLANG_STAGE_VERTEX) && source_types.contains(glslang_stage_t::GLSLANG_STAGE_FRAGMENT)) {
             graphics_sources.emplace_back(source_types.at(glslang_stage_t::GLSLANG_STAGE_VERTEX), glslang_stage_t::GLSLANG_STAGE_VERTEX);
             graphics_sources.emplace_back(source_types.at(glslang_stage_t::GLSLANG_STAGE_FRAGMENT), glslang_stage_t::GLSLANG_STAGE_FRAGMENT);
-            _shaderType = ProgramShaderType::GRAPHICS;
+            _shaderType = ProgramType::GRAPHICS;
             if (!CompileGraphics(graphics_sources)) {
                   const auto err = std::format("Program::Program - Failed to compile Grahpics shader.");
                   throw std::runtime_error(err);
             }
       } else if (source_types.contains(glslang_stage_t::GLSLANG_STAGE_COMPUTE)) {
-            _shaderType = ProgramShaderType::COMPUTE;
+            _shaderType = ProgramType::COMPUTE;
             if (!CompileCompute(source_types.at(glslang_stage_t::GLSLANG_STAGE_COMPUTE))) {
                   const auto err = std::format("Program::Program - Failed to compile Compute shader.");
                   throw std::runtime_error(err);
@@ -165,8 +175,22 @@ bool Program::CompileCompute(std::string_view source) {
 
       if (!_resourceDefineTable.empty()) {
             std::string push_constantsCode = "layout(push_constant) uniform _BindlessPushConstant {\n";
+
+            uint32_t resort_index = 0;
+
             for (const auto& i : _resourceDefineTable) {
-                  push_constantsCode += "\tuint " + i.first + ";\n";
+                  if(i.second.Type == ProgramShaderReourceType::PARAM) {
+                        push_constantsCode += "\tuint " + i.first + ";\n";
+                        _resourceDefineTable[i.first].Index = resort_index;
+                        resort_index++;
+                  }
+            }
+            for (const auto& i : _resourceDefineTable) {
+                  if(i.second.Type != ProgramShaderReourceType::PARAM) {
+                        push_constantsCode += "\tuint " + i.first + ";\n";
+                        _resourceDefineTable[i.first].Index = resort_index;
+                        resort_index++;
+                  }
             }
             push_constantsCode += "} _pushConstantBindlessIndexInfo;\n";
             header += push_constantsCode;
@@ -361,8 +385,21 @@ bool Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
 
       if (!_resourceDefineTable.empty()) {
             std::string push_constantsCode = "layout(push_constant) uniform _BindlessPushConstant {\n";
+            uint32_t resort_index = 0;
+
             for (const auto& i : _resourceDefineTable) {
-                  push_constantsCode += "\tuint " + i.first + ";\n";
+                  if(i.second.Type == ProgramShaderReourceType::PARAM) {
+                        push_constantsCode += "\tuint " + i.first + ";\n";
+                        _resourceDefineTable[i.first].Index = resort_index;
+                        resort_index++;
+                  }
+            }
+            for (const auto& i : _resourceDefineTable) {
+                  if(i.second.Type != ProgramShaderReourceType::PARAM) {
+                        push_constantsCode += "\tuint " + i.first + ";\n";
+                        _resourceDefineTable[i.first].Index = resort_index;
+                        resort_index++;
+                  }
             }
             push_constantsCode += "} _pushConstantBindlessIndexInfo;\n";
             header += push_constantsCode;
@@ -441,16 +478,6 @@ bool Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
 
       _isCompiled = true;
       return true;
-}
-
-std::optional<glslang_stage_t> Program::RecognitionShaderTypeFromSource(std::string_view source) {
-      for (auto& i : ShaderTypeMap) {
-            if (source.find(i.first) != std::string::npos) {
-                  return i.second;
-            }
-      }
-
-      return std::nullopt;
 }
 
 bool Program::CompileFromCode(const char* source, glslang_stage_t shader_type, std::vector<uint32_t>& spv, std::string& err_msg) {
@@ -1117,11 +1144,11 @@ bool Program::ParseVS(const std::vector<uint32_t>& spv) {
             // set, binding, struct_buffer_resourece_name, struct_type_name, member_count, struct_size);
             // std::printf("%s\n", str1.c_str());
 
-            _paramTable.emplace(struct_type_name, ProgramParamInfo{idx, (uint32_t)struct_size}); // push to table
             if (!_resourceDefineTable.contains(struct_type_name) || _resourceDefineTable[struct_type_name].Type != ProgramShaderReourceType::PARAM) {
-                  // PARAM 才会反射成员变量.  only PARAM reflects member
                   continue;
             }
+
+            _paramTable.emplace(struct_type_name, ProgramParamInfo{_resourceDefineTable[struct_type_name].Index, (uint32_t)struct_size}); // push to table
 
             for (uint32_t i = 0; i < member_count; i++) {
                   auto& member_type = comp.get_type(struct_type.member_types[i]);
@@ -1235,6 +1262,10 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
 
             bool contained = false;
 
+            if (!_resourceDefineTable.contains(struct_type_name) || _resourceDefineTable[struct_type_name].Type != ProgramShaderReourceType::PARAM) {
+                  continue;
+            }
+
             if (_paramTable.contains(struct_type_name)) {
                   if (_paramTable[struct_type_name].Size != struct_size) {
                         const auto err = std::format("Program::ParseFS - struct \"{}\"'s size is not matching with exist, please check it.", struct_type_name);
@@ -1243,11 +1274,8 @@ bool Program::ParseFS(const std::vector<uint32_t>& spv) {
                   }
                   contained = true;
             } else {
-                  _paramTable.emplace(struct_type_name, ProgramParamInfo{idx, (uint32_t)struct_size}); // push to table
-            }
 
-            if (!_resourceDefineTable.contains(struct_type_name) || _resourceDefineTable[struct_type_name].Type != ProgramShaderReourceType::PARAM) {
-                  continue;
+                  _paramTable.emplace(struct_type_name, ProgramParamInfo{_resourceDefineTable[struct_type_name].Index, (uint32_t)struct_size});
             }
 
             for (uint32_t i = 0; i < member_count; i++) {
@@ -1311,11 +1339,11 @@ bool Program::ParseCS(const std::vector<uint32_t>& spv) {
             // set, binding, struct_buffer_resourece_name, struct_type_name, member_count, struct_size);
             // std::printf("%s\n", str1.c_str());
 
-            _paramTable.emplace(struct_type_name, ProgramParamInfo{idx, (uint32_t)struct_size}); // push to table
             if (!_resourceDefineTable.contains(struct_type_name) || _resourceDefineTable[struct_type_name].Type != ProgramShaderReourceType::PARAM) {
-                  // PARAM 才会反射成员变量.  only PARAM reflects member
                   continue;
             }
+
+            _paramTable.emplace(struct_type_name, ProgramParamInfo{_resourceDefineTable[struct_type_name].Index, (uint32_t)struct_size});
 
             for (uint32_t i = 0; i < member_count; i++) {
                   auto& member_type = comp.get_type(struct_type.member_types[i]);

@@ -148,6 +148,30 @@ void Buffer::Recreate(uint64_t size) {
       MessageManager::Log(MessageType::Normal, str);
 }
 
+void Buffer::BarrierLayout(VkCommandBuffer cmd, VkAccessFlags2 new_access, std::optional<VkAccessFlags2> src_layout,
+      std::optional<VkPipelineStageFlags2> src_stage, std::optional<VkPipelineStageFlags2> dst_stage) {
+
+      if(new_access == _currentAccess) { return; }
+
+      VkMemoryBarrier2 barrier {
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2_KHR,
+            .srcStageMask = src_stage.value_or(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT),
+            .dstStageMask = dst_stage.value_or(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT),
+      };
+
+      barrier.srcAccessMask = _currentAccess;
+      barrier.dstAccessMask = new_access;
+      _currentAccess = new_access;
+
+      const VkDependencyInfo info{
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .memoryBarrierCount = 1,
+            .pMemoryBarriers = &barrier
+      };
+
+      vkCmdPipelineBarrier2(cmd, &info);
+}
+
 void Buffer::CreateBuffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci) {
       _bufferCI.reset(new VkBufferCreateInfo{buffer_ci});
       _memoryCI.reset(new VmaAllocationCreateInfo{alloc_ci});

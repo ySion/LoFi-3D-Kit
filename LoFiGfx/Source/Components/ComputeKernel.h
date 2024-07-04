@@ -38,6 +38,8 @@ namespace LoFi::Component {
 
       private:
 
+            friend class Context;
+
             VkPipeline _pipeline{};
 
             VkPipelineLayout _pipelineLayout{};

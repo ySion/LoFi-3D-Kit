@@ -34,7 +34,7 @@ namespace LoFi::Component {
             }
       };
 
-      enum class ProgramShaderType {
+      enum class ProgramType {
             UNKNOWN,
             GRAPHICS,
             COMPUTE,
@@ -70,6 +70,8 @@ namespace LoFi::Component {
                   {"CSMain", glslang_stage_t::GLSLANG_STAGE_COMPUTE},
             };
 
+            static std::optional<glslang_stage_t> RecognitionShaderTypeFromSource(std::string_view source);
+
       public:
             NO_COPY_MOVE_CONS(Program);
 
@@ -81,9 +83,9 @@ namespace LoFi::Component {
 
             [[nodiscard]] bool IsCompiled() const { return _isCompiled; }
 
-            [[nodiscard]] bool IsGraphicsShader() const { return _shaderType == ProgramShaderType::GRAPHICS; }
+            [[nodiscard]] bool IsGraphicsShader() const { return _shaderType == ProgramType::GRAPHICS; }
 
-            [[nodiscard]] bool IsComputeShader() const { return _shaderType == ProgramShaderType::COMPUTE; }
+            [[nodiscard]] bool IsComputeShader() const { return _shaderType == ProgramType::COMPUTE; }
 
             [[nodiscard]] const auto& GetParamTable() const { return _paramTable; }
 
@@ -92,13 +94,11 @@ namespace LoFi::Component {
             [[nodiscard]] const auto& GetReourceDefineTable() const { return _resourceDefineTable; }
 
       private:
+            static bool CompileFromCode(const char* source, glslang_stage_t shader_type, std::vector<uint32_t>& spv, std::string& err_msg);
+
             bool CompileCompute(std::string_view source);
 
             bool CompileGraphics(const std::vector<std::pair<std::string_view, glslang_stage_t>>& sources);
-
-            std::optional<glslang_stage_t> RecognitionShaderTypeFromSource(std::string_view source);
-
-            static bool CompileFromCode(const char* source, glslang_stage_t shader_type, std::vector<uint32_t>& spv, std::string& err_msg);
 
             bool ParseMarco(std::string_view input_code, std::string& output_codes, std::string& error_message, glslang_stage_t shader_type);
 
@@ -140,7 +140,7 @@ namespace LoFi::Component {
 
             bool _autoVSInputStageBind = true;
 
-            ProgramShaderType _shaderType = ProgramShaderType::UNKNOWN;
+            ProgramType _shaderType = ProgramType::UNKNOWN;
 
             entt::dense_map<uint32_t, VkVertexInputRate> _autoVSInputBindRateTable{};
 

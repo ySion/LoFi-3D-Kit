@@ -36,6 +36,8 @@ namespace LoFi::Component {
 
             void PushBindlessInfo(VkCommandBuffer buf) const;
 
+            void ResourceBarrierPrepare(VkCommandBuffer cmd, KernelType prev_kernel_type) const;
+
             entt::entity _id;
 
             entt::entity _parent; // Graphics kernel or FrameResource

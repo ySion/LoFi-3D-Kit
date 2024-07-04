@@ -51,6 +51,9 @@ namespace LoFi::Component {
 
             void Recreate(uint64_t size);
 
+            void BarrierLayout(VkCommandBuffer cmd, VkPipelineStageFlags2 new_access, std::optional<VkAccessFlags2> src_layout,
+                  std::optional<VkPipelineStageFlags2> src_stage, std::optional<VkPipelineStageFlags2> dst_stage);
+
       private:
             void CreateBuffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci);
 
@@ -92,5 +95,7 @@ namespace LoFi::Component {
             std::vector<VkBufferView> _views{};
 
             std::vector<VkBufferViewCreateInfo> _viewCIs{};
+
+            VkAccessFlags2 _currentAccess {};
       };
 }

@@ -189,6 +189,10 @@ std::optional<VkPipelineStageFlags2> src_stage, std::optional<VkPipelineStageFla
                   barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
                   break;
 
+            case VK_IMAGE_LAYOUT_GENERAL:
+                  barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
+            break;
+
             default: break;
       }
 
@@ -216,6 +220,8 @@ std::optional<VkPipelineStageFlags2> src_stage, std::optional<VkPipelineStageFla
             case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
                   barrier.dstAccessMask = 0;
                   break;
+            case VK_IMAGE_LAYOUT_GENERAL:
+                  barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
             default: break;
       }
 
