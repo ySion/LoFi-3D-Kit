@@ -18,20 +18,10 @@ void GStart() {
 
             layout(location = 0) out vec3 out_pos;
 
-            RBUFFER Info {
-                  float time;
-                  float time1;
-            }
 
-            PUSH_CONSTANT hello{
-                  Info info;
-                  uint Tex1;
-                  uint Tex2;
-                  uint Tex3;
-            }
 
             void VSMain() {
-                  GetSampled2D(hello.Tex1);
+
                   //float extendx = cos(GetVar(Info).time1 * 10.0f) / 5.0;
                   //float extendy = sin(GetVar(Info).time1 * 10.0f) / 5.0;
                   gl_Position = vec4(pos, 1.0f);// + vec4(extendx, extendy, 0, 0);
@@ -49,7 +39,6 @@ void GStart() {
 
             layout(location = 0) out vec4 outColor;
 
-            SAMPLED some_texture;
 
             void FSMain() {
                   //vec3 f = texture(GetTex2D(some_texture), vec2(pos.x, pos.y)).rgb;
