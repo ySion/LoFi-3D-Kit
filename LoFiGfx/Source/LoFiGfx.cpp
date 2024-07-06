@@ -13,81 +13,52 @@
 
 void GStart() {
       const char* vs = R"(
-
             layout(location = 0) in vec3 pos;
             layout(location = 1) in vec3 color;
 
-            layout(location = 0) out vec3 out_color;
-            layout(location = 1) out vec3 out_pos;
+            layout(location = 0) out vec3 out_pos;
 
-            PARAM Info {
+            RBUFFER Info {
                   float time;
-                  float time2;
-                  float time3;
-                  float time4;
+                  float time1;
+            }
+
+            PUSH_CONSTANT hello{
+                  Info info;
+                  uint Tex1;
+                  uint Tex2;
+                  uint Tex3;
             }
 
             void VSMain() {
-                  float extendx = cos(GetVar(Info).time4 * 10.0f) / 5.0;
-                  float extendy = sin(GetVar(Info).time4 * 10.0f) / 5.0;
-                  gl_Position = vec4(pos, 1.0f) + vec4(extendx, extendy, 0, 0);
-                  out_pos = pos+ vec3(extendx, extendy, 0);
-                  float t = sin(GetVar(Info).time * 10.0f) / 2.0f;
-                  out_color = color + vec3(t,t,t);
+                  GetSampled2D(hello.Tex1);
+                  //float extendx = cos(GetVar(Info).time1 * 10.0f) / 5.0;
+                  //float extendy = sin(GetVar(Info).time1 * 10.0f) / 5.0;
+                  gl_Position = vec4(pos, 1.0f);// + vec4(extendx, extendy, 0, 0);
+                  out_pos = pos;//+ vec3(extendx, extendy, 0);
             }
       )";
 
       const char* ps = R"(
-
             #set rt = r8g8b8a8_unorm
             #set ds = d32_sfloat
 
             #set color_blend = add
 
-            layout(location = 0) in vec3 color;
-            layout(location = 1) in vec3 pos;
+            layout(location = 0) in vec3 pos;
 
             layout(location = 0) out vec4 outColor;
 
-            PARAM Info {
-                  float time;
-                  float time2;
-                  float time3;
-                  float time4;
-            }
-
             SAMPLED some_texture;
-            SAMPLED some_texture2;
 
             void FSMain() {
-                  vec3 f = texture(GetTex2D(some_texture), vec2(pos.x, pos.y)).rgb;
-                  vec3 f2 = texture(GetTex2D(some_texture2), vec2(pos.x, pos.y)).rgb;
-                  vec3 f3 = f * f2;
-                  outColor =  vec4(f, 0.5f);
+                  //vec3 f = texture(GetTex2D(some_texture), vec2(pos.x, pos.y)).rgb;
+                  outColor = vec4(1.0, 1.0, 1.0, 0.5f);
             }
       )";
 
 
-      //PARAM Info {
-//      float deltaTime;
-//}
-//
-//struct Particle {
-//      vec2 position;
-//      vec2 velocity;
-//      vec4 color;
-//};
-//
-//BUFFER ParticleSSBOIn {
-//      Particle particlesIn[];
-//}
-//
-//BUFFER ParticleSSBOOut {
-//      Particle particlesOut[];
-//}
-
       const auto cs = R"(
-
             PARAM UBO {
                 float deltaTime;
             };
@@ -186,57 +157,42 @@ void GStart() {
       ctx->MapRenderTargetToWindow(rt2, win2);
       ctx->MapRenderTargetToWindow(rt3, win3);
 
-      //Compile Shader and Create "Material"
+
       const auto program = ctx->CreateProgram({vs, ps});
-      const auto cs_program = ctx->CreateProgram({cs});
+      const auto kernel = ctx->CreateKernel(program);
 
-      const auto kernel = ctx->CreateGraphicKernel(program);
-      const auto cs_kernel = ctx->CreateComputeKernel(cs_program);
-
-      //Create "Material Intance"
-      const auto kernel_instance = ctx->CreateGraphicsKernelInstance(kernel);
-      const auto cs_instance = ctx->CreateComputeKernelInstance(cs_kernel);
-
-      //Set "Material Intance" Paramter
-      ctx->SetKernelSampled(kernel_instance, "some_texture", noise);
-      ctx->SetKernelSampled(kernel_instance, "some_texture2", noise2);
 
       std::atomic<bool> should_close = false;
       auto func = std::async(std::launch::async, [&] {
             while (!should_close) {
                   float time = (float)((double)SDL_GetTicks() / 1000.0);
-                  ctx->SetKernelParam(kernel_instance, "Info.time", time * 2);
-                  ctx->SetKernelParam(kernel_instance, "Info.time4", time);
-                  ctx->SetKernelParam(kernel_instance, "Info.time3", 0.0f);
 
                   ctx->BeginFrame();
 
                   //Pass 1
                   ctx->CmdBeginRenderPass({{rt1}});
-                  ctx->CmdBindKernel(kernel_instance);
+                  ctx->CmdBindKernel(kernel);
                   ctx->CmdBindVertexBuffer(triangle_vert);
                   ctx->CmdDrawIndex(triangle_index);
                   ctx->CmdEndRenderPass();
 
                   //Pass 2
                   ctx->CmdBeginRenderPass({{rt2}});
-                  ctx->CmdBindKernel(kernel_instance);
+                  ctx->CmdBindKernel(kernel);
                   ctx->CmdBindVertexBuffer(square_vert);
                   ctx->CmdDrawIndex(square_index);
                   ctx->CmdEndRenderPass();
 
                   //Pass 3
                   ctx->CmdBeginRenderPass({{rt3}, {ds}});
-                  ctx->CmdBindKernel(kernel_instance);
+                  ctx->CmdBindKernel(kernel);
                   ctx->CmdBindVertexBuffer(square_vert);
                   ctx->CmdDrawIndex(square_index);
                   ctx->CmdBindVertexBuffer(triangle_vert);
                   ctx->CmdDrawIndex(triangle_index);
                   ctx->CmdEndRenderPass();
 
-                  ctx->CmdBindKernel(cs_instance);
-
-
+                  //Compute
                   ctx->EndFrame();
             }
       });

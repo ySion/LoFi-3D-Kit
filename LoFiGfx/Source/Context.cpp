@@ -2,6 +2,13 @@
 #include "Message.h"
 #include "PhysicalDevice.h"
 
+#include "Components/Window.h"
+#include "Components/Swapchain.h"
+#include "Components/Buffer.h"
+#include "Components/Texture.h"
+#include "Components/Program.h"
+#include "Components/Kernel.h"
+
 #include "SDL3/SDL.h"
 
 using namespace LoFi;
@@ -565,12 +572,7 @@ void Context::Shutdown() {
       }
 
       {
-            auto view = _world.view<Component::GraphicKernel>();
-            _world.destroy(view.begin(), view.end());
-      }
-
-      {
-            auto view = _world.view<Component::ComputeKernel>();
+            auto view = _world.view<Component::Kernel>();
             _world.destroy(view.begin(), view.end());
       }
 
@@ -581,10 +583,7 @@ void Context::Shutdown() {
 
       RecoveryAllContextResourceImmediately();
 
-      {
-            auto view = _world.view<Component::GrapicsKernelInstance>();
-            _world.destroy(view.begin(), view.end());
-      }
+
 
 
 
@@ -680,208 +679,31 @@ void Context::CmdBindKernel(entt::entity kernel) {
             throw std::runtime_error(err);
       }
 
+      const auto kernel_ptr  = _world.try_get<Component::Kernel>(kernel);
+      if(!kernel_ptr) {
+            throw std::runtime_error("Context::CmdBindKernel - this entity is not a kernel entity.");
+      }
 
-      auto kcs = _world.try_get<Component::ComputeKernelInstance>(kernel);
-      auto kgs = _world.try_get<Component::GrapicsKernelInstance>(kernel);
-
-      if(kcs) {
-            auto compute_kernel = kcs->GetParentComputeKernel();
-
-            if (!_world.valid(compute_kernel)) {
-                  const auto err = "Context::CmdBindGraphicKernel - Compute Kernel Instance's parent kernel is empty";
-                  MessageManager::Log(MessageType::Error, err);
-                  throw std::runtime_error(err);
-            }
-
-            auto kc = _world.try_get<Component::ComputeKernel>(compute_kernel);
-            if (!kc) {
-                  const auto err = "Context::CmdBindGraphicKernel - Compute Kernel Instance's parent kernel is invaild.";
-                  MessageManager::Log(MessageType::Error, err);
-                  throw std::runtime_error(err);
-            }
-
-            vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, kc->GetPipeline());
-            vkCmdBindDescriptorSets(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, kc->GetPipelineLayout(), 0, 1, &_bindlessDescriptorSet, 0, nullptr);
-
-            kcs->PushBindlessInfo(GetCurrentCommandBuffer());
-            //kcs->ResourceBarrierPrepare(GetCurrentCommandBuffer(), _currentKernelType);
+      if(kernel_ptr->IsComputeKernel()) {
+            vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, kernel_ptr->GetPipeline());
+            vkCmdBindDescriptorSets(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, kernel_ptr->GetPipelineLayout(),
+                  0, 1, &_bindlessDescriptorSet, 0, nullptr);
 
             _currentKernel = kernel;
             _currentKernelType = Component::KernelType::COMPUTE;
+      } else if(kernel_ptr->IsGraphicsKernel()) {
 
-      } else if(kgs) {
-
-            entt::entity graphic_kernel = kgs->GetParentGraphicsKernel();
-            if (!_world.valid(graphic_kernel)) {
-                  const auto err = "Context::CmdBindGraphicKernel - Graphics Kernel Instance's parent kernel is empty";
-                  MessageManager::Log(MessageType::Error, err);
-                  throw std::runtime_error(err);
-            }
-
-            auto k = _world.try_get<Component::GraphicKernel>(graphic_kernel);
-            if (!k) {
-                  const auto err = "Context::CmdBindGraphicKernel - Graphics Kernel Instance's parent kernel is Invalid";
-                  MessageManager::Log(MessageType::Error, err);
-                  throw std::runtime_error(err);
-            }
-
-            vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, k->GetPipeline());
-            vkCmdBindDescriptorSets(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, k->GetPipelineLayout(), 0, 1, &_bindlessDescriptorSet, 0, nullptr);
+            vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, kernel_ptr->GetPipeline());
+            vkCmdBindDescriptorSets(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, kernel_ptr->GetPipelineLayout(), 0, 1, &_bindlessDescriptorSet, 0, nullptr);
             const VkViewport viewport = VkViewport{0, (float)_frameRenderingRenderArea.extent.height, (float)_frameRenderingRenderArea.extent.width, -(float)_frameRenderingRenderArea.extent.height, 0, 1};
             vkCmdSetViewport(GetCurrentCommandBuffer(), 0, 1, &viewport);
             const VkRect2D scissor = VkRect2D{0, 0, _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height};
             vkCmdSetScissor(GetCurrentCommandBuffer(), 0, 1, &scissor);
 
-            _currentKernel = kernel;
-            _currentKernelType = Component::KernelType::GRAPHICS;
-
-            kgs->PushBindlessInfo(GetCurrentCommandBuffer());
-            //kgs->ResourceBarrierPrepare(GetCurrentCommandBuffer(), _currentKernelType);
-
       } else {
-            const auto err = "Context::CmdBindGraphicKernel - this entity is not a graphics kernel instance or a compute kernel instance.";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
+            throw std::runtime_error("Context::CmdBindKernel - this kernel is not a graphics kernel or compute kernel.");
       }
 }
-
-void Context::SetKernelParam(entt::entity frame_resource, const std::string& variable_name, const void* data) {
-      if (!variable_name.contains('.')) {
-            SetKernelParamStruct(frame_resource, variable_name, data);
-      } else {
-            SetKernelParamMember(frame_resource, variable_name, data);
-      }
-}
-
-void Context::SetKernelParamStruct(entt::entity frame_resource, const std::string& struct_name, const void* data) {
-      if (!data) {
-            const auto err = "Context::SetKernelParamStruct - Invalid data, data is nullptr.";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      if (!_world.valid(frame_resource)) {
-            const auto err = "Context::SetKernelParamStruct - Invalid frame resource entity.";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      auto fr = _world.try_get<Component::GrapicsKernelInstance>(frame_resource);
-      if (!fr) {
-            const auto err = "Context::SetKernelParamStruct - this entity is not a frame resource.";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      fr->SetParam(struct_name, data);
-}
-
-void Context::SetKernelParamMember(entt::entity frame_resource, const std::string& struct_member_name, const void* data) {
-      if (!data) {
-            const auto err = "Context::SetKernelParamMember - Invalid data, data is nullptr.";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      if (!_world.valid(frame_resource)) {
-            const auto err = "Context::SetKernelParamMember - Invalid frame resource entity.";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      auto fr = _world.try_get<Component::GrapicsKernelInstance>(frame_resource);
-      if (!fr) {
-            const auto err = "Context::SetKernelParamMember - this entity is not a frame resource.";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      fr->SetParamMember(struct_member_name, data);
-}
-
-void Context::SetKernelSampled(entt::entity frame_resource, const std::string& texture_name, entt::entity texture) {
-      if (!_world.valid(frame_resource)) {
-            const auto err = "Context::SetKernelSampled - Invalid frame graphics kernel instance entity.";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      if (!_world.valid(texture)) {
-            const auto err = "Context::SetKernelSampled - Invalid texture entity.";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      auto fr = _world.try_get<Component::GrapicsKernelInstance>(frame_resource);
-      if (!fr) {
-            const auto err = "Context::SetKernelSampled - this entity is not a frame resource.";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      auto tex = _world.try_get<Component::Texture>(texture);
-      if (!tex) {
-            const auto err = "Context::SetKernelSampled - this entity is not a texture.";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      fr->SetSampled(texture_name, texture);
-}
-
-// void Context::CmdBindLayoutVariable(const std::vector<LayoutVariableBindInfo>& layout_variable_info) {
-//
-//       if(layout_variable_info.empty()) return;
-//
-//       auto kernel = _world.try_get<Component::GraphicKernel>(_currentGraphicsKernel);
-//       if(!kernel) {
-//             const auto err = "Context::CmdBindResourceBuffer - No graphics kernel binded";
-//             MessageManager::Log(MessageType::Error, err);
-//             throw std::runtime_error(err);
-//       }
-//
-//       auto success = false;
-//       for(const auto& info : layout_variable_info) {
-//             auto buffer = info.Buffer;
-//             const std::string& layout_variable_name = info.Name;
-//
-//             if (!_world.valid(buffer)) {
-//                   const auto err =  std::format("Context::CmdBindResourceBuffer - Set Layout Varialbe {} failed, Invalid buffer entity", layout_variable_name);
-//                   MessageManager::Log(MessageType::Error, err);
-//                   throw std::runtime_error(err);
-//             }
-//
-//             auto buf = _world.try_get<Component::Buffer>(buffer);
-//             if (!buf) {
-//                   const auto err = std::format("Context::CmdBindResourceBuffer - Set Layout Varialbe {} failed, entity {} is not buffer.", layout_variable_name, (uint32_t)buffer);
-//                   MessageManager::Log(MessageType::Error, err);
-//                   throw std::runtime_error(err);
-//             }
-//             auto bindless_index = buf->GetBindlessIndex();
-//
-//             if(!bindless_index.has_value()) {
-//                   const auto err = std::format("Context::CmdBindResourceBuffer - Set Layout Varialbe {} failed, Buffer {} is not a binless buffer", layout_variable_name, (uint32_t)buffer);
-//                   MessageManager::Log(MessageType::Error, err);
-//                   throw std::runtime_error(err);
-//             }
-//
-//             uint32_t bit32_index = bindless_index.value();
-//             if(kernel->SetBindlessLayoutVariable(layout_variable_name, (void*)&bit32_index)) {
-//                   success = true;
-//             } else {
-//                   const auto err = std::format("Context::CmdBindResourceBuffer - Set Layout Varialbe \"{}\" failed, this variable is not exist.", layout_variable_name);
-//                   MessageManager::Log(MessageType::Error, err);
-//
-//                   const auto& layout_variable_names = kernel->GetVariableMap();
-//                   for(const auto& i : layout_variable_names) {
-//                         printf("\t\t\tVailed Name: \"%s\"\n", i.first.c_str());
-//                   }
-//
-//             }
-//       }
-//
-//       kernel->PushConstantBindlessLayoutVariableInfo(GetCurrentCommandBuffer());
-// }
 
 void Context::CmdBindVertexBuffer(entt::entity buffer, size_t offset) {
       if (!_world.valid(buffer)) {
@@ -920,12 +742,7 @@ void Context::CmdDrawIndex(entt::entity index_buffer, size_t offset, std::option
 
       vkCmdBindIndexBuffer(GetCurrentCommandBuffer(), ib->GetBuffer(), offset, VK_INDEX_TYPE_UINT32);
 
-      uint32_t max_vaild_idx_count = ib->GetSize() / sizeof(uint32_t);
-      uint32_t idx_count = max_vaild_idx_count;
-
-      if (index_count.has_value()) {
-            index_count = std::min(index_count.value(), max_vaild_idx_count);
-      }
+      uint32_t idx_count = std::min(index_count.value_or(std::numeric_limits<uint32_t>::max()), (uint32_t)(ib->GetSize() / sizeof(uint32_t)));
       vkCmdDrawIndexed(GetCurrentCommandBuffer(), idx_count, 1, 0, 0, 0);
 }
 
@@ -996,7 +813,7 @@ entt::entity Context::CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, u
       return id;
 }
 
-entt::entity Context::CreateTexture2D(void* pixel_data, size_t size, VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts) {
+entt::entity Context::CreateTexture2D(const void* pixel_data, size_t size, VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts) {
       const entt::entity tex =  CreateTexture2D(format, w, h, mipMapCounts);
       FillTexture2D(tex, pixel_data, size);
       return tex;
@@ -1045,87 +862,31 @@ entt::entity Context::CreateBuffer(const void* data, uint64_t size, bool cpu_acc
       return id;
 }
 
-entt::entity Context::CreateGraphicKernel(entt::entity program) {
+entt::entity Context::CreateProgram(const std::vector<std::string_view>& source_codes, const std::string& program_name) {
       auto id = _world.create();
-      auto& kernel = _world.emplace<Component::GraphicKernel>(id, id, program);
-      const auto& map = kernel.GetParamTable();
-      const auto& map2 = kernel.GetParamMemberTable();
-      const auto& map3 = kernel.GetReourceDefineTable();
 
-      printf("Kernel Variable Table:\n");
-      printf("Structs:\n");
-
-      for (const auto& i : map) {
-            printf("\t%s - index: %u, size: %u\n", i.first.c_str(), i.second.Index, i.second.Size);
-      }
-
-      printf("Struct Members:\n");
-      for (const auto& i : map2) {
-            printf("\t%s - index: %u, size: %u, offset: %u\n", i.first.c_str(), i.second.StructIndex, i.second.Size, i.second.Offset);
-      }
-
-      printf("Resource:\n");
-      for (const auto& i : map3) {
-            printf("\t%s : %s\n", i.first.c_str(), Component::HelperMapResourceTypeToString(i.second.Type));
+      try {
+            _world.emplace<Component::Program>(id, id, program_name, source_codes);
+      } catch (const std::exception& e) {
+            _world.destroy(id);
+            MessageManager::Log(MessageType::Error, e.what());
+            return entt::null;
       }
 
       return id;
 }
 
-entt::entity Context::CreateComputeKernel(entt::entity program) {
+entt::entity Context::CreateKernel(entt::entity program) {
       auto id = _world.create();
-      auto& kernel = _world.emplace<Component::ComputeKernel>(id, id, program);
-      const auto& map = kernel.GetParamTable();
-      const auto& map2 = kernel.GetParamMemberTable();
-      const auto& map3 = kernel.GetReourceDefineTable();
 
-      printf("Kernel Variable Table:\n");
-      printf("Structs:\n");
-
-      for (const auto& i : map) {
-            printf("\t%s - index: %u, size: %u\n", i.first.c_str(), i.second.Index, i.second.Size);
+      try {
+            _world.emplace<Component::Kernel>(id, id, program);
+      } catch (const std::exception& e) {
+            _world.destroy(id);
+            MessageManager::Log(MessageType::Error, e.what());
+            return entt::null;
       }
 
-      printf("Struct Members:\n");
-      for (const auto& i : map2) {
-            printf("\t%s - index: %u, size: %u, offset: %u\n", i.first.c_str(), i.second.StructIndex, i.second.Size, i.second.Offset);
-      }
-
-      printf("Resource:\n");
-      for (const auto& i : map3) {
-            printf("\t%s : %s\n", i.first.c_str(), Component::HelperMapResourceTypeToString(i.second.Type));
-      }
-
-      return id;
-}
-
-entt::entity Context::CreateProgram(const std::vector<std::string_view>& source_codes) {
-      auto id = _world.create();
-      _world.emplace<Component::Program>(id, id, "hello", source_codes);
-      return id;
-}
-
-entt::entity Context::CreateGraphicsKernelInstance(entt::entity graphics_kernel, bool is_cpu_side) {
-      if (!_world.valid(graphics_kernel)) {
-            const auto err = "Context::CreateGraphicsKernelInstance - Invalid graphics kernel entity";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      auto id = _world.create();
-      _world.emplace<Component::GrapicsKernelInstance>(id, id, graphics_kernel, is_cpu_side);
-      return id;
-}
-
-entt::entity Context::CreateComputeKernelInstance(entt::entity compute_kernel, bool is_cpu_side) {
-      if (!_world.valid(compute_kernel)) {
-            const auto err = "Context::CreateComputeKernelInstance - Invalid compute kernel entity";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      auto id = _world.create();
-      _world.emplace<Component::ComputeKernelInstance>(id, id, compute_kernel, is_cpu_side);
       return id;
 }
 
@@ -1135,7 +896,7 @@ void Context::DestroyHandle(entt::entity handle) {
       }
 }
 
-void Context::SetBufferData(entt::entity buffer, void* data, uint64_t size) {
+void Context::SetBufferData(entt::entity buffer, const void* data, uint64_t size) {
       if (!_world.valid(buffer)) {
             const auto err = "Context::SetBufferData - Invalid buffer entity";
             MessageManager::Log(MessageType::Error, err);
@@ -1153,7 +914,7 @@ void Context::SetBufferData(entt::entity buffer, void* data, uint64_t size) {
       buffer_component->SetData(data, size);
 }
 
-void Context::FillTexture2D(entt::entity texture, void* data, uint64_t size) {
+void Context::FillTexture2D(entt::entity texture, const void* data, uint64_t size) {
       if (!_world.valid(texture)) {
             const auto err = "Context::SetTexture2DData - Invalid texture entity";
             MessageManager::Log(MessageType::Error, err);
@@ -1196,16 +957,6 @@ void Context::EnqueueCommand(const std::function<void(VkCommandBuffer)>& command
 }
 
 void Context::BeginFrame() {
-      _world.view<Component::GrapicsKernelInstance, Component::TagKernelInstanceParamChanged>().each([](entt::entity, Component::GrapicsKernelInstance& res) {
-            res.PushResourceChanged();
-      });
-
-      auto buffer_udpate_completed = _world.view<
-            Component::GrapicsKernelInstance,
-            Component::TagKernelInstanceParamChanged,
-            Component::TagKernelInstanceParamUpdateCompleted>();
-
-      _world.remove<Component::TagKernelInstanceParamChanged, Component::TagKernelInstanceParamUpdateCompleted>(buffer_udpate_completed.begin(), buffer_udpate_completed.end());
 
       PrepareWindowRenderTarget();
       auto cmd = GetCurrentCommandBuffer();
@@ -1851,7 +1602,7 @@ void Context::RecoveryContextResourceImageView(const ContextResourceRecoveryInfo
       }
 }
 
-void Context::RecoveryContextResourcePipeline(const Internal::ContextResourceRecoveryInfo& pack) {
+void Context::RecoveryContextResourcePipeline(const Internal::ContextResourceRecoveryInfo& pack) const {
       if (pack.Resource1.has_value()) {
             auto pipeline = (VkPipeline)pack.Resource1.value();
             vkDestroyPipeline(_device, pipeline, nullptr);

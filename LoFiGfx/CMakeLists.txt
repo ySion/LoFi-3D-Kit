@@ -14,13 +14,10 @@ set(Source_List
         Source/Components/Texture.cpp
         Source/Components/Program.cpp
         Source/Components/Buffer.cpp
-        Source/Components/GraphicKernel.cpp
-        Source/Components/GrapicsKernelInstance.cpp
-        Source/Components/GrapicsKernelInstance.h
-        Source/Components/ComputeKernel.cpp
-        Source/Components/ComputeKernel.h
-        Source/Components/ComputeKernelInstance.cpp
-        Source/Components/ComputeKernelInstance.h
+        Source/Components/Defines.h
+        Source/Components/ResourcePushConstant.cpp
+        Source/Components/ResourcePushConstant.h
+        Source/Components/Kernel.cpp
         Source/Components/Kernel.h
 )
 

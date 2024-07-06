@@ -6,19 +6,17 @@
 #include "Helper.h"
 #include "PhysicalDevice.h"
 
-#include "Components/Window.h"
-#include "Components/Swapchain.h"
-#include "Components/Texture.h"
-#include "Components/Buffer.h"
-#include "Components/Program.h"
-#include "Components/GraphicKernel.h"
-#include "Components/ComputeKernel.h"
-#include "Components/GrapicsKernelInstance.h"
-#include "Components/ComputeKernelInstance.h"
-
 #include "../Third/xxHash/xxh3.h"
+#include "Components/Defines.h"
 
 namespace LoFi {
+
+      namespace Component {
+            class Buffer;
+            class Program;
+            class Texture;
+            class Kernel;
+      }
 
       namespace Internal {
             enum class ContextResourceType {
@@ -86,10 +84,7 @@ namespace LoFi {
             friend class Component::Buffer;
             friend class Component::Program;
             friend class Component::Texture;
-            friend class Component::GraphicKernel;
-            friend class Component::ComputeKernel;
-            friend class Component::GrapicsKernelInstance;
-            friend class Component::ComputeKernelInstance;
+            friend class Component::Kernel;
 
             struct SamplerCIHash {
                   std::size_t operator()(const VkSamplerCreateInfo& s) const noexcept {
@@ -99,7 +94,7 @@ namespace LoFi {
 
             struct SamplerCIEqual {
                   std::size_t operator()(const VkSamplerCreateInfo& a, const VkSamplerCreateInfo& b) const noexcept {
-                        return memcmp(&a, &b, sizeof(VkSamplerCreateInfo));
+                        return (memcmp(&a, &b, sizeof(VkSamplerCreateInfo)) == 0);
                   }
             };
 
@@ -126,7 +121,7 @@ namespace LoFi {
 
             [[nodiscard]] entt::entity CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts = 1);
 
-            [[nodiscard]] entt::entity CreateTexture2D(void* pixel_data, size_t size, VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts = 1);
+            [[nodiscard]] entt::entity CreateTexture2D(const void* pixel_data, size_t size, VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts = 1);
 
             template <class T>
             [[nodiscard]] entt::entity CreateTexture2D(const std::vector<T>& data, VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts = 1) {
@@ -147,21 +142,15 @@ namespace LoFi {
                   return CreateBuffer(data.data(), N * sizeof(T), cpu_access, bindless);
             }
 
-            [[nodiscard]] entt::entity CreateGraphicKernel(entt::entity program);
+            [[nodiscard]] entt::entity CreateProgram(const std::vector<std::string_view>& source_codes, const std::string& program_name = "defualt_program");
 
-            [[nodiscard]] entt::entity CreateComputeKernel(entt::entity program);
-
-            [[nodiscard]] entt::entity CreateProgram(const std::vector<std::string_view>& source_codes);
-
-            [[nodiscard]] entt::entity CreateGraphicsKernelInstance(entt::entity graphics_kernel, bool is_cpu_side = true);
-
-            [[nodiscard]] entt::entity CreateComputeKernelInstance(entt::entity compute_kernel, bool is_cpu_side = true);
+            [[nodiscard]] entt::entity CreateKernel(entt::entity program);
 
             void DestroyHandle(entt::entity);
 
-            void SetBufferData(entt::entity buffer, void* data, uint64_t size);
+            void SetBufferData(entt::entity buffer, const void* data, uint64_t size);
 
-            void FillTexture2D(entt::entity texture, void* data, uint64_t size);
+            void FillTexture2D(entt::entity texture, const void* data, uint64_t size);
 
             //void SetTexture2DData(entt::entity texture, entt::entity buffer);
 
@@ -184,14 +173,6 @@ namespace LoFi {
             void CmdEndRenderPass();
 
             void CmdBindKernel(entt::entity kernel);
-
-            void SetKernelParam(entt::entity frame_resource, const std::string& variable_name, const void* data);
-
-            void SetKernelParamStruct(entt::entity frame_resource, const std::string& struct_name, const void* data);
-
-            void SetKernelParamMember(entt::entity frame_resource, const std::string& struct_member_name, const void* data);
-
-            void SetKernelSampled(entt::entity frame_resource, const std::string& texture_name, entt::entity texture);
 
             template<class T> requires !std::is_pointer_v<T>
             void SetKernelParam(entt::entity frame_resource, const std::string& variable_name, const T& data) {
@@ -260,7 +241,7 @@ namespace LoFi {
 
             void RecoveryContextResourceImageView(const Internal::ContextResourceRecoveryInfo& pack) const;
 
-            void RecoveryContextResourcePipeline(const Internal::ContextResourceRecoveryInfo& pack) ;
+            void RecoveryContextResourcePipeline(const Internal::ContextResourceRecoveryInfo& pack) const;
 
             void RecoveryContextResourcePipelineLayout(const Internal::ContextResourceRecoveryInfo& pack) const;
 

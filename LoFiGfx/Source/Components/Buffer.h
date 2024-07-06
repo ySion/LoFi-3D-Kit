@@ -37,6 +37,8 @@ namespace LoFi::Component {
 
             [[nodiscard]] std::optional<uint32_t> GetBindlessIndex() const { return _bindlessIndex; }
 
+            [[nodiscard]] VkDeviceAddress GetAddress() const;
+
             [[nodiscard]] entt::entity GetID() const { return _id; }
 
             VkBufferView CreateView(VkBufferViewCreateInfo view_ci);

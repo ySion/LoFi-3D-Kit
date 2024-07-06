@@ -26,6 +26,15 @@ Buffer::Buffer(entt::entity id, const VkBufferCreateInfo& buffer_ci, const VmaAl
       CreateBuffer(buffer_ci, alloc_ci);
 }
 
+VkDeviceAddress Buffer::GetAddress() const {
+      const auto address_info = VkBufferDeviceAddressInfo{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+            .buffer = _buffer
+      };
+      const VkDeviceAddress address = vkGetBufferDeviceAddress(volkGetLoadedDevice(), &address_info);
+      return address;
+}
+
 VkBufferView Buffer::CreateView(VkBufferViewCreateInfo view_ci) {
       view_ci.buffer = _buffer;
 
