@@ -261,8 +261,8 @@ void Texture::SetBindlessIndexForSampler(std::optional<uint32_t> index) {
       _bindlessIndexForSampler = index;
 }
 
-void Texture::SetBindlessIndexForComputeKernel(std::optional<uint32_t> index) {
-      _bindlessIndexForComputeKernel = index;
+void Texture::SetBindlessIndexForStorage(std::optional<uint32_t> index) {
+      _bindlessIndexForStorage = index;
 }
 
 void Texture::DestroyTexture() {
@@ -270,8 +270,8 @@ void Texture::DestroyTexture() {
             .Type = ContextResourceType::IMAGE,
             .Resource1 = (size_t)_image,
             .Resource2 = (size_t)_memory,
-            .Resource3 = _bindlessIndexForComputeKernel,
-            .Resource4 = _bindlessIndexForSampler
+            .Resource3 = _bindlessIndexForSampler,
+            .Resource4 = _bindlessIndexForStorage
       };
       Context::Get()->RecoveryContextResource(info);
 }

@@ -89,44 +89,51 @@ void Buffer::SetData(const void* p, uint64_t size) {
             memcpy(Map(), p, size);
             _vaildSize = size;
       } else {
-            if (_intermediateBuffer == nullptr) {
-                  // create a upload buffer
-
-                  auto str = std::format(R"(Buffer::SetData - Try UpLoad To device buffer, using Intermediate Buffer)");
-                  MessageManager::Log(MessageType::Normal, str);
-
-                  _intermediateBuffer = std::make_unique<Buffer>(VkBufferCreateInfo{
-                        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-                        .pNext = nullptr,
-                        .flags = 0,
-                        .size = size,
-                        .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-                        .queueFamilyIndexCount = 0,
-                        .pQueueFamilyIndices = nullptr
-                  }, VmaAllocationCreateInfo{
-                        .usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
-                        .requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            if(size <= 1024 * 4) {
+                  LoFi::Context::Get()->EnqueueCommand([=](VkCommandBuffer cmd) {
+                        vkCmdUpdateBuffer(cmd, _buffer, 0, size, p);
                   });
+                  _vaildSize = size;
+            } else {
+                  if (_intermediateBuffer == nullptr) {
+                        // create a upload buffer
+
+                        auto str = std::format(R"(Buffer::SetData - Try UpLoad To device buffer, using Intermediate Buffer)");
+                        MessageManager::Log(MessageType::Normal, str);
+
+                        _intermediateBuffer = std::make_unique<Buffer>(VkBufferCreateInfo{
+                              .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                              .pNext = nullptr,
+                              .flags = 0,
+                              .size = size,
+                              .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                              .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+                              .queueFamilyIndexCount = 0,
+                              .pQueueFamilyIndices = nullptr
+                        }, VmaAllocationCreateInfo{
+                              .usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
+                              .requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                        });
+                  }
+
+                  _intermediateBuffer->SetData(p, size);
+
+                  auto imm_buffer = _intermediateBuffer->GetBuffer();
+                  auto trans_size = size;
+
+                  const VkBufferCopy copyinfo{
+                        .srcOffset = 0,
+                        .dstOffset = 0,
+                        .size = trans_size
+                  };
+
+                  auto buffer = _buffer;
+                  LoFi::Context::Get()->EnqueueCommand([ =](VkCommandBuffer cmd) {
+                        vkCmdCopyBuffer(cmd, imm_buffer, buffer, 1, &copyinfo);
+                  });
+
+                  _vaildSize = size;
             }
-
-            _intermediateBuffer->SetData(p, size);
-
-            auto imm_buffer = _intermediateBuffer->GetBuffer();
-            auto trans_size = size;
-
-            const VkBufferCopy copyinfo{
-                  .srcOffset = 0,
-                  .dstOffset = 0,
-                  .size = trans_size
-            };
-
-            auto buffer = _buffer;
-            LoFi::Context::Get()->EnqueueCommand([ =](VkCommandBuffer cmd) {
-                  vkCmdCopyBuffer(cmd, imm_buffer, buffer, 1, &copyinfo);
-            });
-
-            _vaildSize = size;
       }
 }
 
@@ -148,10 +155,6 @@ void Buffer::Recreate(uint64_t size) {
       if (IsHostSide()) Map();
 
       RecreateAllViews();
-
-      if (_bindlessIndex.has_value()) {
-            _bindlessIndex = Context::Get()->MakeBindlessIndexBuffer(_id);
-      }
 
       auto str = std::format(R"(Buffer::CreateBuffer - Recreate "{}" bytes at "{}" side)", _bufferCI->size, _isHostSide ? "Host" : "Device");
       MessageManager::Log(MessageType::Normal, str);
@@ -239,16 +242,11 @@ void Buffer::Clean() {
       _vaildSize = 0;
 }
 
-void Buffer::SetBindlessIndex(std::optional<uint32_t> bindless_index) {
-      _bindlessIndex = bindless_index;
-}
-
 void Buffer::DestroyBuffer() {
       ContextResourceRecoveryInfo info{
             .Type = ContextResourceType::BUFFER,
             .Resource1 = (size_t)_buffer,
             .Resource2 = (size_t)_memory,
-            .Resource3 = _bindlessIndex
       };
       Context::Get()->RecoveryContextResource(info);
 }

@@ -54,12 +54,16 @@ namespace LoFi::Component {
 
             [[nodiscard]] auto& GetPushConstantRange() const { return  _pushConstantRange;}
 
+            [[nodiscard]] auto& GetResourceDefine() const { return _shaderResourceDefine;  }
+
+            [[nodiscard]] uint32_t GetParameterTableSize() const { return _parameterTableSize;  }
+
             [[nodiscard]] const entt::dense_map<glslang_stage_t, std::pair<std::vector<uint32_t>, VkShaderModule>>& GetShaderModules() const { return _shaderModules; }
 
       private:
             static bool CompileFromCode(const char* source, glslang_stage_t shader_type, std::vector<uint32_t>& spv, std::string& err_msg);
 
-            static bool ParseMarco(std::string_view input_code, std::string& output_codes, std::string& error_message, glslang_stage_t shader_type);
+            bool ParseMarco(std::string_view input_code, std::string& output_codes, std::string& error_message, glslang_stage_t shader_type);
 
             void CompileCompute(std::string_view source);
 
@@ -90,7 +94,13 @@ namespace LoFi::Component {
 
             entt::dense_map<glslang_stage_t, std::pair<std::vector<uint32_t>, VkShaderModule>> _shaderModules{};
 
+            entt::dense_map<std::string, std::string> _shaderBufferResourceDefineCode{};
+
+            entt::dense_map<std::string, ShaderResourceInfo> _shaderResourceDefine{};
+
             bool _autoVSInputStageBind = true;
+
+            uint32_t _parameterTableSize {};
 
             ProgramType _shaderType = ProgramType::UNKNOWN;
 

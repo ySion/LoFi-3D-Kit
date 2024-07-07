@@ -31,6 +31,10 @@ namespace LoFi::Component {
 
             [[nodiscard]] auto& GetPushConstantDefine() const { return _pushConstantDefine;  }
 
+            [[nodiscard]] auto& GetResourceDefine() const { return _shaderResourceDefine;  }
+
+            [[nodiscard]] uint32_t GetParameterTableSize() const { return _parameterTableSize;  }
+
       private:
             void CreateAsGraphics(const Program* program);
 
@@ -46,6 +50,10 @@ namespace LoFi::Component {
             VkPipelineLayout _pipelineLayout{};
 
             VkPushConstantRange _pushConstantRange{};
+
+            uint32_t _parameterTableSize{};
+
+            entt::dense_map<std::string, ShaderResourceInfo> _shaderResourceDefine{};
 
             entt::dense_map<std::string, PushConstantMemberInfo> _pushConstantDefine{};
       };

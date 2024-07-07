@@ -35,8 +35,6 @@ namespace LoFi::Component {
 
             [[nodiscard]] bool IsHostSide() const { return _isHostSide; }
 
-            [[nodiscard]] std::optional<uint32_t> GetBindlessIndex() const { return _bindlessIndex; }
-
             [[nodiscard]] VkDeviceAddress GetAddress() const;
 
             [[nodiscard]] entt::entity GetID() const { return _id; }
@@ -67,8 +65,6 @@ namespace LoFi::Component {
 
             void Clean();
 
-            void SetBindlessIndex(std::optional<uint32_t> bindless_index);
-
             void DestroyBuffer();
 
             friend class ::LoFi::Context;
@@ -81,8 +77,6 @@ namespace LoFi::Component {
             bool _isHostSide = false;
 
             void* _mappedPtr{};
-
-            std::optional<uint32_t> _bindlessIndex{};
 
             VkBuffer _buffer{};
 

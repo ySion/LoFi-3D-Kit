@@ -8,6 +8,7 @@
 #include "Components/Texture.h"
 #include "Components/Program.h"
 #include "Components/Kernel.h"
+#include "Components/KernelInstance.h"
 
 #include "SDL3/SDL.h"
 
@@ -425,22 +426,14 @@ void Context::Init() {
 
       {
             std::array size{
-                  //VkDescriptorPoolSize {
-                  //      .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, // UBO
-                  //      .descriptorCount = 65535
-                  //},
                   VkDescriptorPoolSize{
-                        .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // Storage Buffer
-                        .descriptorCount = 65535
+                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, // sampler
+                        .descriptorCount = 32767
                   },
                   VkDescriptorPoolSize{
                         .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                        .descriptorCount = 65535
-                  },
-                  VkDescriptorPoolSize{
-                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, // sampler
-                        .descriptorCount = 65535
-                  },
+                        .descriptorCount = 32767
+                  }
             };
 
 
@@ -461,26 +454,19 @@ void Context::Init() {
             std::array binding{
                   VkDescriptorSetLayoutBinding{
                         .binding = 0,
-                        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                        .descriptorCount = 32767,
-                        .stageFlags = VK_SHADER_STAGE_ALL
-                  },
-                  VkDescriptorSetLayoutBinding{
-                        .binding = 1,
                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                         .descriptorCount = 32767,
                         .stageFlags = VK_SHADER_STAGE_ALL
                   },
                   VkDescriptorSetLayoutBinding{
-                        .binding = 2,
+                        .binding = 1,
                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
                         .descriptorCount = 32767,
                         .stageFlags = VK_SHADER_STAGE_ALL
                   },
             };
 
-            std::array<VkDescriptorBindingFlags, 3> flags{
-                  VkDescriptorBindingFlagBits::VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VkDescriptorBindingFlagBits::VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT,
+            std::array<VkDescriptorBindingFlags, 2> flags{
                   VkDescriptorBindingFlagBits::VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VkDescriptorBindingFlagBits::VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT,
                   VkDescriptorBindingFlagBits::VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VkDescriptorBindingFlagBits::VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT
             };
@@ -502,7 +488,6 @@ void Context::Init() {
                   MessageManager::Log(MessageType::Error, err);
                   throw std::runtime_error(err);
             }
-
 
             VkDescriptorSetAllocateInfo alloc_ci{
                   .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
@@ -568,6 +553,11 @@ void Context::Shutdown() {
 
       {
             auto view = _world.view<Component::Buffer>();
+            _world.destroy(view.begin(), view.end());
+      }
+
+      {
+            auto view = _world.view<Component::KernelInstance>();
             _world.destroy(view.begin(), view.end());
       }
 
@@ -679,9 +669,14 @@ void Context::CmdBindKernel(entt::entity kernel) {
             throw std::runtime_error(err);
       }
 
-      const auto kernel_ptr  = _world.try_get<Component::Kernel>(kernel);
+      const auto kernel_instance_ptr = _world.try_get<Component::KernelInstance>(kernel);
+      if(kernel_instance_ptr) {
+            kernel = kernel_instance_ptr->GetKernel();
+      }
+
+      const auto kernel_ptr = _world.try_get<Component::Kernel>(kernel);
       if(!kernel_ptr) {
-            throw std::runtime_error("Context::CmdBindKernel - this entity is not a kernel entity.");
+            throw std::runtime_error("Context::CmdBindKernel - this entity is not a kernel or kernel instance entity.");
       }
 
       if(kernel_ptr->IsComputeKernel()) {
@@ -695,14 +690,44 @@ void Context::CmdBindKernel(entt::entity kernel) {
 
             vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, kernel_ptr->GetPipeline());
             vkCmdBindDescriptorSets(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, kernel_ptr->GetPipelineLayout(), 0, 1, &_bindlessDescriptorSet, 0, nullptr);
-            const VkViewport viewport = VkViewport{0, (float)_frameRenderingRenderArea.extent.height, (float)_frameRenderingRenderArea.extent.width, -(float)_frameRenderingRenderArea.extent.height, 0, 1};
+            const auto viewport = VkViewport{0, (float)_frameRenderingRenderArea.extent.height, (float)_frameRenderingRenderArea.extent.width, -(float)_frameRenderingRenderArea.extent.height, 0, 1};
             vkCmdSetViewport(GetCurrentCommandBuffer(), 0, 1, &viewport);
-            const VkRect2D scissor = VkRect2D{0, 0, _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height};
+            const auto scissor = VkRect2D{0, 0, _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height};
             vkCmdSetScissor(GetCurrentCommandBuffer(), 0, 1, &scissor);
+
+            _currentKernel = kernel;
+            _currentKernelType = Component::KernelType::GRAPHICS;
 
       } else {
             throw std::runtime_error("Context::CmdBindKernel - this kernel is not a graphics kernel or compute kernel.");
       }
+
+      if(kernel_instance_ptr) {
+            kernel_instance_ptr->PushParameterTable(GetCurrentCommandBuffer());
+      }
+}
+
+bool Context::BindKernelResource(entt::entity kernel_instance, const std::string& resource_name, entt::entity resource) {
+      if(!_world.valid(kernel_instance)) {
+            const auto err = "Context::CmdBindResource - Invalid kernel instance entity";
+            MessageManager::Log(MessageType::Error, err);
+            return false;
+      }
+
+      if(!_world.valid(resource)) {
+            const auto err = "Context::CmdBindResource - Invalid resource entity";
+            MessageManager::Log(MessageType::Error, err);
+            return false;
+      }
+
+      const auto kernel_ptr = _world.try_get<Component::KernelInstance>(kernel_instance);
+      if(!kernel_ptr) {
+            const auto err = "Context::CmdBindResource - this entity is not a kernel instance entity";
+            MessageManager::Log(MessageType::Error, err);
+            return false;
+      }
+
+      return kernel_ptr->BindResource(resource_name, resource);
 }
 
 void Context::CmdBindVertexBuffer(entt::entity buffer, size_t offset) {
@@ -807,7 +832,7 @@ entt::entity Context::CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, u
 
       if (!is_depth_stencil) {
             MakeBindlessIndexTextureForSampler(id);
-            MakeBindlessIndexTextureForComputeKernel(id);
+            MakeBindlessIndexTextureForStorage(id);
       }
 
       return id;
@@ -819,7 +844,7 @@ entt::entity Context::CreateTexture2D(const void* pixel_data, size_t size, VkFor
       return tex;
 }
 
-entt::entity Context::CreateBuffer(uint64_t size, bool cpu_access, bool bindless) {
+entt::entity Context::CreateBuffer(uint64_t size, bool cpu_access) {
       if (size == 0) {
             MessageManager::Log(MessageType::Error, "Context::CreateBuffer - Invalid buffer size, size = 0, create buffer failed, return null.");
             return entt::null;
@@ -839,14 +864,10 @@ entt::entity Context::CreateBuffer(uint64_t size, bool cpu_access, bool bindless
 
       _world.emplace<Component::Buffer>(id, id, buffer_ci, alloc_ci);
 
-      if (bindless) {
-            MakeBindlessIndexBuffer(id);
-      }
-
       return id;
 }
 
-entt::entity Context::CreateBuffer(const void* data, uint64_t size, bool cpu_access, bool bindless) {
+entt::entity Context::CreateBuffer(const void* data, uint64_t size, bool cpu_access) {
       if (data == nullptr) {
             MessageManager::Log(MessageType::Error, "Context::CreateBuffer - Invalid data pointer, data = nullptr, create buffer failed, return null.");
             return entt::null;
@@ -856,7 +877,7 @@ entt::entity Context::CreateBuffer(const void* data, uint64_t size, bool cpu_acc
             return entt::null;
       }
 
-      auto id = CreateBuffer(size, cpu_access, bindless);
+      auto id = CreateBuffer(size, cpu_access);
       auto& buffer = _world.get<Component::Buffer>(id);
       buffer.SetData(data, size);
       return id;
@@ -881,6 +902,20 @@ entt::entity Context::CreateKernel(entt::entity program) {
 
       try {
             _world.emplace<Component::Kernel>(id, id, program);
+      } catch (const std::exception& e) {
+            _world.destroy(id);
+            MessageManager::Log(MessageType::Error, e.what());
+            return entt::null;
+      }
+
+      return id;
+}
+
+entt::entity Context::CreateKernelInstance(entt::entity kernel) {
+      auto id = _world.create();
+
+      try {
+            _world.emplace<Component::KernelInstance>(id, id, kernel);
       } catch (const std::exception& e) {
             _world.destroy(id);
             MessageManager::Log(MessageType::Error, e.what());
@@ -957,6 +992,8 @@ void Context::EnqueueCommand(const std::function<void(VkCommandBuffer)>& command
 }
 
 void Context::BeginFrame() {
+
+      Component::KernelInstance::UpdateInstancesParameterTable();
 
       PrepareWindowRenderTarget();
       auto cmd = GetCurrentCommandBuffer();
@@ -1230,13 +1267,13 @@ uint32_t Context::MakeBindlessIndexTextureForSampler(entt::entity texture, uint3
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
       };
 
-      auto free_index = _bindlessIndexFreeList[1].Gen();
+      auto free_index = _bindlessIndexFreeList[0].Gen();
 
       VkWriteDescriptorSet write{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = nullptr,
             .dstSet = _bindlessDescriptorSet,
-            .dstBinding = 1,
+            .dstBinding = 0,
             .dstArrayElement = free_index,
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -1255,7 +1292,7 @@ uint32_t Context::MakeBindlessIndexTextureForSampler(entt::entity texture, uint3
       return free_index;
 }
 
-uint32_t Context::MakeBindlessIndexTextureForComputeKernel(entt::entity texture, uint32_t viewIndex) {
+uint32_t Context::MakeBindlessIndexTextureForStorage(entt::entity texture, uint32_t viewIndex) {
       if (!_world.valid(texture)) {
             const auto err = "Context::MakeBindlessIndexTextureForComputeKernel - Invalid texture entity";
             MessageManager::Log(MessageType::Error, err);
@@ -1282,13 +1319,13 @@ uint32_t Context::MakeBindlessIndexTextureForComputeKernel(entt::entity texture,
             .imageLayout = VK_IMAGE_LAYOUT_GENERAL
       };
 
-      auto free_index = _bindlessIndexFreeList[2].Gen();
+      auto free_index = _bindlessIndexFreeList[1].Gen();
 
       VkWriteDescriptorSet write{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = nullptr,
             .dstSet = _bindlessDescriptorSet,
-            .dstBinding = 2,
+            .dstBinding = 1,
             .dstArrayElement = free_index,
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
@@ -1299,55 +1336,9 @@ uint32_t Context::MakeBindlessIndexTextureForComputeKernel(entt::entity texture,
 
       vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
 
-      texture_component->SetBindlessIndexForComputeKernel(free_index);
+      texture_component->SetBindlessIndexForStorage(free_index);
 
       auto str = std::format("Context::MakeBindlessIndexTextureForComputeKernel - Texture id: {}, index: {}", (uint32_t)texture_component->GetID(), free_index);
-      MessageManager::Log(MessageType::Normal, str);
-
-      return free_index;
-}
-
-uint32_t Context::MakeBindlessIndexBuffer(entt::entity buffer) {
-      if (!_world.valid(buffer)) {
-            const auto err = "Context::BindBuffer - Invalid buffer entity";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      auto buffer_component = _world.try_get<Component::Buffer>(buffer);
-
-      if (!buffer_component) {
-            const auto err = "Context::BindBuffer - Invalid buffer entity";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      VkDescriptorBufferInfo buffer_info = {
-            .buffer = buffer_component->GetBuffer(),
-            .offset = 0,
-            .range = VK_WHOLE_SIZE
-      };
-
-      auto free_index = _bindlessIndexFreeList[0].Gen();
-
-      VkWriteDescriptorSet write{
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .pNext = nullptr,
-            .dstSet = _bindlessDescriptorSet,
-            .dstBinding = 0,
-            .dstArrayElement = free_index,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-            .pImageInfo = nullptr,
-            .pBufferInfo = &buffer_info,
-            .pTexelBufferView = nullptr
-      };
-
-      vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
-
-      buffer_component->SetBindlessIndex(free_index);
-
-      auto str = std::format("Context::MakeBindlessIndexBuffer - buffer id: {}, index: {}", (uint32_t)buffer_component->GetID(), free_index);
       MessageManager::Log(MessageType::Normal, str);
 
       return free_index;
@@ -1542,15 +1533,12 @@ void Context::RecoveryContextResourceWindow(const ContextResourceRecoveryInfo& p
       }
 }
 
-void Context::RecoveryContextResourceBuffer(const ContextResourceRecoveryInfo& pack) {
+void Context::RecoveryContextResourceBuffer(const ContextResourceRecoveryInfo& pack) const {
       if (pack.Resource1.has_value() && pack.Resource2.has_value()) {
             // Image allocation
             auto buffer = (VkBuffer)pack.Resource1.value();
             auto alloc = (VmaAllocation)pack.Resource2.value();
             vmaDestroyBuffer(_allocator, buffer, alloc);
-
-            if (pack.Resource3.has_value())
-                  _bindlessIndexFreeList[0].Free(pack.Resource3.value());
 
             MessageManager::Log(MessageType::Normal, "Recovery Resource Buffer");
       } else {
@@ -1578,9 +1566,9 @@ void Context::RecoveryContextResourceImage(const ContextResourceRecoveryInfo& pa
             vmaDestroyImage(_allocator, image, alloc);
 
             if (pack.Resource3.has_value())
-                  _bindlessIndexFreeList[1].Free(pack.Resource3.value());
+                  _bindlessIndexFreeList[0].Free(pack.Resource3.value());
             if (pack.Resource4.has_value())
-                  _bindlessIndexFreeList[2].Free(pack.Resource4.value());
+                  _bindlessIndexFreeList[1].Free(pack.Resource4.value());
 
             MessageManager::Log(MessageType::Normal, "Recovery Resource Image");
       } else {

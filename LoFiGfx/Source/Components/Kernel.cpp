@@ -60,6 +60,8 @@ Kernel::Kernel(entt::entity id, entt::entity program) {
 void Kernel::CreateAsGraphics(const Program* program) {
       _pushConstantRange = program->GetPushConstantRange();
       _pushConstantDefine = program->GetPushConstantDefine();
+      _shaderResourceDefine = program->GetResourceDefine();
+      _parameterTableSize = program->GetParameterTableSize();
 
       VkPipelineLayoutCreateInfo pipeline_layout_ci{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -141,6 +143,8 @@ void Kernel::CreateAsGraphics(const Program* program) {
 void Kernel::CreateAsCompute(const Program* program) {
       _pushConstantRange = program->GetPushConstantRange();
       _pushConstantDefine = program->GetPushConstantDefine();
+      _shaderResourceDefine = program->GetResourceDefine();
+      _parameterTableSize = program->GetParameterTableSize();
 
       VkPipelineLayoutCreateInfo pipeline_layout_ci{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,

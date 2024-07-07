@@ -19,6 +19,8 @@ set(Source_List
         Source/Components/ResourcePushConstant.h
         Source/Components/Kernel.cpp
         Source/Components/Kernel.h
+        Source/Components/KernelInstance.cpp
+        Source/Components/KernelInstance.h
 )
 
 find_package(Vulkan REQUIRED)

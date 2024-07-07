@@ -16,6 +16,7 @@ namespace LoFi {
             class Program;
             class Texture;
             class Kernel;
+            class KernelInstance;
       }
 
       namespace Internal {
@@ -85,6 +86,7 @@ namespace LoFi {
             friend class Component::Program;
             friend class Component::Texture;
             friend class Component::Kernel;
+            friend class Component::KernelInstance;
 
             struct SamplerCIHash {
                   std::size_t operator()(const VkSamplerCreateInfo& s) const noexcept {
@@ -128,23 +130,25 @@ namespace LoFi {
                   return CreateTexture2D((void*)data.data(), data.size() * sizeof(T), format, w, h, mipMapCounts);
             }
 
-            [[nodiscard]] entt::entity CreateBuffer(uint64_t size, bool cpu_access = false, bool bindless = true);
+            [[nodiscard]] entt::entity CreateBuffer(uint64_t size, bool cpu_access = false);
 
-            [[nodiscard]] entt::entity CreateBuffer(const void* data, uint64_t size, bool cpu_access = false, bool bindless = true);
+            [[nodiscard]] entt::entity CreateBuffer(const void* data, uint64_t size, bool cpu_access = false);
 
             template <class T>
-            [[nodiscard]] entt::entity CreateBuffer(const std::vector<T>& data, bool cpu_access = false, bool bindless = true) {
-                  return CreateBuffer(data.data(), data.size() * sizeof(T), cpu_access, bindless);
+            [[nodiscard]] entt::entity CreateBuffer(const std::vector<T>& data, bool cpu_access = false) {
+                  return CreateBuffer(data.data(), data.size() * sizeof(T), cpu_access);
             }
 
             template <class T, size_t N>
-            [[nodiscard]] entt::entity CreateBuffer(const std::array<T, N>& data, bool cpu_access = false, bool bindless = true) {
-                  return CreateBuffer(data.data(), N * sizeof(T), cpu_access, bindless);
+            [[nodiscard]] entt::entity CreateBuffer(const std::array<T, N>& data, bool cpu_access = false) {
+                  return CreateBuffer(data.data(), N * sizeof(T), cpu_access);
             }
 
             [[nodiscard]] entt::entity CreateProgram(const std::vector<std::string_view>& source_codes, const std::string& program_name = "defualt_program");
 
             [[nodiscard]] entt::entity CreateKernel(entt::entity program);
+
+            [[nodiscard]] entt::entity CreateKernelInstance(entt::entity kernel);
 
             void DestroyHandle(entt::entity);
 
@@ -173,6 +177,8 @@ namespace LoFi {
             void CmdEndRenderPass();
 
             void CmdBindKernel(entt::entity kernel);
+
+            bool BindKernelResource(entt::entity kernel_instance, const std::string& resource_name, entt::entity resource);
 
             template<class T> requires !std::is_pointer_v<T>
             void SetKernelParam(entt::entity frame_resource, const std::string& variable_name, const T& data) {
@@ -209,11 +215,9 @@ namespace LoFi {
 
             void RecoveryContextResource(const Internal::ContextResourceRecoveryInfo& pack);
 
-            uint32_t MakeBindlessIndexBuffer(entt::entity buffer);
-
             uint32_t MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t viewIndex = 0);
 
-            uint32_t MakeBindlessIndexTextureForComputeKernel(entt::entity texture, uint32_t viewIndex = 0);
+            uint32_t MakeBindlessIndexTextureForStorage(entt::entity texture, uint32_t viewIndex = 0);
 
             void SetTextureSampler(entt::entity image, const VkSamplerCreateInfo& sampler_ci);
 
@@ -233,7 +237,7 @@ namespace LoFi {
 
             void RecoveryContextResourceWindow(const Internal::ContextResourceRecoveryInfo& pack);
 
-            void RecoveryContextResourceBuffer(const Internal::ContextResourceRecoveryInfo& pack);
+            void RecoveryContextResourceBuffer(const Internal::ContextResourceRecoveryInfo& pack) const;
 
             void RecoveryContextResourceBufferView(const Internal::ContextResourceRecoveryInfo& pack) const;
 
@@ -244,8 +248,6 @@ namespace LoFi {
             void RecoveryContextResourcePipeline(const Internal::ContextResourceRecoveryInfo& pack) const;
 
             void RecoveryContextResourcePipelineLayout(const Internal::ContextResourceRecoveryInfo& pack) const;
-
-
 
       private:
             bool _bDebugMode = true;
@@ -287,7 +289,7 @@ namespace LoFi {
 
             entt::dense_map<VkSamplerCreateInfo, VkSampler, SamplerCIHash, SamplerCIEqual> _samplers{};
 
-            Internal::FreeList _bindlessIndexFreeList[3]{}; // buffer, texture_sample, texture_cs
+            Internal::FreeList _bindlessIndexFreeList[2]{}; //texture_sample, texture_cs
 
       private:
             std::vector<std::function<void(VkCommandBuffer)>> _commandQueue;

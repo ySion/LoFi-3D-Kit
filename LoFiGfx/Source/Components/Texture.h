@@ -51,7 +51,7 @@ namespace LoFi::Component {
 
             [[nodiscard]] std::optional<uint32_t> GetBindlessIndexForSampler() const { return _bindlessIndexForSampler; }
 
-            [[nodiscard]] std::optional<uint32_t> GetBindlessIndexForComputeKernel() const { return _bindlessIndexForComputeKernel; }
+            [[nodiscard]] std::optional<uint32_t> GetBindlessIndexForStorage() const { return _bindlessIndexForStorage; }
 
             [[nodiscard]] const VkImageViewCreateInfo& GetViewCI() const { return _viewCIs.at(0); }
 
@@ -76,7 +76,7 @@ namespace LoFi::Component {
 
             void SetBindlessIndexForSampler(std::optional<uint32_t> index);
 
-            void SetBindlessIndexForComputeKernel(std::optional<uint32_t> index);
+            void SetBindlessIndexForStorage(std::optional<uint32_t> index);
 
             void DestroyTexture();
 
@@ -91,7 +91,7 @@ namespace LoFi::Component {
 
             std::optional<uint32_t> _bindlessIndexForSampler{};
 
-            std::optional<uint32_t> _bindlessIndexForComputeKernel{};
+            std::optional<uint32_t> _bindlessIndexForStorage{};
 
             VkImage _image{};
 

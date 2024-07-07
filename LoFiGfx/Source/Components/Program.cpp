@@ -134,9 +134,8 @@ void Program::CompileCompute(std::string_view source) {
       header += "#extension GL_EXT_scalar_block_layout : enable\n";
       header += "#extension GL_EXT_buffer_reference2 : require\n";
 
-      //header += "#define BindlessStorageBinding 0\n";
-      header += "#define BindlessSamplerBinding 1\n";
-      header += "#define BindlessStorageTextureBinding 2\n";
+      header += "#define BindlessSamplerBinding 0\n";
+      header += "#define BindlessStorageTextureBinding 1\n";
 
       header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1D _bindlessSamper1D[];\n";
       header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2D _bindlessSamper2D[];\n";
@@ -145,12 +144,66 @@ void Program::CompileCompute(std::string_view source) {
       header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1DArray _bindlessSampler1DArray[];\n";
       header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2DArray _bindlessSampler2DArray[];\n";
 
+      header += "#define GetTextureID(Handle) pushConstant.parameterTable.Handle\n";
       header += "#define GetSampled1D(Handle) _bindlessSamper1D[nonuniformEXT(uint(Handle))]\n";
       header += "#define GetSampled2D(Handle) _bindlessSamper2D[nonuniformEXT(uint(Handle))]\n";
       header += "#define GetSampled3D(Handle) _bindlessSamper3D[nonuniformEXT(uint(Handle))]\n";
       header += "#define GetSampledCube(Handle) _bindlessSamperCube[nonuniformEXT(uint(Handle))]\n";
       header += "#define GetSampled1DArray(Handle) _bindlessSampler1DArray[nonuniformEXT(uint(Handle))]\n";
       header += "#define GetSampled2DArray(Handle) _bindlessSampler2DArray[nonuniformEXT(uint(Handle))]\n";
+
+      header += "#define GetBuffer(Name) pushConstant.parameterTable.ptr##Name\n";
+
+      //constant parameter table
+      if(!_shaderResourceDefine.empty()) {
+            std::string buffer_pointer_define_code{};
+            for(const auto& item : _shaderBufferResourceDefineCode) {
+                  buffer_pointer_define_code += item.second + "\n";
+            }
+
+            std::string parameter_table_code = "layout(buffer_reference, scalar) readonly buffer ParameterTable {\n";
+
+            uint32_t resource_offset = 0;
+            bool align_to_8 = false;
+            for(const auto& item : _shaderResourceDefine) {
+                  auto& [resource_name, info] = item;
+                  if(info.Type == ShaderResource::READ_BUFFER || info.Type == ShaderResource::WRITE_BUFFER || info.Type == ShaderResource::READ_WRITE_BUFFER) {
+                        parameter_table_code += std::format("\t {} ptr{};\n", resource_name, resource_name);
+                        info.Offset = resource_offset;
+                        info.Size = 8;
+                        resource_offset += 8;
+                        align_to_8 = true;
+                  }
+            }
+
+            for(const auto& item : _shaderResourceDefine) {
+                  const auto& [resource_name, info] = item;
+                  if(info.Type == ShaderResource::READ_TEXTURE || info.Type == ShaderResource::WRITE_TEXTURE || info.Type == ShaderResource::READ_WRITE_TEXTURE || info.Type == ShaderResource::SAMPLED_TEXTURE) {
+                        parameter_table_code += std::format("\t uint {};\n", resource_name);
+                        info.Offset = resource_offset;
+                        info.Size = 4;
+                        resource_offset += 4;
+                  }
+            }
+
+            if(align_to_8 && resource_offset % 8 != 0) {
+                  resource_offset += 8 - (resource_offset % 8);
+                  _parameterTableSize = resource_offset;
+            } else {
+                  _parameterTableSize = resource_offset;
+            }
+
+            parameter_table_code+= "};\n";
+
+            //gen push constant
+            parameter_table_code += "layout(push_constant) uniform readonly PushConstant {\n";
+            parameter_table_code += "\t ParameterTable parameterTable;\n";
+            parameter_table_code += "} pushConstant;\n";
+
+            //inssert to head
+            header += buffer_pointer_define_code;
+            header += parameter_table_code;
+      }
 
       source_output.insert(source_output.begin(), header.begin(), header.end());
       printf("\n=============================\n%s\n=============================\n", source_output.c_str());
@@ -311,9 +364,8 @@ void Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
       header += "#extension GL_EXT_scalar_block_layout : enable\n";
       header += "#extension GL_EXT_buffer_reference2 : require\n";
 
-      //header += "#define BindlessStorageBinding 0\n";
-      header += "#define BindlessSamplerBinding 1\n";
-      header += "#define BindlessStorageTextureBinding 2\n";
+      header += "#define BindlessSamplerBinding 0\n";
+      header += "#define BindlessStorageTextureBinding 1\n";
 
       header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1D _bindlessSamper1D[];\n";
       header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2D _bindlessSamper2D[];\n";
@@ -322,12 +374,68 @@ void Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
       header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1DArray _bindlessSampler1DArray[];\n";
       header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2DArray _bindlessSampler2DArray[];\n";
 
-      header += "#define GetSampled1D(Handle) _bindlessSamper1D[nonuniformEXT(uint(pushConstant.Handle))]\n";
-      header += "#define GetSampled2D(Handle) _bindlessSamper2D[nonuniformEXT(uint(pushConstant.Handle))]\n";
-      header += "#define GetSampled3D(Handle) _bindlessSamper3D[nonuniformEXT(uint(pushConstant.Handle))]\n";
-      header += "#define GetSampledCube(Handle) _bindlessSamperCube[nonuniformEXT(uint(pushConstant.Handle))]\n";
-      header += "#define GetSampled1DArray(Handle) _bindlessSampler1DArray[nonuniformEXT(uint(pushConstant.Handle))]\n";
-      header += "#define GetSampled2DArray(Handle) _bindlessSampler2DArray[nonuniformEXT(uint(pushConstant.Handle))]\n";
+      header += "#define GetTextureID(TextureName) pushConstant.parameterTable.TextureName\n";
+
+      header += "#define GetSampled1D(ID) _bindlessSamper1D[nonuniformEXT(uint(ID))]\n";
+      header += "#define GetSampled2D(ID) _bindlessSamper2D[nonuniformEXT(uint(ID))]\n";
+      header += "#define GetSampled3D(ID) _bindlessSamper3D[nonuniformEXT(uint(ID))]\n";
+      header += "#define GetSampledCube(ID) _bindlessSamperCube[nonuniformEXT(uint(ID))]\n";
+      header += "#define GetSampled1DArray(ID) _bindlessSampler1DArray[nonuniformEXT(uint(ID))]\n";
+      header += "#define GetSampled2DArray(ID) _bindlessSampler2DArray[nonuniformEXT(uint(ID))]\n";
+
+      header += "#define GetBuffer(Name) pushConstant.parameterTable.ptr##Name\n";
+
+      //constant parameter table
+      if(!_shaderResourceDefine.empty()) {
+            std::string buffer_pointer_define_code{};
+            for(const auto& item : _shaderBufferResourceDefineCode) {
+                  buffer_pointer_define_code += item.second + "\n";
+            }
+
+            std::string parameter_table_code = "layout(buffer_reference, scalar) readonly buffer ParameterTable {\n";
+
+            uint32_t resource_offset = 0;
+            bool align_to_8 = false;
+            for(const auto& item : _shaderResourceDefine) {
+                  auto& [resource_name, info] = item;
+                  if(info.Type == ShaderResource::READ_BUFFER || info.Type == ShaderResource::WRITE_BUFFER || info.Type == ShaderResource::READ_WRITE_BUFFER) {
+                        parameter_table_code += std::format("\t {} ptr{};\n", resource_name, resource_name);
+                        info.Offset = resource_offset;
+                        info.Size = 8;
+                        resource_offset += 8;
+                        align_to_8 = true;
+                  }
+            }
+
+            for(const auto& item : _shaderResourceDefine) {
+                  const auto& [resource_name, info] = item;
+                  if(info.Type == ShaderResource::READ_TEXTURE || info.Type == ShaderResource::WRITE_TEXTURE || info.Type == ShaderResource::READ_WRITE_TEXTURE || info.Type == ShaderResource::SAMPLED_TEXTURE) {
+                        parameter_table_code += std::format("\t uint {};\n", resource_name);
+                        info.Offset = resource_offset;
+                        info.Size = 4;
+                        resource_offset += 4;
+                  }
+            }
+
+            if(align_to_8 && resource_offset % 8 != 0) {
+                  resource_offset += 8 - (resource_offset % 8);
+                  _parameterTableSize = resource_offset;
+            } else {
+                  _parameterTableSize = resource_offset;
+            }
+
+            parameter_table_code+= "};\n";
+
+            //gen push constant
+            parameter_table_code += "layout(push_constant) uniform readonly PushConstant {\n";
+            parameter_table_code += "\t ParameterTable parameterTable;\n";
+            parameter_table_code += "} pushConstant;\n";
+
+            //inssert to head
+            header += buffer_pointer_define_code;
+            header += parameter_table_code;
+      }
+
 
       for (auto& key : source_after_marco | std::views::keys) {
             std::string& source = key;
@@ -556,7 +664,7 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
       };
 
       output_codes = "";
-      std::vector<std::string_view> marcos_to_find{"PUSH_CONSTANT", "SAMPLED", "RBUFFER", "RWBUFFER", "RTEXTURE", "RWTEXTURE"};
+      std::vector<std::string_view> marcos_to_find{"PUSH_CONSTANT", "SAMPLED", "RWBUFFER", "RBUFFER", "WBUFFER" , "RWTEXTURE", "RTEXTURE", "WTEXTURE"};
       while (true) {
             auto [front, after, marco] = FindFrontMarcos(source_code, marcos_to_find);
 
@@ -588,6 +696,7 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
 
                         output_codes += std::format("layout(push_constant) uniform readonly Type{} {} {};", struct_typename, code_block, struct_typename);
                         source_code = code_after_block;
+
                   } else if (marco == "RBUFFER") {
                         auto struct_type_eat_word = EatWord(source_code);
                         if (!struct_type_eat_word.has_value()) {
@@ -605,8 +714,20 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
                         }
 
                         const auto [code_block, code_after_block] = eat_code_block.value();
-                        output_codes += std::format("layout(buffer_reference, scalar) readonly buffer {} {};", struct_typename, code_block);
+                        //output_codes += std::format("layout(buffer_reference, scalar) readonly buffer {} {};", struct_typename, code_block);
                         source_code = code_after_block;
+
+                        const auto buffer_pointer_define_code =  std::format("layout(buffer_reference, scalar) readonly buffer {} {};", struct_typename, code_block);
+
+                        const auto struct_typename_str = std::string{struct_typename};
+                        if(const auto finder = _shaderBufferResourceDefineCode.find(struct_typename_str); finder != std::end(_shaderBufferResourceDefineCode)) {
+                              error_message = std::format("Program::ParseMarco - Invalid statement,Resource name \"{}\" is repeat, use it directly.", struct_typename_str);
+                              return false;
+                        } else {
+                              _shaderBufferResourceDefineCode.emplace(struct_typename_str, buffer_pointer_define_code);
+                              _shaderResourceDefine.emplace(struct_typename_str, ShaderResourceInfo {ShaderResource::READ_BUFFER});
+                        }
+
                   } else if (marco == "RWBUFFER") {
                         auto struct_type_eat_word = EatWord(source_code);
                         if (!struct_type_eat_word.has_value()) {
@@ -626,8 +747,53 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
                         const auto [code_block, code_after_block] = eat_code_block.value();
 
                         //output_codes += std::format("layout(std140, set = 0, binding = BindlessStorageBinding) buffer {} {} _bindless{}[];", struct_typename, code_block, struct_typename);
-                        output_codes += std::format("layout(buffer_reference, scalar) buffer {} {};", struct_typename, code_block);
+                        //output_codes += std::format("layout(buffer_reference, scalar) buffer {} {};", struct_typename, code_block);
                         source_code = code_after_block;
+
+                        const auto buffer_pointer_define_code = std::format("layout(buffer_reference, scalar) buffer {} {};", struct_typename, code_block);
+
+                        const auto struct_typename_str = std::string{struct_typename};
+                        if(const auto finder = _shaderBufferResourceDefineCode.find(struct_typename_str); finder != std::end(_shaderBufferResourceDefineCode)) {
+                              error_message = std::format("Program::ParseMarco - Invalid statement,Resource name \"{}\" is repeat, use it directly.", struct_typename_str);
+                              return false;
+                        } else {
+                              _shaderBufferResourceDefineCode.emplace(struct_typename_str, buffer_pointer_define_code);
+                              _shaderResourceDefine.emplace(struct_typename_str, ShaderResourceInfo {ShaderResource::READ_BUFFER});
+                        }
+
+                  } else if (marco == "WBUFFER") {
+                        auto struct_type_eat_word = EatWord(source_code);
+                        if (!struct_type_eat_word.has_value()) {
+                              error_message = std::format("Program::ParseMarco - Invalid statement, need a WBUFFER name after \"{}\" key word.", marco);
+                              return false;
+                        }
+
+                        auto [struct_typename, code_after_struct_typename] = struct_type_eat_word.value(); // typename
+                        source_code = code_after_struct_typename;
+
+                        const auto eat_code_block = EatCodeBlock(source_code);
+                        if (!eat_code_block.has_value()) {
+                              error_message = std::format("Program::ParseMarco - Invalid statement, need a code block after WBUFFER type name \"{}\".", struct_typename);
+                              return false;
+                        }
+
+                        const auto [code_block, code_after_block] = eat_code_block.value();
+
+                        //output_codes += std::format("layout(std140, set = 0, binding = BindlessStorageBinding) buffer {} {} _bindless{}[];", struct_typename, code_block, struct_typename);
+                        //output_codes += std::format("layout(buffer_reference, scalar) buffer {} {};", struct_typename, code_block);
+                        source_code = code_after_block;
+
+                        const auto buffer_pointer_define_code = std::format("layout(buffer_reference, scalar) writeonly buffer {} {};", struct_typename, code_block);
+
+                        const auto struct_typename_str = std::string{struct_typename};
+                        if(const auto finder = _shaderBufferResourceDefineCode.find(struct_typename_str); finder != std::end(_shaderBufferResourceDefineCode)) {
+                              error_message = std::format("Program::ParseMarco - Invalid statement,Resource name \"{}\" is repeat, use it directly.", struct_typename_str);
+                              return false;
+                        } else {
+                              _shaderBufferResourceDefineCode.emplace(struct_typename_str, buffer_pointer_define_code);
+                              _shaderResourceDefine.emplace(struct_typename_str, ShaderResourceInfo {ShaderResource::WRITE_BUFFER});
+                        }
+
                   } else if (marco == "SAMPLED") {
                         auto struct_type_eat_word = EatWord(source_code);
                         if (!struct_type_eat_word.has_value()) {
@@ -637,6 +803,15 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
 
                         auto [texture_var_name, code_after_struct_typename] = struct_type_eat_word.value(); // typename
                         source_code = code_after_struct_typename;
+
+                        const auto texture_handle_str = std::string{texture_var_name};
+                        if(const auto finder = _shaderBufferResourceDefineCode.find(texture_handle_str); finder != std::end(_shaderBufferResourceDefineCode)) {
+                              error_message = std::format("Program::ParseMarco - Invalid statement,Resource name \"{}\" is repeat, use it directly.", texture_handle_str);
+                              return false;
+                        } else {
+                              _shaderResourceDefine.emplace(texture_handle_str, ShaderResourceInfo {ShaderResource::SAMPLED_TEXTURE});
+                        }
+
                   } else if (marco == "RWTEXTURE") {
                         auto struct_type_eat_word = EatWord(source_code);
                         if (!struct_type_eat_word.has_value()) {
@@ -646,6 +821,15 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
 
                         auto [texture_var_name, code_after_struct_typename] = struct_type_eat_word.value(); // typename
                         source_code = code_after_struct_typename;
+
+                        const auto texture_handle_str = std::string{texture_var_name};
+                        if(const auto finder = _shaderBufferResourceDefineCode.find(texture_handle_str); finder != std::end(_shaderBufferResourceDefineCode)) {
+                              error_message = std::format("Program::ParseMarco - Invalid statement,Resource name \"{}\" is repeat, use it directly.", texture_handle_str);
+                              return false;
+                        } else {
+                              _shaderResourceDefine.emplace(texture_handle_str, ShaderResourceInfo {ShaderResource::READ_WRITE_TEXTURE});
+                        }
+
                   } else if (marco == "RTEXTURE") {
                         auto struct_type_eat_word = EatWord(source_code);
                         if (!struct_type_eat_word.has_value()) {
@@ -655,6 +839,31 @@ bool Program::ParseMarco(std::string_view input_code, std::string& output_codes,
 
                         auto [texture_var_name, code_after_struct_typename] = struct_type_eat_word.value(); // typename
                         source_code = code_after_struct_typename;
+
+                        const auto texture_handle_str = std::string{texture_var_name};
+                        if(const auto finder = _shaderBufferResourceDefineCode.find(texture_handle_str); finder != std::end(_shaderBufferResourceDefineCode)) {
+                              error_message = std::format("Program::ParseMarco - Invalid statement,Resource name \"{}\" is repeat, use it directly.", texture_handle_str);
+                              return false;
+                        } else {
+                              _shaderResourceDefine.emplace(texture_handle_str, ShaderResourceInfo {ShaderResource::READ_TEXTURE});
+                        }
+                  } else if (marco == "WTEXTURE") {
+                        auto struct_type_eat_word = EatWord(source_code);
+                        if (!struct_type_eat_word.has_value()) {
+                              error_message = std::format("Program::ParseMarco - Invalid statement, need a RTEXTURE name after \"{}\" key word.", marco);
+                              return false;
+                        }
+
+                        auto [texture_var_name, code_after_struct_typename] = struct_type_eat_word.value(); // typename
+                        source_code = code_after_struct_typename;
+
+                        const auto texture_handle_str = std::string{texture_var_name};
+                        if(const auto finder = _shaderBufferResourceDefineCode.find(texture_handle_str); finder != std::end(_shaderBufferResourceDefineCode)) {
+                              error_message = std::format("Program::ParseMarco - Invalid statement,Resource name \"{}\" is repeat, use it directly.", texture_handle_str);
+                              return false;
+                        } else {
+                              _shaderResourceDefine.emplace(texture_handle_str, ShaderResourceInfo {ShaderResource::WRITE_TEXTURE});
+                        }
                   }
             }
       }
@@ -1128,7 +1337,6 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                         "line_width"
                   }
             }
-
       };
 
       auto CheckAndFetchValue = [&](const std::string& the_key, const std::string& the_value,

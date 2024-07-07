@@ -4,45 +4,43 @@
 #include "LoFiGfx.h"
 
 #include <future>
-#include <iostream>
-#include <thread>
 
 #include "Context.h"
 #include "entt/entt.hpp"
 #include "SDL3/SDL.h"
 
 void GStart() {
-      const char* vs = R"(
+      const auto vs = R"(
             layout(location = 0) in vec3 pos;
             layout(location = 1) in vec3 color;
 
             layout(location = 0) out vec3 out_pos;
 
-
-
             void VSMain() {
-
-                  //float extendx = cos(GetVar(Info).time1 * 10.0f) / 5.0;
-                  //float extendy = sin(GetVar(Info).time1 * 10.0f) / 5.0;
-                  gl_Position = vec4(pos, 1.0f);// + vec4(extendx, extendy, 0, 0);
+                  gl_Position = vec4(pos, 1.0f);
                   out_pos = pos;//+ vec3(extendx, extendy, 0);
             }
       )";
 
-      const char* ps = R"(
+      const auto ps = R"(
             #set rt = r8g8b8a8_unorm
             #set ds = d32_sfloat
 
-            #set color_blend = add
+            #set color_blend = false
 
             layout(location = 0) in vec3 pos;
-
             layout(location = 0) out vec4 outColor;
 
+            SAMPLED image1;
+
+            RBUFFER Info {
+                  float scale;
+            }
 
             void FSMain() {
-                  //vec3 f = texture(GetTex2D(some_texture), vec2(pos.x, pos.y)).rgb;
-                  outColor = vec4(1.0, 1.0, 1.0, 0.5f);
+                  uint image_hanlde = GetTextureID(image1);
+                  vec3 f = texture(GetSampled2D(image_hanlde), vec2(pos.x, pos.y)).rgb;
+                  outColor = vec4(f, 1.0f) * GetBuffer(Info).scale;
             }
       )";
 
@@ -149,7 +147,13 @@ void GStart() {
 
       const auto program = ctx->CreateProgram({vs, ps});
       const auto kernel = ctx->CreateKernel(program);
+      const auto kernel_instance = ctx->CreateKernelInstance(kernel);
 
+      float param_hello = 0.2f;
+      const auto info_param = ctx->CreateBuffer(&param_hello, sizeof(float));
+
+      ctx->BindKernelResource(kernel_instance, "image1", noise);
+      ctx->BindKernelResource(kernel_instance, "Info", info_param);
 
       std::atomic<bool> should_close = false;
       auto func = std::async(std::launch::async, [&] {
@@ -160,21 +164,21 @@ void GStart() {
 
                   //Pass 1
                   ctx->CmdBeginRenderPass({{rt1}});
-                  ctx->CmdBindKernel(kernel);
+                  ctx->CmdBindKernel(kernel_instance);
                   ctx->CmdBindVertexBuffer(triangle_vert);
                   ctx->CmdDrawIndex(triangle_index);
                   ctx->CmdEndRenderPass();
 
                   //Pass 2
                   ctx->CmdBeginRenderPass({{rt2}});
-                  ctx->CmdBindKernel(kernel);
+                  ctx->CmdBindKernel(kernel_instance);
                   ctx->CmdBindVertexBuffer(square_vert);
                   ctx->CmdDrawIndex(square_index);
                   ctx->CmdEndRenderPass();
 
                   //Pass 3
                   ctx->CmdBeginRenderPass({{rt3}, {ds}});
-                  ctx->CmdBindKernel(kernel);
+                  ctx->CmdBindKernel(kernel_instance);
                   ctx->CmdBindVertexBuffer(square_vert);
                   ctx->CmdDrawIndex(square_index);
                   ctx->CmdBindVertexBuffer(triangle_vert);
