@@ -1,5 +1,5 @@
 # LoFi-Kit
-低保真的3D开发套件, 目前正在开发中
+低保真的3D开发套件
 
 ---
 # Components:
@@ -9,58 +9,37 @@
 ### Very Fucking hard to use!
 
 ```c++
-       const char* vs = R"(
-
+       const auto vs = R"(
             layout(location = 0) in vec3 pos;
             layout(location = 1) in vec3 color;
 
-            layout(location = 0) out vec3 out_color;
-            layout(location = 1) out vec3 out_pos;
-
-            STRUCTEXT Info {
-                  float time;
-                  float time2;
-                  float time3;
-                  float time4;
-            }
+            layout(location = 0) out vec3 out_pos;
 
             void VSMain() {
-                  float extendx = cos(GetVar(Info).time4 * 10.0f) / 5.0;
-                  float extendy = sin(GetVar(Info).time4 * 10.0f) / 5.0;
-                  gl_Position = vec4(pos, 1.0f) + vec4(extendx, extendy, 0, 0);
-                  out_pos = pos+ vec3(extendx, extendy, 0);
-                  float t = sin(GetVar(Info).time * 10.0f) / 2.0f;
-                  out_color = color + vec3(t,t,t);
+                  gl_Position = vec4(pos, 1.0f);
+                  out_pos = pos;
             }
       )";
 
-      const char* ps = R"(
-
+      const auto ps = R"(
             #set rt = r8g8b8a8_unorm
             #set ds = d32_sfloat
 
-            #set color_blend = add
+            #set color_blend = false
 
-            layout(location = 0) in vec3 color;
-            layout(location = 1) in vec3 pos;
-
+            layout(location = 0) in vec3 pos;
             layout(location = 0) out vec4 outColor;
 
-            STRUCTEXT Info {
-                  float time;
-                  float time2;
-                  float time3;
-                  float time4;
+            SAMPLED image1;
+
+            RBUFFER Info {
+                  float scale;
             }
 
-            TEXTURE some_texture;
-            TEXTURE some_texture2;
-
             void FSMain() {
-                  vec3 f = texture(GetTex2D(some_texture), vec2(pos.x, pos.y)).rgb;
-                  vec3 f2 = texture(GetTex2D(some_texture2), vec2(pos.x, pos.y)).rgb;
-                  vec3 f3 = f * f2;
-                  outColor =  vec4(f, 0.5f);
+                  uint image_hanlde = GetTextureID(image1);
+                  vec3 f = texture(GetSampled2D(image_hanlde), vec2(pos.x, pos.y)).rgb;
+                  outColor = vec4(f, 1.0f) * GetBuffer(Info).scale;
             }
       )";
 
@@ -74,10 +53,10 @@
 
       //square
       std::array square_vt = {
-            -0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 0.0f,
-            0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f,
-            0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
-            -0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 1.0f,
+            -0.9f, 0.9f, 0.0f, 1.0f, 1.0f, 0.0f,
+            0.9f, 0.9f, 0.0f, 0.0f, 1.0f, 1.0f,
+            0.9f, -0.9f, 0.0f, 1.0f, 0.0f, 1.0f,
+            -0.9f, -0.9f, 0.0f, 1.0f, 1.0f, 1.0f,
       };
 
       std::array square_id = {0, 1, 2, 0, 2, 3};
@@ -131,49 +110,51 @@
       ctx->MapRenderTargetToWindow(rt2, win2);
       ctx->MapRenderTargetToWindow(rt3, win3);
 
-      //Compile Shader and Create "Material"
+
       const auto program = ctx->CreateProgram({vs, ps});
-      const auto kernel = ctx->CreateGraphicKernel(program);
+      const auto kernel = ctx->CreateKernel(program);
+      const auto kernel_instance = ctx->CreateKernelInstance(kernel);
 
-      //Create "Material Intance"
-      const auto kernel_instance = ctx->CreateGraphicsKernelInstance(kernel);
+      const auto kernel_instance2 = ctx->CreateKernelInstance(kernel);
 
-      //Set "Material Intance" Paramter
-      ctx->SetKernelTexture(kernel_instance, "some_texture", noise);
-      ctx->SetKernelTexture(kernel_instance, "some_texture2", noise2);
+      float param_hello = 0.9f;
+      const auto info_param = ctx->CreateBuffer(&param_hello, sizeof(float));
+
+      ctx->BindKernelResource(kernel_instance, "Info", info_param);
+      ctx->BindKernelResource(kernel_instance2, "Info", info_param);
+
+      ctx->BindKernelResource(kernel_instance, "image1", noise);
+      ctx->BindKernelResource(kernel_instance2, "image1", rt1);
 
       std::atomic<bool> should_close = false;
       auto func = std::async(std::launch::async, [&] {
             while (!should_close) {
                   float time = (float)((double)SDL_GetTicks() / 1000.0);
-                  ctx->SetKernelParamter(kernel_instance, "Info.time", time * 2);
-                  ctx->SetKernelParamter(kernel_instance, "Info.time4", time);
-                  ctx->SetKernelParamter(kernel_instance, "Info.time3", 0.0f);
 
                   ctx->BeginFrame();
 
                   //Pass 1
-                  ctx->CmdBeginRenderPass({{rt1}});
+                  ctx->CmdBeginPass({{rt1}});
                   ctx->CmdBindKernel(kernel_instance);
                   ctx->CmdBindVertexBuffer(triangle_vert);
                   ctx->CmdDrawIndex(triangle_index);
-                  ctx->CmdEndRenderPass();
+                  ctx->CmdEndPass();
 
                   //Pass 2
-                  ctx->CmdBeginRenderPass({{rt2}});
-                  ctx->CmdBindKernel(kernel_instance);
+                  ctx->CmdBeginPass({{rt2}});
+                  ctx->CmdBindKernel(kernel_instance2);
                   ctx->CmdBindVertexBuffer(square_vert);
                   ctx->CmdDrawIndex(square_index);
-                  ctx->CmdEndRenderPass();
+                  ctx->CmdEndPass();
 
                   //Pass 3
-                  ctx->CmdBeginRenderPass({{rt3}, {ds}});
-                  ctx->CmdBindKernel(kernel_instance);
+                  ctx->CmdBeginPass({{rt3}, {ds}});
+                  ctx->CmdBindKernel(kernel_instance2);
                   ctx->CmdBindVertexBuffer(square_vert);
                   ctx->CmdDrawIndex(square_index);
                   ctx->CmdBindVertexBuffer(triangle_vert);
                   ctx->CmdDrawIndex(triangle_index);
-                  ctx->CmdEndRenderPass();
+                  ctx->CmdEndPass();
 
                   ctx->EndFrame();
             }

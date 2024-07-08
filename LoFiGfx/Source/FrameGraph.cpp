@@ -17,9 +17,9 @@ LoFi::FrameGraph::FrameGraph(VkCommandBuffer cmd_buf, VkCommandPool cmd_pool) : 
       second_command_buffer_ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
       second_command_buffer_ai.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
       second_command_buffer_ai.commandPool = _cmdPool;
-      second_command_buffer_ai.commandBufferCount = 64;
+      second_command_buffer_ai.commandBufferCount = 16;
 
-      _secondaryCmdBufsFree.resize(64);
+      _secondaryCmdBufsFree.resize(16);
 
       if (vkAllocateCommandBuffers(volkGetLoadedDevice(), &second_command_buffer_ai, _secondaryCmdBufsFree.data()) != VK_SUCCESS) {
             const auto err = "Context::ExpandSecondaryCommandBuffer - Failed to allocate secondary command buffers";
@@ -240,16 +240,7 @@ void LoFi::FrameGraph::BeginSecondaryCommandBuffer() {
       _secondaryCmdBufsFree.pop_back();
       _secondaryCmdBufsUsed.push_back(_prev);
 
-      constexpr VkCommandBufferInheritanceInfo inheritance_info {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO,
-            .pNext = nullptr,
-            .renderPass = nullptr,
-            .subpass = 0,
-            .framebuffer = nullptr,
-            .occlusionQueryEnable = false,
-            .queryFlags = 0,
-            .pipelineStatistics = 0
-      };
+      constexpr VkCommandBufferInheritanceInfo inheritance_info {.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO};
 
       VkCommandBufferBeginInfo info = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -292,8 +283,6 @@ void LoFi::FrameGraph::BindKernel(entt::entity kernel) {
       bool is_compute = kernel_ptr->IsComputeKernel();
 
       if(is_compute) {
-
-
             vkCmdBindPipeline(_current, VK_PIPELINE_BIND_POINT_COMPUTE, kernel_ptr->GetPipeline());
             vkCmdBindDescriptorSets(_current, VK_PIPELINE_BIND_POINT_COMPUTE, kernel_ptr->GetPipelineLayout(),
                   0, 1, &Context::Get()->_bindlessDescriptorSet, 0, nullptr);
@@ -310,6 +299,11 @@ void LoFi::FrameGraph::BindKernel(entt::entity kernel) {
       }
 
       if(kernel_instance_ptr) {
+            if(!kernel_instance_ptr->CheckResourceSafety()) {
+                  const auto err = "FrameGraph::BindKernel - Kernel instance resource is not safe to bind, some resource binding is empty! it will be crash becuase of invalid access.";
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
+            }
             kernel_instance_ptr->GenerateResourcesBarrier(_prev);
             kernel_instance_ptr->PushParameterTable(_current);
             if(is_compute) {

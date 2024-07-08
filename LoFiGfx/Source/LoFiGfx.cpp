@@ -11,7 +11,6 @@
 
 void GStart() {
       const auto vs = R"(
-
             layout(location = 0) in vec3 pos;
             layout(location = 1) in vec3 color;
 
@@ -19,7 +18,7 @@ void GStart() {
 
             void VSMain() {
                   gl_Position = vec4(pos, 1.0f);
-                  out_pos = pos;//+ vec3(extendx, extendy, 0);
+                  out_pos = pos;
             }
       )";
 
@@ -43,39 +42,6 @@ void GStart() {
                   vec3 f = texture(GetSampled2D(image_hanlde), vec2(pos.x, pos.y)).rgb;
                   outColor = vec4(f, 1.0f) * GetBuffer(Info).scale;
             }
-      )";
-
-
-      const auto cs = R"(
-            PARAM UBO {
-                float deltaTime;
-            };
-
-            struct Particle {
-                vec2 position;
-                vec2 velocity;
-                vec4 color;
-            };
-
-            RBUFFER ParticleSSBOIn {
-                Particle particlesIn[];
-            };
-
-            RWBUFFER ParticleSSBOOut {
-                Particle particlesOut[];
-            };
-
-            layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
-
-            void CSMain() {
-                uint index = gl_GlobalInvocationID.x;
-
-                Particle particleIn = GetVar(ParticleSSBOIn).particlesIn[index];
-
-                GetVar(ParticleSSBOOut).particlesOut[index].position = particleIn.position + particleIn.velocity.xy * GetVar(UBO).deltaTime;
-                GetVar(ParticleSSBOOut).particlesOut[index].velocity = particleIn.velocity;
-            }
-
       )";
 
       //triangle
@@ -132,8 +98,8 @@ void GStart() {
 
       //CreateWindows
       const auto win1 = ctx->CreateWindow("Triangle", 1920, 1080);
-      //const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
-      //const auto win3 = ctx->CreateWindow("Merge", 800, 600);
+      const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
+      const auto win3 = ctx->CreateWindow("Merge", 800, 600);
 
       const auto rt1 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 1920, 1080);
       const auto rt2 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 400, 400);
@@ -142,8 +108,8 @@ void GStart() {
       const auto ds = ctx->CreateTexture2D(VK_FORMAT_D32_SFLOAT, 800, 600);
 
       ctx->MapRenderTargetToWindow(rt1, win1);
-      //ctx->MapRenderTargetToWindow(rt2, win2);
-      //ctx->MapRenderTargetToWindow(rt3, win3);
+      ctx->MapRenderTargetToWindow(rt2, win2);
+      ctx->MapRenderTargetToWindow(rt3, win3);
 
 
       const auto program = ctx->CreateProgram({vs, ps});
@@ -160,7 +126,6 @@ void GStart() {
 
       ctx->BindKernelResource(kernel_instance, "image1", noise);
       ctx->BindKernelResource(kernel_instance2, "image1", rt1);
-
 
       std::atomic<bool> should_close = false;
       auto func = std::async(std::launch::async, [&] {

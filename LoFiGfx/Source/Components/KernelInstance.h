@@ -25,6 +25,8 @@ namespace LoFi::Component {
 
             void GenerateResourcesBarrier(VkCommandBuffer cmd) const;
 
+            bool CheckResourceSafety() const;
+
             static void UpdateInstancesParameterTable();
 
       public:

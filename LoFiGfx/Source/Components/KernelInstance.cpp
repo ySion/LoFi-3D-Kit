@@ -90,7 +90,6 @@ bool KernelInstance::BindResource(const std::string& resource_name, entt::entity
             const uint32_t offset = finder->second.Offset;
             const uint32_t size = finder->second.Size;
             const uint32_t index = finder->second.Index;
-
             if((uint32_t)(finder->second.Type) <= (uint32_t)(ShaderResource::READ_WRITE_BUFFER)) { // Buffers
 
                   const auto ptr_buffer = world.try_get<Buffer>(resource);
@@ -231,6 +230,15 @@ void KernelInstance::GenerateResourcesBarrier(VkCommandBuffer cmd) const {
                   }
             }
       }
+}
+
+bool KernelInstance::CheckResourceSafety() const {
+      for(const auto& resource : _resourceUsageInfo) {
+            if(!resource.has_value()) {
+                  return false;
+            }
+      }
+      return true;
 }
 
 void KernelInstance::UpdateInstancesParameterTable() {
