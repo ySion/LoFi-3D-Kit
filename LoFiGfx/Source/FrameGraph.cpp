@@ -38,9 +38,10 @@ void LoFi::FrameGraph::BeginFrame() {
                   throw std::runtime_error(err);
             }
 
-            vkResetCommandBuffer(used_cmd_buf, 0);
             _secondaryCmdBufsFree.push_back(used_cmd_buf);
       }
+
+      _secondaryCmdBufsUsed.clear();
 
       if (vkResetCommandBuffer(_cmdBuffer, 0) != VK_SUCCESS) {
             const auto err = "FrameGraph::Reset Failed to reset command buffer";

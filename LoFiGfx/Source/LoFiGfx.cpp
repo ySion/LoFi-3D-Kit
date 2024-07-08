@@ -132,8 +132,8 @@ void GStart() {
 
       //CreateWindows
       const auto win1 = ctx->CreateWindow("Triangle", 1920, 1080);
-      const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
-      const auto win3 = ctx->CreateWindow("Merge", 800, 600);
+      //const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
+      //const auto win3 = ctx->CreateWindow("Merge", 800, 600);
 
       const auto rt1 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 1920, 1080);
       const auto rt2 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 400, 400);
@@ -142,8 +142,8 @@ void GStart() {
       const auto ds = ctx->CreateTexture2D(VK_FORMAT_D32_SFLOAT, 800, 600);
 
       ctx->MapRenderTargetToWindow(rt1, win1);
-      ctx->MapRenderTargetToWindow(rt2, win2);
-      ctx->MapRenderTargetToWindow(rt3, win3);
+      //ctx->MapRenderTargetToWindow(rt2, win2);
+      //ctx->MapRenderTargetToWindow(rt3, win3);
 
 
       const auto program = ctx->CreateProgram({vs, ps});
