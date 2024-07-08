@@ -61,23 +61,20 @@ void Swapchain::SetMappedRenderTarget(entt::entity texture) {
       }
 }
 
-void Swapchain::BeginFrame(VkCommandBuffer cmd) {
-      auto render_traget = GetCurrentRenderTarget();
-      auto current_layout = render_traget->GetCurrentLayout();
+void Swapchain::BeginFrame(VkCommandBuffer cmd) const {
       if (_mappedRenderTarget == entt::null) {
-            if (current_layout != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
-                  render_traget->BarrierLayout(cmd, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-            }
+            const auto render_traget = GetCurrentRenderTarget();
+            render_traget->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_DST);
       }
 }
 
-void Swapchain::EndFrame(VkCommandBuffer cmd) {
+void Swapchain::EndFrame(VkCommandBuffer cmd) const {
       if (_mappedRenderTarget != entt::null) {
             MapRenderTarget(cmd);
       }
 }
 
-void Swapchain::MapRenderTarget(VkCommandBuffer cmd) {
+void Swapchain::MapRenderTarget(VkCommandBuffer cmd) const {
       auto& world = *volkGetLoadedEcsWorld();
       auto current_rt = GetCurrentRenderTarget();
 
@@ -105,23 +102,14 @@ void Swapchain::MapRenderTarget(VkCommandBuffer cmd) {
                         .dstOffsets = {zero, dst}
                   };
 
-                  tex->BarrierLayout(cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BLIT_BIT);
-                  current_rt->BarrierLayout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_2_BLIT_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT);
+                  tex->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_SRC);
+                  current_rt->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_DST);
 
                   vkCmdBlitImage(cmd, tex->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, current_rt->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
-
-                  tex->BarrierLayout(cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, std::nullopt, VK_PIPELINE_STAGE_2_BLIT_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
-                  current_rt->BarrierLayout(cmd, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, std::nullopt, VK_PIPELINE_STAGE_2_BLIT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
-            } else {
-                  if (current_rt->GetCurrentLayout() != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
-                        current_rt->BarrierLayout(cmd, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, std::nullopt, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
-                  }
-            }
-      } else {
-            if (current_rt->GetCurrentLayout() != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
-                  current_rt->BarrierLayout(cmd, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, std::nullopt, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
             }
       }
+
+      current_rt->BarrierLayout(cmd, NONE, ResourceUsage::PRESENT);
 }
 
 Swapchain::~Swapchain() {

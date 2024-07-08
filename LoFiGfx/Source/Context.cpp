@@ -330,6 +330,7 @@ void Context::Init() {
             _device = device;
             volkLoadDevice(device);
             volkLoadPhysicalDevice(_physicalDevice);
+            volkLoadEcsWorld(&_world);
       }
 
       {
@@ -397,6 +398,10 @@ void Context::Init() {
                   MessageManager::Log(MessageType::Error, "Failed to allocate command buffers");
                   throw std::runtime_error("Failed to allocate command buffers");
             }
+
+            _frameGraphs[0] = std::make_unique<FrameGraph>(_commandBuffer[0], _commandPool);
+            _frameGraphs[1] = std::make_unique<FrameGraph>(_commandBuffer[1], _commandPool);
+            _frameGraphs[2] = std::make_unique<FrameGraph>(_commandBuffer[2], _commandPool);
       }
 
       {
@@ -421,8 +426,6 @@ void Context::Init() {
                   }
             }
       }
-
-      volkLoadEcsWorld(&_world);
 
       {
             std::array size{
@@ -662,49 +665,8 @@ void Context::MapRenderTargetToWindow(entt::entity texture, entt::entity window)
       sp->SetMappedRenderTarget(texture);
 }
 
-void Context::CmdBindKernel(entt::entity kernel) {
-      if (!_world.valid(kernel)) {
-            const auto err = "Context::CmdBindGraphicKernel - Invalid graphics kernel entity";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      const auto kernel_instance_ptr = _world.try_get<Component::KernelInstance>(kernel);
-      if(kernel_instance_ptr) {
-            kernel = kernel_instance_ptr->GetKernel();
-      }
-
-      const auto kernel_ptr = _world.try_get<Component::Kernel>(kernel);
-      if(!kernel_ptr) {
-            throw std::runtime_error("Context::CmdBindKernel - this entity is not a kernel or kernel instance entity.");
-      }
-
-      if(kernel_ptr->IsComputeKernel()) {
-            vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, kernel_ptr->GetPipeline());
-            vkCmdBindDescriptorSets(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, kernel_ptr->GetPipelineLayout(),
-                  0, 1, &_bindlessDescriptorSet, 0, nullptr);
-
-            _currentKernel = kernel;
-            _currentKernelType = Component::KernelType::COMPUTE;
-      } else if(kernel_ptr->IsGraphicsKernel()) {
-
-            vkCmdBindPipeline(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, kernel_ptr->GetPipeline());
-            vkCmdBindDescriptorSets(GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, kernel_ptr->GetPipelineLayout(), 0, 1, &_bindlessDescriptorSet, 0, nullptr);
-            const auto viewport = VkViewport{0, (float)_frameRenderingRenderArea.extent.height, (float)_frameRenderingRenderArea.extent.width, -(float)_frameRenderingRenderArea.extent.height, 0, 1};
-            vkCmdSetViewport(GetCurrentCommandBuffer(), 0, 1, &viewport);
-            const auto scissor = VkRect2D{0, 0, _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height};
-            vkCmdSetScissor(GetCurrentCommandBuffer(), 0, 1, &scissor);
-
-            _currentKernel = kernel;
-            _currentKernelType = Component::KernelType::GRAPHICS;
-
-      } else {
-            throw std::runtime_error("Context::CmdBindKernel - this kernel is not a graphics kernel or compute kernel.");
-      }
-
-      if(kernel_instance_ptr) {
-            kernel_instance_ptr->PushParameterTable(GetCurrentCommandBuffer());
-      }
+void Context::CmdBindKernel(entt::entity kernel) const {
+      _frameGraphs[GetCurrentFrameIndex()]->BindKernel(kernel);
 }
 
 bool Context::BindKernelResource(entt::entity kernel_instance, const std::string& resource_name, entt::entity resource) {
@@ -730,45 +692,11 @@ bool Context::BindKernelResource(entt::entity kernel_instance, const std::string
       return kernel_ptr->BindResource(resource_name, resource);
 }
 
-void Context::CmdBindVertexBuffer(entt::entity buffer, size_t offset) {
-      if (!_world.valid(buffer)) {
-            const auto err = "Context::CmdBindVertexBuffer - Invalid buffer entity";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      auto buf = _world.try_get<Component::Buffer>(buffer);
-      if (!buf) {
-            const auto err = "Context::CmdBindVertexBuffer - this enity is not a buffer";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      vkCmdBindVertexBuffers(GetCurrentCommandBuffer(), 0, 1, buf->GetBufferPtr(), &offset);
+void Context::CmdBindVertexBuffer(entt::entity buffer, size_t offset) const {
+      _frameGraphs[GetCurrentFrameIndex()]->BindVertexBuffer(buffer, offset);
 }
-
-void Context::CmdDraw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) const {
-      vkCmdDraw(GetCurrentCommandBuffer(), vertex_count, instance_count, first_vertex, first_instance);
-}
-
-void Context::CmdDrawIndex(entt::entity index_buffer, size_t offset, std::optional<uint32_t> index_count) {
-      if (!_world.valid(index_buffer)) {
-            const auto err = "Context::CmdDrawIndex - Invalid buffer entity";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      auto ib = _world.try_get<Component::Buffer>(index_buffer);
-      if (!ib) {
-            const auto err = "Context::CmdDrawIndex - this entity is not a buffer";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      vkCmdBindIndexBuffer(GetCurrentCommandBuffer(), ib->GetBuffer(), offset, VK_INDEX_TYPE_UINT32);
-
-      uint32_t idx_count = std::min(index_count.value_or(std::numeric_limits<uint32_t>::max()), (uint32_t)(ib->GetSize() / sizeof(uint32_t)));
-      vkCmdDrawIndexed(GetCurrentCommandBuffer(), idx_count, 1, 0, 0, 0);
+void Context::CmdDrawIndex(entt::entity index_buffer, size_t offset, std::optional<uint32_t> index_count) const {
+      _frameGraphs[GetCurrentFrameIndex()]->DrawIndex(index_buffer, offset, index_count);
 }
 
 entt::entity Context::CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts) {
@@ -996,22 +924,9 @@ void Context::BeginFrame() {
       Component::KernelInstance::UpdateInstancesParameterTable();
 
       PrepareWindowRenderTarget();
-      auto cmd = GetCurrentCommandBuffer();
 
-      if (vkResetCommandBuffer(cmd, 0) != VK_SUCCESS) {
-            const auto err = "Context::BeginFrame Failed to reset command buffer";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      VkCommandBufferBeginInfo begin_info{};
-      begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-      if (vkBeginCommandBuffer(cmd, &begin_info) != VK_SUCCESS) {
-            const auto err = "Context::BeginFrame Failed to begin command buffer";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
+      _frameGraphs[GetCurrentFrameIndex()]->BeginFrame();
+      auto cmd = _frameGraphs[GetCurrentFrameIndex()]->GetCommandBuffer();
 
       for (const auto& i : _commandQueue) {
             i(cmd);
@@ -1019,19 +934,14 @@ void Context::BeginFrame() {
 
       _commandQueue.clear();
 
-      _world.view<Component::Swapchain>().each([&](auto entity, Component::Swapchain& swapchain) {
+      _world.view<Component::Swapchain>().each([&](auto entity, const Component::Swapchain& swapchain) {
             swapchain.BeginFrame(cmd);
       });
 }
 
 void Context::EndFrame() {
-      if (_isRenderPassOpen) {
-            const auto err = "Context::EndFrame - Render pass is still open, close RenderPass before EndFrame!";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
 
-      auto cmd_buf = GetCurrentCommandBuffer();
+      auto cmd_buf = _frameGraphs[GetCurrentFrameIndex()]->GetCommandBuffer();
 
       auto window_count = _windowIdToWindow.size();
 
@@ -1055,11 +965,7 @@ void Context::EndFrame() {
             present_image_index.push_back(swapchain.GetCurrentRenderTargetIndex());
       });
 
-      if (vkEndCommandBuffer(cmd_buf) != VK_SUCCESS) {
-            const auto err = "Context::EndFrame Failed to end command buffer";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
+      _frameGraphs[GetCurrentFrameIndex()]->EndFrame();
 
       VkSubmitInfo vk_submit_info{};
       VkCommandBuffer buffers[] = {cmd_buf};
@@ -1102,142 +1008,12 @@ void Context::EndFrame() {
       GoNextFrame();
 }
 
-void Context::CmdBeginRenderPass(const std::vector<RenderPassBeginArgument>& textures) {
-      if (_isRenderPassOpen) {
-            const auto err = "Context::BeginRenderPass - Render pass already open";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      if (textures.empty()) {
-            const auto err = "Context::BeginRenderPass - Empty textures, create render pass failed.";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      _frameRenderingRenderArea = {};
-
-      VkRenderingInfoKHR render_info = {
-            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
-            .pNext = nullptr,
-            .flags = 0,
-            .renderArea = {},
-            .layerCount = 1,
-            .viewMask = 0,
-            .colorAttachmentCount = 0,
-            .pColorAttachments = nullptr,
-            .pDepthAttachment = nullptr,
-            .pStencilAttachment = nullptr
-      };
-
-      std::vector<VkRenderingAttachmentInfo> _frameRenderingColorAttachments{};
-      VkRenderingAttachmentInfo _frameRenderingDepthStencilAttachment{};
-      VkRenderingAttachmentInfo _frameRenderingDepthAttachment{};
-      auto cmd = GetCurrentCommandBuffer();
-
-      _frameRenderingRenderArea = {};
-      for (const auto& entity : textures) {
-            entt::entity handle = entity.TextureHandle;
-            uint32_t view_index = entity.ViewIndex;
-            bool clear = entity.ClearBeforeRendering;
-            if (!_world.valid(handle)) {
-                  const auto err = std::format("Context::CmdBindRenderTarget - Invalid texture entity.");
-                  MessageManager::Log(MessageType::Error, err);
-                  throw std::runtime_error(err);
-            }
-
-            auto texture = _world.try_get<Component::Texture>(handle);
-            if (!texture) {
-                  const auto err = std::format("Context::CmdBindRenderTarget - this entity is not a texture entity.");
-                  MessageManager::Log(MessageType::Error, err);
-                  throw std::runtime_error(err);
-            }
-
-            auto extent = texture->GetExtent();
-            if (_frameRenderingRenderArea.extent.width == 0 || _frameRenderingRenderArea.extent.height == 0) {
-                  _frameRenderingRenderArea = {0, 0, extent.width, extent.height};
-            } else {
-                  if (extent.width != _frameRenderingRenderArea.extent.width || extent.height != _frameRenderingRenderArea.extent.height) {
-                        const auto str = std::format("Context::CmdBindRenderTarget - Texture size mismatch, expected {}x{}, got {}x{}", _frameRenderingRenderArea.extent.width,
-                        _frameRenderingRenderArea.extent.height, extent.width, extent.height);
-                        MessageManager::Log(MessageType::Error, str);
-                        throw std::runtime_error(str);
-                  }
-            }
-
-            if (texture->IsTextureFormatColor()) {
-                  // RenderTarget:
-                  auto crruent_layout = texture->GetCurrentLayout();
-                  if (crruent_layout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-                        texture->BarrierLayout(GetCurrentCommandBuffer(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
-                  }
-
-                  const VkRenderingAttachmentInfo info{
-                        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                        .imageView = texture->GetView(view_index),
-                        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                        .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
-                        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                        .clearValue = {.color = {0.0f, 0.0f, 0.0f, 1.0f}}
-                  };
-
-                  _frameRenderingColorAttachments.push_back(info);
-                  render_info.colorAttachmentCount = _frameRenderingColorAttachments.size();
-                  render_info.pColorAttachments = _frameRenderingColorAttachments.data();
-            } else if (texture->IsTextureFormatDepthOnly()) {
-                  // Depth:
-                  auto layout = texture->GetCurrentLayout();
-                  if (layout != VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) {
-                        texture->BarrierLayout(GetCurrentCommandBuffer(), VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT);
-                  }
-
-                  _frameRenderingDepthAttachment = VkRenderingAttachmentInfo{
-                        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                        .imageView = texture->GetView(view_index),
-                        .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-                        .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
-                        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                        .clearValue = {.depthStencil = {1.0f, 0}}
-                  };
-
-                  render_info.pDepthAttachment = &_frameRenderingDepthAttachment;
-                  render_info.pStencilAttachment = nullptr;
-            } else if (texture->IsTextureFormatDepthStencil()) {
-                  //Depth Stencil
-                  auto layout = texture->GetCurrentLayout();
-                  if (layout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-                        texture->BarrierLayout(GetCurrentCommandBuffer(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, std::nullopt, std::nullopt, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT);
-                  }
-
-                  _frameRenderingDepthStencilAttachment = VkRenderingAttachmentInfo{
-                        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                        .imageView = texture->GetView(view_index),
-                        .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                        .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
-                        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                        .clearValue = {.depthStencil = {1.0f, 0}}
-                  };
-
-                  render_info.pDepthAttachment = &_frameRenderingDepthStencilAttachment;
-                  render_info.pStencilAttachment = &_frameRenderingDepthStencilAttachment;
-            } else {
-                  const auto err = std::format("Context::CmdBindRenderTarget - Invalid texture format, format = {}, create render pass failed.", GetVkFormatString(texture->GetFormat()));
-                  MessageManager::Log(MessageType::Error, err);
-                  throw std::runtime_error(err);
-            }
-      }
-
-      render_info.renderArea = _frameRenderingRenderArea;
-      vkCmdBeginRenderingKHR(cmd, &render_info);
-      _isRenderPassOpen = true;
+void Context::CmdBeginPass(const std::vector<RenderPassBeginArgument>& textures) const {
+      _frameGraphs[GetCurrentFrameIndex()]->BeginPass(textures);
 }
 
-void Context::CmdEndRenderPass() {
-      if (_isRenderPassOpen) {
-            vkCmdEndRendering(GetCurrentCommandBuffer());
-            _isRenderPassOpen = false;
-            _currentKernel = entt::null;
-      }
+void Context::CmdEndPass() const {
+      _frameGraphs[GetCurrentFrameIndex()]->EndPass();
 }
 
 uint32_t Context::MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t viewIndex) {
@@ -1381,10 +1157,6 @@ void Context::PrepareWindowRenderTarget() {
 
 uint32_t Context::GetCurrentFrameIndex() const {
       return _currentCommandBufferIndex;
-}
-
-VkCommandBuffer Context::GetCurrentCommandBuffer() const {
-      return _commandBuffer[_currentCommandBufferIndex];
 }
 
 VkFence Context::GetCurrentFence() const {

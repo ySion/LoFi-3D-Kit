@@ -1197,4 +1197,26 @@ namespace LoFi::Internal {
                   default: return "???";
             }
       }
+
+      const char* GetResourceUsageString(ResourceUsage stage) {
+            switch(stage) {
+                  case ResourceUsage::NONE: return "NONE";
+                  case ResourceUsage::TRANS_SRC: return "TRANS_SRC";
+                  case ResourceUsage::TRANS_DST: return "TRANS_DST";
+                  case ResourceUsage::SAMPLED: return "SAMPLED";
+                  case ResourceUsage::READ_TEXTURE: return "READ_TEXTURE";
+                  case ResourceUsage::WRITE_TEXTURE: return "WRITE_TEXTURE";
+                  case ResourceUsage::READ_WRITE_TEXTURE: return "READ_WRITE_TEXTURE";
+                  case ResourceUsage::READ_BUFFER: return "READ_BUFFER";
+                  case ResourceUsage::WRITE_BUFFER: return "WRITE_BUFFER";
+                  case ResourceUsage::READ_WRITE_BUFFER: return "READ_WRITE_BUFFER";
+                  case ResourceUsage::RENDER_TARGET: return "RENDER_TARGET";
+                  case ResourceUsage::DEPTH_STENCIL: return "DEPTH_STENCIL";
+                  case ResourceUsage::PRESENT: return "PRESENT";
+                  case ResourceUsage::VERTEX_BUFFER: return "VERTEX_BUFFER";
+                  case ResourceUsage::INDEX_BUFFER: return "INDEX_BUFFER";
+                  case ResourceUsage::INDIRECT_BUFFER: return "INDIRECT_BUFFER";
+            }
+            return "err";
+      }
 }

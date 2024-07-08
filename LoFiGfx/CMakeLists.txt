@@ -21,6 +21,8 @@ set(Source_List
         Source/Components/Kernel.h
         Source/Components/KernelInstance.cpp
         Source/Components/KernelInstance.h
+        Source/FrameGraph.cpp
+        Source/FrameGraph.h
 )
 
 find_package(Vulkan REQUIRED)

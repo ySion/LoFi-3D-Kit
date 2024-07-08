@@ -8,6 +8,7 @@
 
 #include "../Third/xxHash/xxh3.h"
 #include "Components/Defines.h"
+#include "FrameGraph.h"
 
 namespace LoFi {
 
@@ -66,27 +67,13 @@ namespace LoFi {
             };
       }
 
-      struct ContextSetupParam {
-            bool Debug = false;
-      };
-
-      struct LayoutVariableBindInfo {
-            std::string Name;
-            entt::entity Buffer;
-      };
-
-      struct RenderPassBeginArgument {
-            entt::entity TextureHandle = entt::null;
-            bool ClearBeforeRendering = true;
-            uint32_t ViewIndex = 0;
-      };
-
       class Context {
             friend class Component::Buffer;
             friend class Component::Program;
             friend class Component::Texture;
             friend class Component::Kernel;
             friend class Component::KernelInstance;
+            friend class FrameGraph;
 
             struct SamplerCIHash {
                   std::size_t operator()(const VkSamplerCreateInfo& s) const noexcept {
@@ -172,43 +159,19 @@ namespace LoFi {
 
             void MapRenderTargetToWindow(entt::entity texture, entt::entity window);
 
-            void CmdBeginRenderPass(const std::vector<RenderPassBeginArgument>& textures);
-
-            void CmdEndRenderPass();
-
-            void CmdBindKernel(entt::entity kernel);
-
             bool BindKernelResource(entt::entity kernel_instance, const std::string& resource_name, entt::entity resource);
 
-            template<class T> requires !std::is_pointer_v<T>
-            void SetKernelParam(entt::entity frame_resource, const std::string& variable_name, const T& data) {
-                  SetKernelParam(frame_resource, variable_name, &data);
-            }
+            void CmdBeginPass(const std::vector<RenderPassBeginArgument>& textures) const;
 
-            template<class T> requires !std::is_pointer_v<T>
-            void SetKernelParamStruct(entt::entity frame_resource, const std::string& variable_name, const T& data) {
-                  SetKernelParamStruct(frame_resource, variable_name, &data);
-            }
+            void CmdEndPass() const;
 
-            template<class T> requires !std::is_pointer_v<T>
-            void SetKernelParamMember(entt::entity frame_resource, const std::string& variable_name, const T& data) {
-                  SetKernelParamMember(frame_resource, variable_name, &data);
-            }
+            void CmdBindKernel(entt::entity kernel) const;
 
-            void CmdBindVertexBuffer(entt::entity buffer, size_t offset = 0);
+            void CmdBindVertexBuffer(entt::entity buffer, size_t offset = 0) const;
 
             void CmdDraw(uint32_t vertex_count, uint32_t instance_count = 1, uint32_t first_vertex = 0, uint32_t first_instance = 0) const;
 
-            void CmdDrawIndex(entt::entity index_buffer, size_t offset = 0, std::optional<uint32_t> index_count = {});
-
-            //
-            // void CmdBindTexture(entt::entity texture, uint32_t position = 0);
-            //
-            // void CmdBindTextures(std::span<entt::entity> textures);
-            //
-            // void CmdSetPushConstant(void* data, uint32_t size);
-            //
-            // void CmdBindBuffer(entt::entity buffer, uint32_t position = 0);
+            void CmdDrawIndex(entt::entity index_buffer, size_t offset = 0, std::optional<uint32_t> index_count = {}) const;
 
       private:
             void Shutdown();
@@ -224,8 +187,6 @@ namespace LoFi {
             void PrepareWindowRenderTarget();
 
             uint32_t GetCurrentFrameIndex() const;
-
-            VkCommandBuffer GetCurrentCommandBuffer() const;
 
             VkFence GetCurrentFence() const;
 
@@ -304,11 +265,6 @@ namespace LoFi {
             std::vector<Internal::ContextResourceRecoveryInfo> _resoureceRecoveryList[3]{};
 
       private:
-            VkRect2D _frameRenderingRenderArea{};
-
-            Component::KernelType _currentKernelType{};
-            entt::entity _currentKernel{};
-
-            bool _isRenderPassOpen = false;
+            std::unique_ptr<FrameGraph> _frameGraphs[3]{};
       };
 }

@@ -2,6 +2,7 @@
 
 #include "../Helper.h"
 #include "Buffer.h"
+#include "Defines.h"
 
 
 namespace LoFi {
@@ -45,7 +46,7 @@ namespace LoFi::Component {
 
             [[nodiscard]] bool IsTextureFormatDepthStencil() const { return !Internal::IsDepthStencilFormat(_imageCI->format); }
 
-            [[nodiscard]] VkImageLayout GetCurrentLayout() const { return _currentLayout; }
+            [[nodiscard]] ResourceUsage GetCurrentUsage() const { return _currentUsage; }
 
             [[nodiscard]] VkSampler GetSampler() const { return _sampler; }
 
@@ -63,9 +64,7 @@ namespace LoFi::Component {
 
             void SetData(const void* data, size_t size);
 
-            void BarrierLayout(VkCommandBuffer cmd, VkImageLayout new_layout, std::optional<VkImageLayout> src_layout = std::nullopt,
-                  std::optional<VkPipelineStageFlags2> src_stage = std::nullopt,
-                  std::optional<VkPipelineStageFlags2> dst_stage = std::nullopt);
+            void BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, ResourceUsage new_usage);
 
       private:
             void SetSampler(VkSampler sampler) { _sampler = sampler; }
@@ -105,7 +104,9 @@ namespace LoFi::Component {
 
             VkSampler _sampler{};
 
-            VkImageLayout _currentLayout;
+            KernelType _currentKernelType = KernelType::NONE;
+
+            ResourceUsage _currentUsage = ResourceUsage::NONE;
 
             std::unique_ptr<Buffer> _intermediateBuffer{};
       };

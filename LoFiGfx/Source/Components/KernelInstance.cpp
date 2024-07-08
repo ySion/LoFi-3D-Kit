@@ -43,11 +43,12 @@ KernelInstance::KernelInstance(entt::entity id, entt::entity kernel, bool high_d
             return;
       }
 
+      _resourceUsageInfo.resize(kernel_ptr->GetResourceDefine().size());
+
       // emplace data cache
       _parameterTableBuffer.CachedBufferData.resize(parameter_table_size);
 
       //emplace buffers
-
       for(int i = 0; i < 3; i++) {
             auto& buffer = _parameterTableBuffer.Buffers[i];
             buffer = Context::Get()->CreateBuffer(parameter_table_size, high_dynamic);
@@ -56,6 +57,10 @@ KernelInstance::KernelInstance(entt::entity id, entt::entity kernel, bool high_d
 }
 
 bool KernelInstance::BindResource(const std::string& resource_name, entt::entity resource) {
+      if(_isEmptyInstance) {
+            const auto err = "KernelInstance::BindResource: Try to BindResource on an empty instance, ingore this operation";
+            MessageManager::Log(MessageType::Warning, err);
+      }
       auto& world = *volkGetLoadedEcsWorld();
 
       if(!world.valid(_kernel)) {
@@ -78,15 +83,16 @@ bool KernelInstance::BindResource(const std::string& resource_name, entt::entity
       }
 
       const auto& resource_defines = kernel_ptr->GetResourceDefine();
-
       if(const auto finder = resource_defines.find(resource_name); finder == resource_defines.end()) {
             const auto err = std::format("KernelInstance::BindResource: resource {} not found in kernel.", resource_name);
             MessageManager::Log(MessageType::Error, err);
       } else {
             const uint32_t offset = finder->second.Offset;
             const uint32_t size = finder->second.Size;
+            const uint32_t index = finder->second.Index;
 
             if((uint32_t)(finder->second.Type) <= (uint32_t)(ShaderResource::READ_WRITE_BUFFER)) { // Buffers
+
                   const auto ptr_buffer = world.try_get<Buffer>(resource);
                   if(!ptr_buffer) {
                         const auto err = std::format("KernelInstance::BindResource: resource {} is not a buffer.", resource_name);
@@ -96,6 +102,20 @@ bool KernelInstance::BindResource(const std::string& resource_name, entt::entity
 
                   const auto address = ptr_buffer->GetAddress();
                   memcpy(&_parameterTableBuffer.CachedBufferData.at(offset), &address, size);
+                  switch (finder->second.Type) {
+                        case ShaderResource::READ_BUFFER:
+                              _resourceUsageInfo.at(index) = std::make_pair(resource, ResourceUsage::READ_BUFFER);
+                              break;
+                        case ShaderResource::WRITE_BUFFER:
+                              _resourceUsageInfo.at(index) = std::make_pair(resource, ResourceUsage::WRITE_BUFFER);
+                              break;
+                        case ShaderResource::READ_WRITE_BUFFER:
+                              _resourceUsageInfo.at(index) = std::make_pair(resource, ResourceUsage::READ_WRITE_BUFFER);
+                              break;
+                        default:
+                              // unreachable
+                              break;
+                  }
             } else { // Textures
                   const auto ptr_texture = world.try_get<Texture>(resource);
                   if(!ptr_texture) {
@@ -103,13 +123,30 @@ bool KernelInstance::BindResource(const std::string& resource_name, entt::entity
                         MessageManager::Log(MessageType::Error, err);
                         return false;
                   }
-
                   if(finder->second.Type == ShaderResource::SAMPLED_TEXTURE) {
                         const auto bindless_handle = ptr_texture->GetBindlessIndexForSampler();
                         memcpy(&_parameterTableBuffer.CachedBufferData.at(offset), &bindless_handle, size);
                   } else {
                         const auto bindless_handle = ptr_texture->GetBindlessIndexForSampler();
                         memcpy(&_parameterTableBuffer.CachedBufferData.at(offset), &bindless_handle, size);
+                  }
+
+                  switch (finder->second.Type) {
+                        case ShaderResource::SAMPLED_TEXTURE:
+                              _resourceUsageInfo.at(index) = std::make_pair(resource, ResourceUsage::SAMPLED);
+                        break;
+                        case ShaderResource::READ_TEXTURE:
+                              _resourceUsageInfo.at(index) = std::make_pair(resource, ResourceUsage::READ_TEXTURE);
+                              break;
+                        case ShaderResource::WRITE_TEXTURE:
+                              _resourceUsageInfo.at(index) = std::make_pair(resource, ResourceUsage::WRITE_TEXTURE);
+                              break;
+                        case ShaderResource::READ_WRITE_TEXTURE:
+                              _resourceUsageInfo.at(index) = std::make_pair(resource, ResourceUsage::READ_WRITE_TEXTURE);
+                              break;
+                        default:
+                              // unreachable
+                              break;
                   }
             }
       }
@@ -143,6 +180,57 @@ void KernelInstance::PushParameterTable(VkCommandBuffer cmd) const {
 
       const auto current_frame = Context::Get()->GetCurrentFrameIndex();
       vkCmdPushConstants(cmd, kernel_ptr->GetPipelineLayout(), VK_SHADER_STAGE_ALL, 0, sizeof(uint64_t), &_parameterTableBufferAddress[current_frame]);
+}
+
+void KernelInstance::GenerateResourcesBarrier(VkCommandBuffer cmd) const {
+      if(_isEmptyInstance) return;
+      auto& world = *Internal::volkGetLoadedEcsWorld();
+
+      if(!world.valid(_kernel)) {
+            const auto err = "KernelInstance::BindResource: parent kernel is changed or dead.";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      const auto kernel_ptr = world.try_get<Kernel>(_kernel);
+      if(!kernel_ptr) {
+            const auto err = "KernelInstance::BindResource: parent kernel is changed or dead.";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      const KernelType kernel_type = kernel_ptr->IsComputeKernel() ? KernelType::COMPUTE : KernelType::GRAPHICS;
+
+      for (const auto resource : _resourceUsageInfo) {
+            if(resource.has_value()) {
+                  switch (const auto& [resource_handle, usage] = resource.value(); usage) {
+                        case ResourceUsage::READ_BUFFER:
+                              world.get<Buffer>(resource_handle).BarrierLayout(cmd, kernel_type, ResourceUsage::READ_BUFFER);
+                              break;
+                        case ResourceUsage::WRITE_BUFFER:
+                              world.get<Buffer>(resource_handle).BarrierLayout(cmd, kernel_type, ResourceUsage::WRITE_BUFFER);
+                              break;
+                        case ResourceUsage::READ_WRITE_BUFFER:
+                              world.get<Buffer>(resource_handle).BarrierLayout(cmd, kernel_type, ResourceUsage::READ_WRITE_BUFFER);
+                              break;
+                        case ResourceUsage::READ_TEXTURE:
+                              world.get<Texture>(resource_handle).BarrierLayout(cmd, kernel_type, ResourceUsage::READ_TEXTURE);
+                              break;
+                        case ResourceUsage::WRITE_TEXTURE:
+                              world.get<Texture>(resource_handle).BarrierLayout(cmd, kernel_type, ResourceUsage::WRITE_TEXTURE);
+                              break;
+                        case ResourceUsage::READ_WRITE_TEXTURE:
+                              world.get<Texture>(resource_handle).BarrierLayout(cmd, kernel_type, ResourceUsage::READ_WRITE_TEXTURE);
+                              break;
+                        case ResourceUsage::SAMPLED:
+                              world.get<Texture>(resource_handle).BarrierLayout(cmd, kernel_type, ResourceUsage::SAMPLED);
+                              break;
+                        default:
+                              // unreachable
+                              break;
+                  }
+            }
+      }
 }
 
 void KernelInstance::UpdateInstancesParameterTable() {

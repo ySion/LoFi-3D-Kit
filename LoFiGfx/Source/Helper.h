@@ -26,6 +26,49 @@ Class& operator=(Class&&) = delete
 #include "entt/entt.hpp"
 #include "Concurrent/concurrentqueue.h"
 
+namespace LoFi {
+
+      struct ContextSetupParam {
+            bool Debug = false;
+      };
+
+      struct LayoutVariableBindInfo {
+            std::string Name;
+            entt::entity Buffer;
+      };
+
+      struct RenderPassBeginArgument {
+            entt::entity TextureHandle = entt::null;
+            bool ClearBeforeRendering = true;
+            uint32_t ViewIndex = 0;
+      };
+
+      enum class ResourceUsage {
+            NONE,
+            TRANS_SRC,
+            TRANS_DST,
+            SAMPLED,
+            READ_TEXTURE,
+            WRITE_TEXTURE,
+            READ_WRITE_TEXTURE,
+            READ_BUFFER,
+            WRITE_BUFFER,
+            READ_WRITE_BUFFER,
+            RENDER_TARGET,
+            DEPTH_STENCIL,
+            PRESENT,
+            VERTEX_BUFFER,
+            INDEX_BUFFER,
+            INDIRECT_BUFFER,
+      };
+
+      enum KernelType {
+            NONE,
+            GRAPHICS,
+            COMPUTE,
+      };
+}
+
 namespace LoFi::Internal {
       VmaAllocator volkGetLoadedVmaAllocator();
 
@@ -56,6 +99,11 @@ namespace LoFi::Internal {
       bool IsDepthStencilFormat(VkFormat format);
 
       const char* GetImageLayoutString(VkImageLayout layout);
+
+      const char* GetResourceUsageString(ResourceUsage stage);
 }
+
+
+
 
 #endif //MARCOS_H

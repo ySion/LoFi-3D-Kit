@@ -8,12 +8,6 @@
 
 namespace LoFi::Component {
 
-      enum KernelType {
-            None,
-            GRAPHICS,
-            COMPUTE,
-      };
-
       struct TagKernelInstanceParamChanged {};
 
       struct TagKernelInstanceParamUpdateCompleted {};
@@ -51,5 +45,6 @@ namespace LoFi::Component {
             ShaderResource Type;
             uint32_t Size;
             uint32_t Offset;
+            uint32_t Index;
       };
 };

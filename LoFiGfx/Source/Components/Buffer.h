@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Defines.h"
 #include "../Helper.h"
 
 namespace LoFi {
@@ -51,8 +52,7 @@ namespace LoFi::Component {
 
             void Recreate(uint64_t size);
 
-            void BarrierLayout(VkCommandBuffer cmd, VkPipelineStageFlags2 new_access, std::optional<VkAccessFlags2> src_layout,
-                  std::optional<VkPipelineStageFlags2> src_stage, std::optional<VkPipelineStageFlags2> dst_stage);
+            void BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, ResourceUsage new_usage);
 
       private:
             void CreateBuffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci);
@@ -92,6 +92,8 @@ namespace LoFi::Component {
 
             std::vector<VkBufferViewCreateInfo> _viewCIs{};
 
-            VkAccessFlags2 _currentAccess {};
+            KernelType _currentKernelType = KernelType::NONE;
+
+            ResourceUsage _currentUsage = ResourceUsage::NONE;
       };
 }

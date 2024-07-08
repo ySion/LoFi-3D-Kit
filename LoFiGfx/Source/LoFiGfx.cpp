@@ -11,6 +11,7 @@
 
 void GStart() {
       const auto vs = R"(
+
             layout(location = 0) in vec3 pos;
             layout(location = 1) in vec3 color;
 
@@ -87,10 +88,10 @@ void GStart() {
 
       //square
       std::array square_vt = {
-            -0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 0.0f,
-            0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f,
-            0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
-            -0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 1.0f,
+            -0.9f, 0.9f, 0.0f, 1.0f, 1.0f, 0.0f,
+            0.9f, 0.9f, 0.0f, 0.0f, 1.0f, 1.0f,
+            0.9f, -0.9f, 0.0f, 1.0f, 0.0f, 1.0f,
+            -0.9f, -0.9f, 0.0f, 1.0f, 1.0f, 1.0f,
       };
 
       std::array square_id = {0, 1, 2, 0, 2, 3};
@@ -149,11 +150,17 @@ void GStart() {
       const auto kernel = ctx->CreateKernel(program);
       const auto kernel_instance = ctx->CreateKernelInstance(kernel);
 
-      float param_hello = 0.2f;
+      const auto kernel_instance2 = ctx->CreateKernelInstance(kernel);
+
+      float param_hello = 0.9f;
       const auto info_param = ctx->CreateBuffer(&param_hello, sizeof(float));
 
-      ctx->BindKernelResource(kernel_instance, "image1", noise);
       ctx->BindKernelResource(kernel_instance, "Info", info_param);
+      ctx->BindKernelResource(kernel_instance2, "Info", info_param);
+
+      ctx->BindKernelResource(kernel_instance, "image1", noise);
+      ctx->BindKernelResource(kernel_instance2, "image1", rt1);
+
 
       std::atomic<bool> should_close = false;
       auto func = std::async(std::launch::async, [&] {
@@ -163,27 +170,27 @@ void GStart() {
                   ctx->BeginFrame();
 
                   //Pass 1
-                  ctx->CmdBeginRenderPass({{rt1}});
+                  ctx->CmdBeginPass({{rt1}});
                   ctx->CmdBindKernel(kernel_instance);
                   ctx->CmdBindVertexBuffer(triangle_vert);
                   ctx->CmdDrawIndex(triangle_index);
-                  ctx->CmdEndRenderPass();
+                  ctx->CmdEndPass();
 
                   //Pass 2
-                  ctx->CmdBeginRenderPass({{rt2}});
-                  ctx->CmdBindKernel(kernel_instance);
+                  ctx->CmdBeginPass({{rt2}});
+                  ctx->CmdBindKernel(kernel_instance2);
                   ctx->CmdBindVertexBuffer(square_vert);
                   ctx->CmdDrawIndex(square_index);
-                  ctx->CmdEndRenderPass();
+                  ctx->CmdEndPass();
 
                   //Pass 3
-                  ctx->CmdBeginRenderPass({{rt3}, {ds}});
-                  ctx->CmdBindKernel(kernel_instance);
+                  ctx->CmdBeginPass({{rt3}, {ds}});
+                  ctx->CmdBindKernel(kernel_instance2);
                   ctx->CmdBindVertexBuffer(square_vert);
                   ctx->CmdDrawIndex(square_index);
                   ctx->CmdBindVertexBuffer(triangle_vert);
                   ctx->CmdDrawIndex(triangle_index);
-                  ctx->CmdEndRenderPass();
+                  ctx->CmdEndPass();
 
                   //Compute
                   ctx->EndFrame();

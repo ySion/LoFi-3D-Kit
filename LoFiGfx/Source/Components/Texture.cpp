@@ -17,8 +17,6 @@ Texture::Texture(const VkImageCreateInfo& image_ci, VkImage Image, bool isBorrow
 
       _image = Image;
       _imageCI = std::make_unique<VkImageCreateInfo>(image_ci);
-
-      _currentLayout = _imageCI->initialLayout;
 }
 
 Texture::Texture(entt::entity id, const VkImageCreateInfo& image_ci, const VmaAllocationCreateInfo& alloc_ci) {
@@ -38,7 +36,6 @@ Texture::Texture(entt::entity id, const VkImageCreateInfo& image_ci, const VmaAl
             throw std::runtime_error(msg);
       }
       _id = id;
-      _currentLayout = _imageCI->initialLayout;
 }
 
 VkImageView Texture::CreateView(VkImageViewCreateInfo view_ci) {
@@ -98,7 +95,7 @@ void Texture::SetData(const void* data, size_t size) {
       _intermediateBuffer->SetData(data, size);
 
       auto imm_buffer = _intermediateBuffer->GetBuffer();
-      auto trans_size = size;
+      //auto trans_size = size;
 
       VkBufferImageCopy buffer_copyto_image{
             .bufferOffset = 0,
@@ -119,16 +116,16 @@ void Texture::SetData(const void* data, size_t size) {
       };
 
       LoFi::Context::Get()->EnqueueCommand([=, this](VkCommandBuffer cmd) {
-            this->BarrierLayout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            this->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_DST);
             vkCmdCopyBufferToImage(cmd, imm_buffer, _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffer_copyto_image);
       });
 }
 
-void Texture::BarrierLayout(VkCommandBuffer cmd, VkImageLayout new_layout, std::optional<VkImageLayout> src_layout,
-std::optional<VkPipelineStageFlags2> src_stage, std::optional<VkPipelineStageFlags2> dst_stage) {
-      auto& old_layout = _currentLayout;
+void Texture::BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, ResourceUsage new_usage) {
 
-      if (old_layout == new_layout) return;
+      if(new_kernel_type == _currentKernelType && new_usage == _currentUsage ) {
+            return;
+      }
 
       VkImageMemoryBarrier2 barrier{};
       barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2_KHR;
@@ -144,88 +141,191 @@ std::optional<VkPipelineStageFlags2> src_stage, std::optional<VkPipelineStageFla
       barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
       barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
-      barrier.oldLayout = _currentLayout;
-      barrier.newLayout = new_layout;
-
-      barrier.srcStageMask = src_stage.value_or(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
-      barrier.dstStageMask = dst_stage.value_or(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
-
-      barrier.srcAccessMask = 0;
-      barrier.dstAccessMask = 0;
-
-      if (src_layout.has_value()) {
-            old_layout = src_layout.value();
-      }
-
-      switch (old_layout) {
-            case VK_IMAGE_LAYOUT_UNDEFINED:
-            case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-                  barrier.srcAccessMask = 0;
+      if (new_kernel_type == KernelType::COMPUTE) {
+            switch (new_usage) {
+                  case ResourceUsage::SAMPLED:
+                        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
                   break;
-
-            case VK_IMAGE_LAYOUT_PREINITIALIZED:
-                  barrier.srcAccessMask = VK_ACCESS_2_HOST_WRITE_BIT;
+                  case ResourceUsage::WRITE_TEXTURE:
+                        barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+                        barrier.dstAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
                   break;
-
-            case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-                  barrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+                  case ResourceUsage::READ_TEXTURE:
+                        barrier.newLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+                        barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
                   break;
-
-            case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
-            case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
-                  barrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                  case ResourceUsage::READ_WRITE_TEXTURE:
+                        barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+                        barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
                   break;
-
-            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-                  barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
-                  break;
-
-            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-                  barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-                  break;
-
-            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-                  barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-                  break;
-
-            case VK_IMAGE_LAYOUT_GENERAL:
-                  barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
-            break;
-
-            default: break;
-      }
-
-      switch (new_layout) {
-            case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-                  barrier.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-                  break;
-            case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
-            case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
-                  barrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-                  break;
-            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-                  barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
-                  break;
-            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-                  barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-                  break;
-            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-                  if (barrier.srcAccessMask == 0) {
-                        barrier.srcAccessMask = VK_ACCESS_2_HOST_WRITE_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                  default: {
+                              const auto err  = std::format("Texture::BarrierLayout - The Barrier in Texture, In Compute kernel, resource's New Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              MessageManager::Log(MessageType::Error, err);
+                              throw std::runtime_error(err);
                   }
-                  barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+            }
+
+            barrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+
+      } else if (new_kernel_type == KernelType::GRAPHICS) {
+            switch (new_usage) {
+                  case ResourceUsage::SAMPLED:
+                        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+                        barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
                   break;
-            case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-                  barrier.dstAccessMask = 0;
+                  case ResourceUsage::WRITE_TEXTURE:
+                        barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+                        barrier.dstAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+                        barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
                   break;
-            case VK_IMAGE_LAYOUT_GENERAL:
-                  barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
-            default: break;
+                  case ResourceUsage::READ_TEXTURE:
+                        barrier.newLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+                        barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+                        barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
+                  break;
+                  case ResourceUsage::READ_WRITE_TEXTURE:
+                        barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+                        barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
+                        barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
+                  break;
+                  case ResourceUsage::RENDER_TARGET:
+                        barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                        barrier.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+                        barrier.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+                  break;
+                  case ResourceUsage::DEPTH_STENCIL:
+                        barrier.newLayout = IsTextureFormatDepthOnly() ? VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                        barrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                        barrier.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
+                  break;
+                  default: {
+                              const auto err  = std::format("Texture::BarrierLayout - The Barrier in Texture, In Graphics kernel, resource's New Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              MessageManager::Log(MessageType::Error, err);
+                              throw std::runtime_error(err);
+                  }
+            }
+      } else if (new_kernel_type == KernelType::NONE) {
+            switch (new_usage) {
+                  case ResourceUsage::TRANS_DST:
+                        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+                        barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                        barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                  break;
+                  case ResourceUsage::TRANS_SRC:
+                        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+                        barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+                        barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                  break;
+                  case ResourceUsage::PRESENT:
+                        barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                        barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                        barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                  break;
+                  default: {
+                              const auto err  = std::format("Texture::BarrierLayout - The Barrier in Texture, Out of Kernel, resource's New Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              MessageManager::Log(MessageType::Error, err);
+                              throw std::runtime_error(err);
+                  }
+            }
       }
 
-      old_layout = barrier.newLayout;
+      //old
+      if (_currentKernelType == KernelType::COMPUTE) {
+            switch (_currentUsage) {
+                  case ResourceUsage::SAMPLED:
+                        barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+                  break;
+                  case ResourceUsage::WRITE_TEXTURE:
+                        barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+                        barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+                  break;
+                  case ResourceUsage::READ_TEXTURE:
+                        barrier.oldLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+                        barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+                  break;
+                  case ResourceUsage::READ_WRITE_TEXTURE:
+                        barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+                        barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
+                  break;
+                  default: {
+                              const auto err  = std::format("Texture::BarrierLayout - The Barrier in Texture, In Compute kernel, resource's Old Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              MessageManager::Log(MessageType::Error, err);
+                              throw std::runtime_error(err);
+                  }
+            }
+
+            barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+
+      } else if (_currentKernelType == KernelType::GRAPHICS) {
+            switch (_currentUsage) {
+                  case ResourceUsage::SAMPLED:
+                        barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
+                  break;
+                  case ResourceUsage::WRITE_TEXTURE:
+                        barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+                        barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
+                  break;
+                  case ResourceUsage::READ_TEXTURE:
+                        barrier.oldLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+                        barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
+                  break;
+                  case ResourceUsage::READ_WRITE_TEXTURE:
+                        barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+                        barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
+                  break;
+                  case ResourceUsage::RENDER_TARGET:
+                        barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                        barrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+                  break;
+                  case ResourceUsage::DEPTH_STENCIL:
+                        barrier.oldLayout = IsTextureFormatDepthOnly() ? VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                        barrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
+                  break;
+                  default: {
+                              const auto err  = std::format("Texture::BarrierLayout - The Barrier in Texture, In Graphics kernel, resource's Old Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              MessageManager::Log(MessageType::Error, err);
+                              throw std::runtime_error(err);
+                  }
+            }
+      } else if (_currentKernelType == KernelType::NONE) {
+            switch (_currentUsage) {
+                  case ResourceUsage::TRANS_DST:
+                        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+                        barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                  break;
+                  case ResourceUsage::TRANS_SRC:
+                        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+                        barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                  break;
+                  case ResourceUsage::PRESENT:
+                        barrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                        barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                  break;
+                  case ResourceUsage::NONE:
+                        barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                        barrier.srcAccessMask = 0;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+                  break;
+                  default: {
+                              const auto err  = std::format("Texture::BarrierLayout - The Barrier in Texture, Out of Kernel, resource's Old Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              MessageManager::Log(MessageType::Error, err);
+                              throw std::runtime_error(err);
+                  }
+            }
+      }
 
       const VkDependencyInfo info{
             .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
@@ -234,8 +334,10 @@ std::optional<VkPipelineStageFlags2> src_stage, std::optional<VkPipelineStageFla
       };
 
       vkCmdPipelineBarrier2(cmd, &info);
-}
 
+      _currentKernelType = new_kernel_type;
+      _currentUsage = new_usage;
+}
 
 void Texture::ReleaseAllViews() const {
       for (const auto view : _views) {
@@ -249,8 +351,6 @@ void Texture::ReleaseAllViews() const {
 
 void Texture::Clean() {
       ClearViews();
-
-      _currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
       if (!_isBorrow) {
             DestroyTexture();

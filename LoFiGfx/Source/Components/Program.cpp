@@ -165,6 +165,7 @@ void Program::CompileCompute(std::string_view source) {
 
             uint32_t resource_offset = 0;
             bool align_to_8 = false;
+            uint32_t index_order = 0;
             for(const auto& item : _shaderResourceDefine) {
                   auto& [resource_name, info] = item;
                   if(info.Type == ShaderResource::READ_BUFFER || info.Type == ShaderResource::WRITE_BUFFER || info.Type == ShaderResource::READ_WRITE_BUFFER) {
@@ -173,6 +174,9 @@ void Program::CompileCompute(std::string_view source) {
                         info.Size = 8;
                         resource_offset += 8;
                         align_to_8 = true;
+
+                        info.Index = index_order;
+                        index_order++;
                   }
             }
 
@@ -183,6 +187,9 @@ void Program::CompileCompute(std::string_view source) {
                         info.Offset = resource_offset;
                         info.Size = 4;
                         resource_offset += 4;
+
+                        info.Index = index_order;
+                        index_order++;
                   }
             }
 

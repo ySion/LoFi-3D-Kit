@@ -1,4 +1,6 @@
 #include "Buffer.h"
+
+#include <memory>
 #include "../Message.h"
 #include "../Context.h"
 
@@ -160,33 +162,179 @@ void Buffer::Recreate(uint64_t size) {
       MessageManager::Log(MessageType::Normal, str);
 }
 
-void Buffer::BarrierLayout(VkCommandBuffer cmd, VkAccessFlags2 new_access, std::optional<VkAccessFlags2> src_layout,
-      std::optional<VkPipelineStageFlags2> src_stage, std::optional<VkPipelineStageFlags2> dst_stage) {
+void Buffer::BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, ResourceUsage new_usage) {
+      if(new_kernel_type == _currentKernelType && new_usage == _currentUsage ) {
+            return;
+      }
 
-      if(new_access == _currentAccess) { return; }
+      VkBufferMemoryBarrier2 barrier{};
+      barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+      barrier.buffer = _buffer;
+      barrier.offset = 0;
+      barrier.size = VK_WHOLE_SIZE;
+      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
-      VkMemoryBarrier2 barrier {
-            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2_KHR,
-            .srcStageMask = src_stage.value_or(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT),
-            .dstStageMask = dst_stage.value_or(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT),
-      };
+      if (new_kernel_type == KernelType::COMPUTE) {
+            switch (new_usage) {
+                  case ResourceUsage::READ_BUFFER:
+                        barrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+                  break;
+                  case ResourceUsage::WRITE_TEXTURE:
+                        barrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+                  break;
+                  case ResourceUsage::READ_WRITE_BUFFER:
+                        barrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+                  break;
+                  default: {
+                              const auto err  = std::format("Buffer::BarrierLayout - The Barrier in Buffer, In Compute kernel, resource's New Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              MessageManager::Log(MessageType::Error, err);
+                              throw std::runtime_error(err);
+                  }
+            }
 
-      barrier.srcAccessMask = _currentAccess;
-      barrier.dstAccessMask = new_access;
-      _currentAccess = new_access;
+            barrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
 
-      const VkDependencyInfo info{
+      } else if (new_kernel_type == KernelType::GRAPHICS) {
+            switch (new_usage) {
+                  case ResourceUsage::READ_BUFFER:
+                        barrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+                        barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+                  break;
+                  case ResourceUsage::WRITE_TEXTURE:
+                        barrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+                        barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+                  break;
+                  case ResourceUsage::READ_WRITE_BUFFER:
+                        barrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+                        barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+                  break;
+                  case ResourceUsage::VERTEX_BUFFER:
+                        barrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+                        barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT;
+                  break;
+                  case ResourceUsage::INDEX_BUFFER:
+                        barrier.dstAccessMask = VK_ACCESS_INDEX_READ_BIT;
+                        barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT;
+                  break;
+                  case ResourceUsage::INDIRECT_BUFFER:
+                        barrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+                        barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+                  break;
+                  default: {
+                              const auto err  = std::format("Texture::BarrierLayout - The Barrier in Buffer, In Graphics kernel, resource's New Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              MessageManager::Log(MessageType::Error, err);
+                              throw std::runtime_error(err);
+                  }
+            }
+      } else if (new_kernel_type == KernelType::NONE) {
+            switch (new_usage) {
+                  case ResourceUsage::TRANS_DST:
+                        barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                  barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                  break;
+                  case ResourceUsage::TRANS_SRC:
+                        barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+                  barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                  break;
+                  default: {
+                              const auto err  = std::format("Texture::BarrierLayout - The Barrier in Buffer, Out of Kernel, resource's New Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              MessageManager::Log(MessageType::Error, err);
+                              throw std::runtime_error(err);
+                  }
+            }
+      }
+
+      //old
+      if (_currentKernelType == KernelType::COMPUTE) {
+            switch (_currentUsage) {
+                  case ResourceUsage::READ_BUFFER:
+                        barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+                  break;
+                  case ResourceUsage::WRITE_TEXTURE:
+                        barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+                  break;
+                  case ResourceUsage::READ_WRITE_BUFFER:
+                        barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+                  break;
+                  default: {
+                              const auto err  = std::format("Buffer::BarrierLayout - The Barrier in Buffer, In Compute kernel, resource's Old Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              MessageManager::Log(MessageType::Error, err);
+                              throw std::runtime_error(err);
+                  }
+            }
+
+            barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+
+      } else if (_currentKernelType == KernelType::GRAPHICS) {
+            switch (_currentUsage) {
+                  case ResourceUsage::READ_BUFFER:
+                        barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+                  break;
+                  case ResourceUsage::WRITE_TEXTURE:
+                        barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+                  break;
+                  case ResourceUsage::READ_WRITE_BUFFER:
+                        barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+                  break;
+                  case ResourceUsage::VERTEX_BUFFER:
+                        barrier.srcAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT;
+                  break;
+                  case ResourceUsage::INDEX_BUFFER:
+                        barrier.srcAccessMask = VK_ACCESS_INDEX_READ_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT;
+                  break;
+                  case ResourceUsage::INDIRECT_BUFFER:
+                        barrier.srcAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+                  break;
+                  default: {
+                              const auto err  = std::format("Texture::BarrierLayout - The Barrier in Buffer, In Graphics kernel, resource's Old Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              MessageManager::Log(MessageType::Error, err);
+                              throw std::runtime_error(err);
+                  }
+            }
+      } else if (_currentKernelType == KernelType::NONE) {
+            switch (_currentUsage) {
+                  case ResourceUsage::TRANS_DST:
+                        barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                  break;
+                  case ResourceUsage::TRANS_SRC:
+                        barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                  break;
+                  case ResourceUsage::NONE:
+                        barrier.srcAccessMask = 0;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+                  break;
+                  default: {
+                              const auto err  = std::format("Texture::BarrierLayout - The Barrier in Buffer, Out of Kernel, resource's Old Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              MessageManager::Log(MessageType::Error, err);
+                              throw std::runtime_error(err);
+                  }
+            }
+      }
+
+      const VkDependencyInfo info {
             .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-            .memoryBarrierCount = 1,
-            .pMemoryBarriers = &barrier
+            .bufferMemoryBarrierCount = 1,
+            .pBufferMemoryBarriers = &barrier
       };
 
       vkCmdPipelineBarrier2(cmd, &info);
+
+      _currentKernelType = new_kernel_type;
+      _currentUsage = new_usage;
 }
 
 void Buffer::CreateBuffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci) {
-      _bufferCI.reset(new VkBufferCreateInfo{buffer_ci});
-      _memoryCI.reset(new VmaAllocationCreateInfo{alloc_ci});
+      _bufferCI = std::make_unique<VkBufferCreateInfo>(buffer_ci);
+      _memoryCI = std::make_unique<VmaAllocationCreateInfo>(alloc_ci);
 
       if (_buffer != nullptr) {
             DestroyBuffer();

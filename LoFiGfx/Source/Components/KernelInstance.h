@@ -23,6 +23,8 @@ namespace LoFi::Component {
 
             void PushParameterTable(VkCommandBuffer cmd) const;
 
+            void GenerateResourcesBarrier(VkCommandBuffer cmd) const;
+
             static void UpdateInstancesParameterTable();
 
       public:
@@ -37,6 +39,8 @@ namespace LoFi::Component {
             uint64_t _parameterTableBufferAddress[3]{};
 
             bool _isEmptyInstance = false;
+
+            std::vector<std::optional<std::pair<entt::entity, ResourceUsage>>> _resourceUsageInfo{};
       };
 }
 

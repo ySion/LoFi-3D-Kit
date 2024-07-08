@@ -30,12 +30,12 @@ namespace LoFi::Component {
 
             void SetMappedRenderTarget(entt::entity texture);
 
-            void BeginFrame(VkCommandBuffer cmd);
+            void BeginFrame(VkCommandBuffer cmd) const;
 
-            void EndFrame(VkCommandBuffer cmd);
+            void EndFrame(VkCommandBuffer cmd) const;
 
       private:
-            void MapRenderTarget(VkCommandBuffer cmd);
+            void MapRenderTarget(VkCommandBuffer cmd) const;
 
             void CreateOrRecreateSwapChain();
 
