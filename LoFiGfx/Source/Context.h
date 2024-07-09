@@ -137,6 +137,12 @@ namespace LoFi {
 
             [[nodiscard]] entt::entity CreateKernelInstance(entt::entity kernel);
 
+            [[nodiscard]] entt::entity CreateFrameResource(uint64_t size, bool hight_dynamic = false);
+
+            [[nodiscard]] entt::entity CreateFrameResource(void* data, uint64_t size, bool hight_dynamic = false);
+
+            void SetFrameResourceData( entt::entity frame_resource, void * data, uint64_t size, uint64_t offset = 0);
+
             void DestroyHandle(entt::entity);
 
             void SetBufferData(entt::entity buffer, const void* data, uint64_t size);
@@ -173,6 +179,8 @@ namespace LoFi {
 
             void CmdDrawIndex(entt::entity index_buffer, size_t offset = 0, std::optional<uint32_t> index_count = {}) const;
 
+            uint32_t GetCurrentFrameIndex() const;
+
       private:
             void Shutdown();
 
@@ -185,8 +193,6 @@ namespace LoFi {
             void SetTextureSampler(entt::entity image, const VkSamplerCreateInfo& sampler_ci);
 
             void PrepareWindowRenderTarget();
-
-            uint32_t GetCurrentFrameIndex() const;
 
             VkFence GetCurrentFence() const;
 

@@ -9,6 +9,7 @@
 #include "Components/Program.h"
 #include "Components/Kernel.h"
 #include "Components/KernelInstance.h"
+#include "Components/FrameResource.h"
 
 #include "SDL3/SDL.h"
 
@@ -560,6 +561,11 @@ void Context::Shutdown() {
       }
 
       {
+            auto view = _world.view<Component::FrameResource>();
+            _world.destroy(view.begin(), view.end());
+      }
+
+      {
             auto view = _world.view<Component::KernelInstance>();
             _world.destroy(view.begin(), view.end());
       }
@@ -853,6 +859,48 @@ entt::entity Context::CreateKernelInstance(entt::entity kernel) {
       return id;
 }
 
+entt::entity Context::CreateFrameResource(uint64_t size, bool hight_dynamic) {
+      auto id = _world.create();
+      try {
+            _world.emplace<Component::FrameResource>(id, id, size, hight_dynamic);
+      } catch (const std::exception& e) {
+            _world.destroy(id);
+            MessageManager::Log(MessageType::Error, e.what());
+            return entt::null;
+      }
+      return id;
+}
+
+entt::entity Context::CreateFrameResource(void* data, uint64_t size, bool hight_dynamic) {
+      auto id = _world.create();
+      try {
+            auto& comp = _world.emplace<Component::FrameResource>(id, id, size, hight_dynamic);
+            comp.SetData(data, size, 0);
+      } catch (const std::exception& e) {
+            _world.destroy(id);
+            MessageManager::Log(MessageType::Error, e.what());
+            return entt::null;
+      }
+      return id;
+}
+
+void Context::SetFrameResourceData(entt::entity frame_resource, void* data, uint64_t size, uint64_t offset) {
+      if (!_world.valid(frame_resource)) {
+            const auto err = "Context::SetFrameResourceData - Invalid frame resource entity";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      const auto ptr = _world.try_get<Component::FrameResource>(frame_resource);
+      if (!ptr) {
+            const auto err = "Context::SetFrameResourceData - this entity is not a frame resource";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      ptr->SetData(data, size, offset);
+}
+
 void Context::DestroyHandle(entt::entity handle) {
       if (_world.valid(handle)) {
             _world.destroy(handle);
@@ -921,7 +969,8 @@ void Context::EnqueueCommand(const std::function<void(VkCommandBuffer)>& command
 
 void Context::BeginFrame() {
 
-      Component::KernelInstance::UpdateInstancesParameterTable();
+      Component::KernelInstance::UpdateAll();
+      Component::FrameResource::UpdateAll();
 
       PrepareWindowRenderTarget();
 

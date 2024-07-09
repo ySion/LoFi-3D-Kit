@@ -82,6 +82,8 @@ namespace LoFi::Component {
 
             VmaAllocation _memory{};
 
+            VkDeviceAddress _address{};
+
             std::unique_ptr<VkBufferCreateInfo> _bufferCI{};
 
             std::unique_ptr<VmaAllocationCreateInfo> _memoryCI{};

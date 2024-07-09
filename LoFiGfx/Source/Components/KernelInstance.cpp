@@ -1,6 +1,7 @@
 #include "KernelInstance.h"
 
 #include "Buffer.h"
+#include "FrameResource.h"
 #include "Kernel.h"
 #include "Texture.h"
 
@@ -46,7 +47,8 @@ KernelInstance::KernelInstance(entt::entity id, entt::entity kernel, bool high_d
       _resourceUsageInfo.resize(kernel_ptr->GetResourceDefine().size());
 
       // emplace data cache
-      _parameterTableBuffer.CachedBufferData.resize(parameter_table_size);
+      _parameterTableBuffer.CachedBufferData.resize(parameter_table_size * 3);
+      _parameterTableSize = parameter_table_size;
 
       //emplace buffers
       for(int i = 0; i < 3; i++) {
@@ -93,41 +95,59 @@ bool KernelInstance::BindResource(const std::string& resource_name, entt::entity
             if((uint32_t)(finder->second.Type) <= (uint32_t)(ShaderResource::READ_WRITE_BUFFER)) { // Buffers
 
                   const auto ptr_buffer = world.try_get<Buffer>(resource);
-                  if(!ptr_buffer) {
-                        const auto err = std::format("KernelInstance::BindResource: resource {} is not a buffer.", resource_name);
+                  const auto ptr_frame_resource = world.try_get<FrameResource>(resource);
+
+                  if(!ptr_buffer && !ptr_frame_resource) {
+                        const auto err = std::format("KernelInstance::BindResource: resource {} is not a Buffer or FrameResource.", resource_name);
                         MessageManager::Log(MessageType::Error, err);
                         return false;
                   }
 
-                  const auto address = ptr_buffer->GetAddress();
-                  memcpy(&_parameterTableBuffer.CachedBufferData.at(offset), &address, size);
+                  if(ptr_buffer) {
+                        const auto address = ptr_buffer->GetAddress();
+                        memcpy(&_parameterTableBuffer.CachedBufferData.at(offset), &address, size);
+                        memcpy(&_parameterTableBuffer.CachedBufferData.at(offset + _parameterTableSize), &address, size);
+                        memcpy(&_parameterTableBuffer.CachedBufferData.at(offset + _parameterTableSize * 2), &address, size);
+                  } else {
+                        const VkDeviceAddress address0 =  ptr_frame_resource->GetBufferAddress(0);
+                        const VkDeviceAddress address1 =  ptr_frame_resource->GetBufferAddress(1);
+                        const VkDeviceAddress address2 =  ptr_frame_resource->GetBufferAddress(2);
+                        memcpy(&_parameterTableBuffer.CachedBufferData.at(offset), &address0, size);
+                        memcpy(&_parameterTableBuffer.CachedBufferData.at(offset + _parameterTableSize), &address1, size);
+                        memcpy(&_parameterTableBuffer.CachedBufferData.at(offset + _parameterTableSize * 2), &address2, size);
+                  }
+
                   switch (finder->second.Type) {
                         case ShaderResource::READ_BUFFER:
                               _resourceUsageInfo.at(index) = std::make_pair(resource, ResourceUsage::READ_BUFFER);
-                              break;
+                        break;
                         case ShaderResource::WRITE_BUFFER:
                               _resourceUsageInfo.at(index) = std::make_pair(resource, ResourceUsage::WRITE_BUFFER);
-                              break;
+                        break;
                         case ShaderResource::READ_WRITE_BUFFER:
                               _resourceUsageInfo.at(index) = std::make_pair(resource, ResourceUsage::READ_WRITE_BUFFER);
-                              break;
+                        break;
                         default:
                               // unreachable
-                              break;
+                                    break;
                   }
             } else { // Textures
                   const auto ptr_texture = world.try_get<Texture>(resource);
                   if(!ptr_texture) {
-                        const auto err = std::format("KernelInstance::BindResource: resource {} is not a texture.", resource_name);
+                        const auto err = std::format("KernelInstance::BindResource: resource {} is not a Texture.", resource_name);
                         MessageManager::Log(MessageType::Error, err);
                         return false;
                   }
                   if(finder->second.Type == ShaderResource::SAMPLED_TEXTURE) {
                         const auto bindless_handle = ptr_texture->GetBindlessIndexForSampler();
                         memcpy(&_parameterTableBuffer.CachedBufferData.at(offset), &bindless_handle, size);
+                        memcpy(&_parameterTableBuffer.CachedBufferData.at(offset + _parameterTableSize), &bindless_handle, size);
+                        memcpy(&_parameterTableBuffer.CachedBufferData.at(offset + _parameterTableSize * 2), &bindless_handle, size);
                   } else {
                         const auto bindless_handle = ptr_texture->GetBindlessIndexForSampler();
                         memcpy(&_parameterTableBuffer.CachedBufferData.at(offset), &bindless_handle, size);
+                        memcpy(&_parameterTableBuffer.CachedBufferData.at(offset + _parameterTableSize), &bindless_handle, size);
+                        memcpy(&_parameterTableBuffer.CachedBufferData.at(offset + _parameterTableSize * 2), &bindless_handle, size);
                   }
 
                   switch (finder->second.Type) {
@@ -151,12 +171,12 @@ bool KernelInstance::BindResource(const std::string& resource_name, entt::entity
       }
 
       _parameterTableBuffer.Modified = 3;
-      if(!world.any_of<TagKernelInstanceParamChanged>(_id)) {
-            world.emplace<TagKernelInstanceParamChanged>(_id);
+      if(!world.any_of<TagMultiFrameResourceOrBufferChanged>(_id)) {
+            world.emplace<TagMultiFrameResourceOrBufferChanged>(_id);
       }
 
-      if(world.any_of<TagKernelInstanceParamUpdateCompleted>(_id)) {
-            world.remove<TagKernelInstanceParamUpdateCompleted>(_id);
+      if(world.any_of<TagMultiFrameResourceOrBufferUpdateCompleted>(_id)) {
+            world.remove<TagMultiFrameResourceOrBufferUpdateCompleted>(_id);
       }
 
       return true;
@@ -204,13 +224,25 @@ void KernelInstance::GenerateResourcesBarrier(VkCommandBuffer cmd) const {
             if(resource.has_value()) {
                   switch (const auto& [resource_handle, usage] = resource.value(); usage) {
                         case ResourceUsage::READ_BUFFER:
-                              world.get<Buffer>(resource_handle).BarrierLayout(cmd, kernel_type, ResourceUsage::READ_BUFFER);
+                              if(const auto temp_buffer = world.try_get<Buffer>(resource_handle); temp_buffer) {
+                                    temp_buffer->BarrierLayout(cmd, kernel_type, ResourceUsage::READ_BUFFER);
+                              } else {
+                                    world.get<FrameResource>(resource_handle).BarrierLayout(cmd, kernel_type, ResourceUsage::READ_BUFFER);
+                              }
                               break;
                         case ResourceUsage::WRITE_BUFFER:
-                              world.get<Buffer>(resource_handle).BarrierLayout(cmd, kernel_type, ResourceUsage::WRITE_BUFFER);
+                              if(const auto temp_buffer = world.try_get<Buffer>(resource_handle); temp_buffer) {
+                                    temp_buffer->BarrierLayout(cmd, kernel_type, ResourceUsage::WRITE_BUFFER);
+                              } else {
+                                    world.get<FrameResource>(resource_handle).BarrierLayout(cmd, kernel_type, ResourceUsage::WRITE_BUFFER);
+                              }
                               break;
                         case ResourceUsage::READ_WRITE_BUFFER:
-                              world.get<Buffer>(resource_handle).BarrierLayout(cmd, kernel_type, ResourceUsage::READ_WRITE_BUFFER);
+                              if(const auto temp_buffer = world.try_get<Buffer>(resource_handle); temp_buffer) {
+                                    temp_buffer->BarrierLayout(cmd, kernel_type, ResourceUsage::READ_WRITE_BUFFER);
+                              } else {
+                                    world.get<FrameResource>(resource_handle).BarrierLayout(cmd, kernel_type, ResourceUsage::READ_WRITE_BUFFER);
+                              }
                               break;
                         case ResourceUsage::READ_TEXTURE:
                               world.get<Texture>(resource_handle).BarrierLayout(cmd, kernel_type, ResourceUsage::READ_TEXTURE);
@@ -241,14 +273,14 @@ bool KernelInstance::CheckResourceSafety() const {
       return true;
 }
 
-void KernelInstance::UpdateInstancesParameterTable() {
+void KernelInstance::UpdateAll() {
       auto& world = *Internal::volkGetLoadedEcsWorld();
-      world.view<KernelInstance, TagKernelInstanceParamChanged>().each([](auto entity, Component::KernelInstance& instance) {
+      world.view<KernelInstance, TagMultiFrameResourceOrBufferChanged>().each([](auto entity, Component::KernelInstance& instance) {
             instance.UpdateParameterTable();
       });
 
-      const auto p = world.view<KernelInstance, TagKernelInstanceParamChanged, TagKernelInstanceParamUpdateCompleted>();
-      world.remove<TagKernelInstanceParamChanged, TagKernelInstanceParamUpdateCompleted>(p.begin(), p.end());
+      const auto p = world.view<KernelInstance, TagMultiFrameResourceOrBufferChanged, TagMultiFrameResourceOrBufferUpdateCompleted>();
+      world.remove<TagMultiFrameResourceOrBufferChanged, TagMultiFrameResourceOrBufferUpdateCompleted>(p.begin(), p.end());
 }
 
 void KernelInstance::UpdateParameterTable() {
@@ -261,10 +293,10 @@ void KernelInstance::UpdateParameterTable() {
       const auto buffer = _parameterTableBuffer.Buffers[current_frame];
 
       auto& buffer_ptr = world.get<Buffer>(buffer);
-      buffer_ptr.SetData(_parameterTableBuffer.CachedBufferData.data(), _parameterTableBuffer.CachedBufferData.size());
+      buffer_ptr.SetData(&_parameterTableBuffer.CachedBufferData.at(_parameterTableSize * current_frame), _parameterTableSize);
 
       _parameterTableBuffer.Modified--;
       if(_parameterTableBuffer.Modified == 0) {
-            world.emplace<TagKernelInstanceParamUpdateCompleted>(_id);
+            world.emplace<TagMultiFrameResourceOrBufferUpdateCompleted>(_id);
       }
 }

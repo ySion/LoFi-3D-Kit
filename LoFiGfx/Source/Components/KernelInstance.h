@@ -27,7 +27,7 @@ namespace LoFi::Component {
 
             bool CheckResourceSafety() const;
 
-            static void UpdateInstancesParameterTable();
+            static void UpdateAll();
 
       public:
             void UpdateParameterTable();
@@ -38,9 +38,11 @@ namespace LoFi::Component {
 
             KernelParamResource _parameterTableBuffer{};
 
-            uint64_t _parameterTableBufferAddress[3]{};
+            uint32_t _parameterTableSize{};
 
             bool _isEmptyInstance = false;
+
+            uint64_t _parameterTableBufferAddress[3]{};
 
             std::vector<std::optional<std::pair<entt::entity, ResourceUsage>>> _resourceUsageInfo{};
       };

@@ -29,12 +29,7 @@ Buffer::Buffer(entt::entity id, const VkBufferCreateInfo& buffer_ci, const VmaAl
 }
 
 VkDeviceAddress Buffer::GetAddress() const {
-      const auto address_info = VkBufferDeviceAddressInfo{
-            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-            .buffer = _buffer
-      };
-      const VkDeviceAddress address = vkGetBufferDeviceAddress(volkGetLoadedDevice(), &address_info);
-      return address;
+      return _address;
 }
 
 VkBufferView Buffer::CreateView(VkBufferViewCreateInfo view_ci) {
@@ -157,6 +152,12 @@ void Buffer::Recreate(uint64_t size) {
       if (IsHostSide()) Map();
 
       RecreateAllViews();
+
+      const auto address_info = VkBufferDeviceAddressInfo{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+            .buffer = _buffer
+      };
+      _address = vkGetBufferDeviceAddress(volkGetLoadedDevice(), &address_info);
 
       auto str = std::format(R"(Buffer::CreateBuffer - Recreate "{}" bytes at "{}" side)", _bufferCI->size, _isHostSide ? "Host" : "Device");
       MessageManager::Log(MessageType::Normal, str);
@@ -352,6 +353,12 @@ void Buffer::CreateBuffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocati
 
       _vaildSize = 0;
 
+      const auto address_info = VkBufferDeviceAddressInfo{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+            .buffer = _buffer
+      };
+      _address = vkGetBufferDeviceAddress(volkGetLoadedDevice(), &address_info);
+
       auto str = std::format(R"(Buffer::CreateBuffer - Emplace "{}" bytes at "{}" side)", _bufferCI->size, _isHostSide ? "Host" : "Device");
       MessageManager::Log(MessageType::Normal, str);
 }
@@ -388,6 +395,7 @@ void Buffer::Clean() {
       ClearViews();
       DestroyBuffer();
       _vaildSize = 0;
+      _address = 0;
 }
 
 void Buffer::DestroyBuffer() {

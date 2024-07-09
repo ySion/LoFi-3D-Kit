@@ -8,9 +8,9 @@
 
 namespace LoFi::Component {
 
-      struct TagKernelInstanceParamChanged {};
+      struct TagMultiFrameResourceOrBufferChanged {};
 
-      struct TagKernelInstanceParamUpdateCompleted {};
+      struct TagMultiFrameResourceOrBufferUpdateCompleted {};
 
       struct KernelParamResource {
             uint32_t Modified = 0;

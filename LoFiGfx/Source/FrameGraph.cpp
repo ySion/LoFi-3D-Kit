@@ -286,7 +286,6 @@ void LoFi::FrameGraph::BindKernel(entt::entity kernel) {
             vkCmdBindPipeline(_current, VK_PIPELINE_BIND_POINT_COMPUTE, kernel_ptr->GetPipeline());
             vkCmdBindDescriptorSets(_current, VK_PIPELINE_BIND_POINT_COMPUTE, kernel_ptr->GetPipelineLayout(),
                   0, 1, &Context::Get()->_bindlessDescriptorSet, 0, nullptr);
-
       } else if(kernel_ptr->IsGraphicsKernel()) {
             vkCmdBindPipeline(_current, VK_PIPELINE_BIND_POINT_GRAPHICS, kernel_ptr->GetPipeline());
             vkCmdBindDescriptorSets(_current, VK_PIPELINE_BIND_POINT_GRAPHICS, kernel_ptr->GetPipelineLayout(), 0, 1, &Context::Get()->_bindlessDescriptorSet, 0, nullptr);
