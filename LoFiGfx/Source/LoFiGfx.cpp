@@ -62,33 +62,20 @@ void GStart() {
 
       std::array square_id = {0, 1, 2, 0, 2, 3};
 
-      std::vector<float> noise_image(256 * 256 * 4);
-      std::vector<float> noise_image2(64 * 64 * 4);
-
-      for(int i = 0; i < 256; i++) {
-            for(int j = 0; j < 256; j++) {
-                  noise_image[i*256*4 + j*4 + 0] = sin(i / 10.0f) * 0.5f + 0.5f;
-                  noise_image[i*256*4 + j*4 + 1] = cos(j / 10.0f) * 0.5f + 0.5f;
-                  noise_image[i*256*4 + j*4 + 2] = 0.5f;
-                  noise_image[i*256*4 + j*4 + 3] = 1.0f;
+      std::vector<float> noise_image(512 * 512 * 4);
+      for(int i = 0; i < 512; i++) {
+            for(int j = 0; j < 512; j++) {
+                  noise_image[i*512*4 + j*4 + 0] = sin(i / 10.0f) * 0.5f + 0.5f;
+                  noise_image[i*512*4 + j*4 + 1] = cos(j / 10.0f) * 0.5f + 0.5f;
+                  noise_image[i*512*4 + j*4 + 2] = 0.5f;
+                  noise_image[i*512*4 + j*4 + 3] = 1.0f;
             }
       }
-
-      for(int i = 0; i < 64; i++) {
-            for(int j = 0; j < 64; j++) {
-                  noise_image2[i*64*4 + j*4 + 0] = cos(i / 5.0f) * 0.5f + 0.5f;
-                  noise_image2[i*64*4 + j*4 + 1] = cos(j / 5.0f) * 0.5f + 0.5f;
-                  noise_image2[i*64*4 + j*4 + 2] = 0.0f;
-                  noise_image2[i*64*4 + j*4 + 3] = 1.0f;
-            }
-      }
-
 
       auto ctx = std::make_unique<LoFi::Context>();
       ctx->Init();
 
-      const auto noise = ctx->CreateTexture2D(noise_image, VK_FORMAT_R32G32B32A32_SFLOAT, 256, 256);
-      const auto noise2 = ctx->CreateTexture2D(noise_image2, VK_FORMAT_R32G32B32A32_SFLOAT, 64, 64);
+      const auto noise = ctx->CreateTexture2D(noise_image, VK_FORMAT_R32G32B32A32_SFLOAT, 512, 512);
 
       const auto triangle_vert = ctx->CreateBuffer(triangle_vt);
       const auto triangle_index = ctx->CreateBuffer(triangle_id);
@@ -97,20 +84,19 @@ void GStart() {
       const auto square_index = ctx->CreateBuffer(square_id);
 
       //CreateWindows
-      const auto win1 = ctx->CreateWindow("Triangle", 1920, 1080);
-      //const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
-      //const auto win3 = ctx->CreateWindow("Merge", 800, 600);
+      const auto win1 = ctx->CreateWindow("Triangle", 960, 540);
+      const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
+      const auto win3 = ctx->CreateWindow("Merge", 800, 600);
 
-      const auto rt1 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 1920, 1080);
+      const auto rt1 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 960, 540);
       const auto rt2 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 400, 400);
       const auto rt3 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 800, 600);
 
       const auto ds = ctx->CreateTexture2D(VK_FORMAT_D32_SFLOAT, 800, 600);
 
       ctx->MapRenderTargetToWindow(rt1, win1);
-      //ctx->MapRenderTargetToWindow(rt2, win2);
-      //ctx->MapRenderTargetToWindow(rt3, win3);
-
+      ctx->MapRenderTargetToWindow(rt2, win2);
+      ctx->MapRenderTargetToWindow(rt3, win3);
 
       const auto program = ctx->CreateProgram({vs, ps});
       const auto kernel = ctx->CreateKernel(program);
@@ -118,15 +104,13 @@ void GStart() {
 
       const auto kernel_instance2 = ctx->CreateKernelInstance(kernel);
 
-      float param_hello = 0.9f;
-      const auto info_param = ctx->CreateFrameResource(&param_hello, sizeof(float));
+      const auto info_param = ctx->CreateFrameResource(sizeof(float));
 
       ctx->BindKernelResource(kernel_instance, "Info", info_param);
       ctx->BindKernelResource(kernel_instance2, "Info", info_param);
 
       ctx->BindKernelResource(kernel_instance, "image1", noise);
       ctx->BindKernelResource(kernel_instance2, "image1", rt1);
-
 
       std::atomic<bool> should_close = false;
       auto func = std::async(std::launch::async, [&] {
