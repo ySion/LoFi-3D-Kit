@@ -31,6 +31,8 @@ void GStart() {
             layout(location = 0) in vec3 pos;
             layout(location = 0) out vec4 outColor;
 
+            PickWTextures(rgba32f, 1D)
+
             SAMPLED image1;
 
             RBUFFER Info {
@@ -38,7 +40,7 @@ void GStart() {
             }
 
             void FSMain() {
-                  uint image_hanlde = GetTextureID(image1);
+                  uint image_hanlde = GetTextureHandle(image1);
                   vec3 f = texture(GetSampled2D(image_hanlde), vec2(pos.x, pos.y)).rgb;
                   outColor = vec4(f, 1.0f) * (sin(GetBuffer(Info).scale) * 0.5 + 0.5);
             }
@@ -116,7 +118,9 @@ void GStart() {
       auto func = std::async(std::launch::async, [&] {
             while (!should_close) {
                   float time = (float)((double)SDL_GetTicks() / 1000.0);
+
                   ctx->SetFrameResourceData(info_param, &time, sizeof(float));
+
                   ctx->BeginFrame();
 
                   //Pass 1

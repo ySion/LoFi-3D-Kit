@@ -137,20 +137,49 @@ void Program::CompileCompute(std::string_view source) {
       header += "#define BindlessSamplerBinding 0\n";
       header += "#define BindlessStorageTextureBinding 1\n";
 
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1D _bindlessSamper1D[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2D _bindlessSamper2D[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler3D _bindlessSamper3D[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform samplerCube _bindlessSamperCube[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1DArray _bindlessSampler1DArray[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2DArray _bindlessSampler2DArray[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1D _bindlessSampled1D[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2D _bindlessSampled2D[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler3D _bindlessSampled3D[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform samplerCube _bindlessSampledCube[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1DArray _bindlessSampled1DArray[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2DArray _bindlessSampled2DArray[];\n";
 
-      header += "#define GetTextureID(Handle) pushConstant.parameterTable.Handle\n";
-      header += "#define GetSampled1D(Handle) _bindlessSamper1D[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetSampled2D(Handle) _bindlessSamper2D[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetSampled3D(Handle) _bindlessSamper3D[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetSampledCube(Handle) _bindlessSamperCube[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetSampled1DArray(Handle) _bindlessSampler1DArray[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetSampled2DArray(Handle) _bindlessSampler2DArray[nonuniformEXT(uint(Handle))]\n";
+      header += "#define PickRTextures(format, Dim) \\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\n";
+
+      header += "#define PickWTextures(format, Dim) \\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\n";
+
+      header += "#define PickRWTextures(format, Dim) \\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\n";
+
+      header += "#define GetTextureHandle(Handle) pushConstant.parameterTable.Handle\n";
+
+      header += "#define GetSampled1D(Handle) _bindlessSampled1D[nonuniformEXT(uint(Handle))]\n";
+      header += "#define GetSampled2D(Handle) _bindlessSampled2D[nonuniformEXT(uint(Handle))]\n";
+      header += "#define GetSampled3D(Handle) _bindlessSampled3D[nonuniformEXT(uint(Handle))]\n";
+      header += "#define GetSampledCube(Handle) _bindlessSampledCube[nonuniformEXT(uint(Handle))]\n";
+      header += "#define GetSampled1DArray(Handle) _bindlessSampled1DArray[nonuniformEXT(uint(Handle))]\n";
+      header += "#define GetSampled2DArray(Handle) _bindlessSampled2DArray[nonuniformEXT(uint(Handle))]\n";
+
+      header += "#define GetRTexture(Handle, format, Dim) _bindlessRTexture##Dim##format[nonuniformEXT(uint(Handle))]\n";
+      header += "#define GetWTexture(Handle, format, Dim) _bindlessWTexture##Dim##format[nonuniformEXT(uint(Handle))]\n";
+      header += "#define GetRWTexture(Handle, format, Dim) _bindlessRWTexture##Dim##format[nonuniformEXT(uint(Handle))]\n";
 
       header += "#define GetBuffer(Name) pushConstant.parameterTable.ptr##Name\n";
 
@@ -366,6 +395,7 @@ void Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
       //Head Gen
 
       std::string header{};
+
       header += "#extension GL_EXT_nonuniform_qualifier : enable\n";
       header += "#extension GL_EXT_buffer_reference : enable\n";
       header += "#extension GL_EXT_scalar_block_layout : enable\n";
@@ -374,21 +404,49 @@ void Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
       header += "#define BindlessSamplerBinding 0\n";
       header += "#define BindlessStorageTextureBinding 1\n";
 
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1D _bindlessSamper1D[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2D _bindlessSamper2D[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler3D _bindlessSamper3D[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform samplerCube _bindlessSamperCube[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1DArray _bindlessSampler1DArray[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2DArray _bindlessSampler2DArray[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1D _bindlessSampled1D[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2D _bindlessSampled2D[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler3D _bindlessSampled3D[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform samplerCube _bindlessSampledCube[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1DArray _bindlessSampled1DArray[];\n";
+      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2DArray _bindlessSampled2DArray[];\n";
 
-      header += "#define GetTextureID(TextureName) pushConstant.parameterTable.TextureName\n";
+      header += "#define PickRTextures(format, Dim) \\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\n";
 
-      header += "#define GetSampled1D(ID) _bindlessSamper1D[nonuniformEXT(uint(ID))]\n";
-      header += "#define GetSampled2D(ID) _bindlessSamper2D[nonuniformEXT(uint(ID))]\n";
-      header += "#define GetSampled3D(ID) _bindlessSamper3D[nonuniformEXT(uint(ID))]\n";
-      header += "#define GetSampledCube(ID) _bindlessSamperCube[nonuniformEXT(uint(ID))]\n";
-      header += "#define GetSampled1DArray(ID) _bindlessSampler1DArray[nonuniformEXT(uint(ID))]\n";
-      header += "#define GetSampled2DArray(ID) _bindlessSampler2DArray[nonuniformEXT(uint(ID))]\n";
+      header += "#define PickWTextures(format, Dim) \\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\n";
+
+      header += "#define PickRWTextures(format, Dim) \\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
+      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\n";
+
+      header += "#define GetTextureHandle(Handle) pushConstant.parameterTable.Handle\n";
+
+      header += "#define GetSampled1D(Handle) _bindlessSampled1D[nonuniformEXT(uint(Handle))]\n";
+      header += "#define GetSampled2D(Handle) _bindlessSampled2D[nonuniformEXT(uint(Handle))]\n";
+      header += "#define GetSampled3D(Handle) _bindlessSampled3D[nonuniformEXT(uint(Handle))]\n";
+      header += "#define GetSampledCube(Handle) _bindlessSampledCube[nonuniformEXT(uint(Handle))]\n";
+      header += "#define GetSampled1DArray(Handle) _bindlessSampled1DArray[nonuniformEXT(uint(Handle))]\n";
+      header += "#define GetSampled2DArray(Handle) _bindlessSampled2DArray[nonuniformEXT(uint(Handle))]\n";
+
+      header += "#define GetRTexture(Handle, format, Dim) _bindlessRTexture##Dim##format[nonuniformEXT(uint(Handle))]\n";
+      header += "#define GetWTexture(Handle, format, Dim) _bindlessWTexture##Dim##format[nonuniformEXT(uint(Handle))]\n";
+      header += "#define GetRWTexture(Handle, format, Dim) _bindlessRWTexture##Dim##format[nonuniformEXT(uint(Handle))]\n";
 
       header += "#define GetBuffer(Name) pushConstant.parameterTable.ptr##Name\n";
 
