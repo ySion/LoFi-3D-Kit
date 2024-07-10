@@ -5,26 +5,29 @@ set(Source_List
         Third/volk/volk.c
         Source/VmaLoader.cpp
         Source/LoFiGfx.cpp
-        Source/Context.cpp
+        Source/GfxContext.cpp
         Source/Message.cpp
         Source/PhysicalDevice.cpp
         Source/Helper.cpp
-        Source/Components/Window.cpp
-        Source/Components/Swapchain.cpp
-        Source/Components/Texture.cpp
-        Source/Components/Program.cpp
-        Source/Components/Buffer.cpp
-        Source/Components/Defines.h
-        Source/Components/ResourcePushConstant.cpp
-        Source/Components/ResourcePushConstant.h
-        Source/Components/Kernel.cpp
-        Source/Components/Kernel.h
-        Source/Components/KernelInstance.cpp
-        Source/Components/KernelInstance.h
+        Source/GfxComponents/Window.cpp
+        Source/GfxComponents/Swapchain.cpp
+        Source/GfxComponents/Texture.cpp
+        Source/GfxComponents/Program.cpp
+        Source/GfxComponents/Buffer.cpp
+        Source/GfxComponents/Defines.h
+        Source/GfxComponents/ResourcePushConstant.cpp
+        Source/GfxComponents/ResourcePushConstant.h
+        Source/GfxComponents/Kernel.cpp
+        Source/GfxComponents/Kernel.h
+        Source/GfxComponents/KernelInstance.cpp
+        Source/GfxComponents/KernelInstance.h
         Source/FrameGraph.cpp
         Source/FrameGraph.h
-        Source/Components/FrameResource.cpp
-        Source/Components/FrameResource.h
+        Source/GfxComponents/FrameResource.cpp
+        Source/GfxComponents/FrameResource.h
+        Source/PfxContext.cpp
+        Source/PfxContext.h
+        Source/PtxComponents/RenderNode.cpp
 )
 
 find_package(Vulkan REQUIRED)
@@ -36,8 +39,11 @@ target_include_directories(LoFiGfx PRIVATE Third)
 target_link_directories(LoFiGfx PRIVATE ThirdBin)
 target_link_libraries(LoFiGfx PRIVATE Vulkan::Vulkan SDL3::SDL3 EnTT::EnTT
         spirv-cross-core
-        glslang glslang-default-resource-limits SPIRV SPIRV-Tools-opt SPIRV-Tools GenericCodeGen MachineIndependent)
+        glslang glslang-default-resource-limits SPIRV SPIRV-Tools-opt SPIRV-Tools GenericCodeGen MachineIndependent
+        msdf-atlas-gen msdfgen-core  msdfgen-ext freetype)
 
 target_compile_options(LoFiGfx PRIVATE /source-charset:utf-8)
+
+
 
 

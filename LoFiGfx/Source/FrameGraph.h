@@ -14,7 +14,7 @@ namespace LoFi {
 
         ~FrameGraph();
 
-        FrameGraph(VkCommandBuffer cmd_buf, VkCommandPool cmd_pool);
+        explicit FrameGraph(VkCommandBuffer cmd_buf, VkCommandPool cmd_pool);
 
     public:
 
@@ -28,9 +28,21 @@ namespace LoFi {
 
         void BindKernel(entt::entity kernel);
 
-        void BindVertexBuffer(entt::entity buffer, size_t offset) const;
+        void BindVertexBuffer(entt::entity buffer, size_t offset);
 
         void DrawIndex(entt::entity index_buffer, size_t offset = 0, std::optional<uint32_t> index_count = {}) const;
+
+        void Draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) const;
+
+        void SetViewport(const VkViewport& viewport) const;
+
+        void SetScissor(VkRect2D scissor) const;
+
+        void SetViewportAuto() const;
+
+        void SetScissorAuto() const;
+
+
 
     public:
         [[nodiscard]] VkCommandBuffer GetCommandBuffer() const { return _cmdBuffer; }
@@ -58,6 +70,13 @@ namespace LoFi {
         entt::registry& _world;
 
         VkRect2D _frameRenderingRenderArea{};
+
+    private:
+        entt::entity _currentKernel = entt::null;
+
+        entt::entity _currentVertexBuffer = entt::null;
+
+        bool _isPassBegin = false;
     };
 
 }

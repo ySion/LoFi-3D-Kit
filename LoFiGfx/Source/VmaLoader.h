@@ -10,4 +10,8 @@
 #define VMA_VULKAN_VERSION 1003000 // Vulkan 1.3
 #include "../Third/Vma/VulkanMemoryAllocation.h"
 
+
+#include "../Third/stb/stb_image.h"
+#include "../Third/stb/stb_image_write.h"
+
 #endif //VMALOADER_H

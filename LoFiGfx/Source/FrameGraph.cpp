@@ -3,10 +3,10 @@
 //
 #include "FrameGraph.h"
 #include "Message.h"
-#include "Context.h"
-#include "Components/Texture.h"
-#include "Components/Kernel.h"
-#include "Components/KernelInstance.h"
+#include "GfxContext.h"
+#include "GfxComponents/Texture.h"
+#include "GfxComponents/Kernel.h"
+#include "GfxComponents/KernelInstance.h"
 
 using namespace LoFi::Internal;
 
@@ -29,9 +29,7 @@ LoFi::FrameGraph::FrameGraph(VkCommandBuffer cmd_buf, VkCommandPool cmd_pool) : 
 }
 
 void LoFi::FrameGraph::BeginFrame() {
-
       for (auto used_cmd_buf : _secondaryCmdBufsUsed) {
-
             if (vkResetCommandBuffer(used_cmd_buf, 0) != VK_SUCCESS) {
                   const auto err = "FrameGraph::Reset Failed to reset secondary command buffer";
                   MessageManager::Log(MessageType::Error, err);
@@ -67,6 +65,12 @@ void LoFi::FrameGraph::EndFrame() const {
 }
 
 void LoFi::FrameGraph::BeginPass(const std::vector<RenderPassBeginArgument>& textures) {
+      if (_isPassBegin) {
+            const auto err = "FrameGraph::BeginPass - Already in a pass, create render pass failed.";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+      _isPassBegin = true;
 
       BeginSecondaryCommandBuffer();
 
@@ -106,7 +110,7 @@ void LoFi::FrameGraph::BeginPass(const std::vector<RenderPassBeginArgument>& tex
                   throw std::runtime_error(err);
             }
 
-            auto texture = _world.try_get<Component::Texture>(handle);
+            auto texture = _world.try_get<Component::Gfx::Texture>(handle);
             if (!texture) {
                   const auto err = std::format("FrameGraph::BeginPass - this entity is not a texture entity.");
                   MessageManager::Log(MessageType::Error, err);
@@ -184,18 +188,28 @@ void LoFi::FrameGraph::BeginPass(const std::vector<RenderPassBeginArgument>& tex
 }
 
 void LoFi::FrameGraph::EndPass() {
-      vkCmdEndRendering(_current);
-      EndSecondaryCommandBuffer();
+      if (_isPassBegin) {
+            _currentVertexBuffer = entt::null;
+            _currentKernel = entt::null;
+            vkCmdEndRendering(_current);
+            EndSecondaryCommandBuffer();
+            _isPassBegin = false;
+      } else {
+            const auto err = "FrameGraph::EndPass - Not in a pass, please use BeginPass in front of end, end pass failed.";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
 }
 
-void LoFi::FrameGraph::BindVertexBuffer(entt::entity buffer, size_t offset) const {
+void LoFi::FrameGraph::BindVertexBuffer(entt::entity buffer, size_t offset) {
+      if (_currentVertexBuffer == buffer) return;
       if (!_world.valid(buffer)) {
             const auto err = "Context::CmdBindVertexBuffer - Invalid buffer entity";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
-      auto buf = _world.try_get<Component::Buffer>(buffer);
+      auto buf = _world.try_get<Component::Gfx::Buffer>(buffer);
       if (!buf) {
             const auto err = "Context::CmdBindVertexBuffer - this enity is not a buffer";
             MessageManager::Log(MessageType::Error, err);
@@ -204,6 +218,8 @@ void LoFi::FrameGraph::BindVertexBuffer(entt::entity buffer, size_t offset) cons
 
       buf->BarrierLayout(_prev, GRAPHICS, ResourceUsage::VERTEX_BUFFER);
       vkCmdBindVertexBuffers(_current, 0, 1, buf->GetBufferPtr(), &offset);
+
+      _currentVertexBuffer = buffer;
 }
 
 void LoFi::FrameGraph::DrawIndex(entt::entity index_buffer, size_t offset, std::optional<uint32_t> index_count) const {
@@ -213,7 +229,7 @@ void LoFi::FrameGraph::DrawIndex(entt::entity index_buffer, size_t offset, std::
             throw std::runtime_error(err);
       }
 
-      auto ib = _world.try_get<Component::Buffer>(index_buffer);
+      auto ib = _world.try_get<Component::Gfx::Buffer>(index_buffer);
       if (!ib) {
             const auto err = "Context::CmdDrawIndex - this entity is not a buffer";
             MessageManager::Log(MessageType::Error, err);
@@ -227,8 +243,30 @@ void LoFi::FrameGraph::DrawIndex(entt::entity index_buffer, size_t offset, std::
       vkCmdDrawIndexed(_current, idx_count, 1, 0, 0, 0);
 }
 
+void LoFi::FrameGraph::Draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) const {
+      vkCmdDraw(_current, vertex_count, instance_count, first_vertex, first_instance);
+}
+
+void LoFi::FrameGraph::SetViewport(const VkViewport& viewport) const {
+      vkCmdSetViewport(_current, 0, 1, &viewport);
+}
+
+void LoFi::FrameGraph::SetScissor(VkRect2D scissor) const {
+      vkCmdSetScissor(_current, 0, 1, &scissor);
+}
+
+void LoFi::FrameGraph::SetViewportAuto() const {
+      const auto viewport = VkViewport{0, (float)_frameRenderingRenderArea.extent.height, (float)_frameRenderingRenderArea.extent.width, -(float)_frameRenderingRenderArea.extent.height, 0, 1};
+      vkCmdSetViewport(_current, 0, 1, &viewport);
+}
+
+void LoFi::FrameGraph::SetScissorAuto() const {
+      const auto scissor = VkRect2D{0, 0, _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height};
+      vkCmdSetScissor(_current, 0, 1, &scissor);
+}
+
 void LoFi::FrameGraph::BeginSecondaryCommandBuffer() {
-      if(_secondaryCmdBufsFree.size() < 2) {
+      if (_secondaryCmdBufsFree.size() < 2) {
             ExpandSecondaryCommandBuffer();
       }
 
@@ -240,7 +278,7 @@ void LoFi::FrameGraph::BeginSecondaryCommandBuffer() {
       _secondaryCmdBufsFree.pop_back();
       _secondaryCmdBufsUsed.push_back(_prev);
 
-      constexpr VkCommandBufferInheritanceInfo inheritance_info {.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO};
+      constexpr VkCommandBufferInheritanceInfo inheritance_info{.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO};
 
       VkCommandBufferBeginInfo info = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -264,31 +302,44 @@ void LoFi::FrameGraph::EndSecondaryCommandBuffer() {
 }
 
 void LoFi::FrameGraph::BindKernel(entt::entity kernel) {
+      if (_currentKernel == kernel) return;
+      _currentVertexBuffer = entt::null;
+
       if (!_world.valid(kernel)) {
             const auto err = "FrameGraph::BindKernel - Invalid graphics kernel entity";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
-      const auto kernel_instance_ptr = _world.try_get<Component::KernelInstance>(kernel);
-      if(kernel_instance_ptr) {
+      const auto kernel_instance_ptr = _world.try_get<Component::Gfx::KernelInstance>(kernel);
+      if (kernel_instance_ptr) {
             kernel = kernel_instance_ptr->GetKernel();
       }
 
-      const auto kernel_ptr = _world.try_get<Component::Kernel>(kernel);
-      if(!kernel_ptr) {
+      const auto kernel_ptr = _world.try_get<Component::Gfx::Kernel>(kernel);
+      if (!kernel_ptr) {
             throw std::runtime_error("FrameGraph::BindKernel - this entity is not a kernel or kernel instance entity.");
       }
 
       bool is_compute = kernel_ptr->IsComputeKernel();
 
-      if(is_compute) {
+      if (is_compute) {
+            if (_isPassBegin) {
+                  const auto err = "FrameGraph::BindKernel - Compute kernel can't be used in render pass.";
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
+            }
             vkCmdBindPipeline(_current, VK_PIPELINE_BIND_POINT_COMPUTE, kernel_ptr->GetPipeline());
             vkCmdBindDescriptorSets(_current, VK_PIPELINE_BIND_POINT_COMPUTE, kernel_ptr->GetPipelineLayout(),
-                  0, 1, &Context::Get()->_bindlessDescriptorSet, 0, nullptr);
-      } else if(kernel_ptr->IsGraphicsKernel()) {
+            0, 1, &GfxContext::Get()->_bindlessDescriptorSet, 0, nullptr);
+      } else if (kernel_ptr->IsGraphicsKernel()) {
+            if (!_isPassBegin) {
+                  const auto err = "FrameGraph::BindKernel - Graphics kernel must be used in render pass.";
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
+            }
             vkCmdBindPipeline(_current, VK_PIPELINE_BIND_POINT_GRAPHICS, kernel_ptr->GetPipeline());
-            vkCmdBindDescriptorSets(_current, VK_PIPELINE_BIND_POINT_GRAPHICS, kernel_ptr->GetPipelineLayout(), 0, 1, &Context::Get()->_bindlessDescriptorSet, 0, nullptr);
+            vkCmdBindDescriptorSets(_current, VK_PIPELINE_BIND_POINT_GRAPHICS, kernel_ptr->GetPipelineLayout(), 0, 1, &GfxContext::Get()->_bindlessDescriptorSet, 0, nullptr);
             const auto viewport = VkViewport{0, (float)_frameRenderingRenderArea.extent.height, (float)_frameRenderingRenderArea.extent.width, -(float)_frameRenderingRenderArea.extent.height, 0, 1};
             vkCmdSetViewport(_current, 0, 1, &viewport);
             const auto scissor = VkRect2D{0, 0, _frameRenderingRenderArea.extent.width, _frameRenderingRenderArea.extent.height};
@@ -297,25 +348,26 @@ void LoFi::FrameGraph::BindKernel(entt::entity kernel) {
             throw std::runtime_error("FrameGraph::BindKernel - this kernel is not a graphics kernel or compute kernel.");
       }
 
-      if(kernel_instance_ptr) {
-            if(!kernel_instance_ptr->CheckResourceSafety()) {
+      if (kernel_instance_ptr) {
+            if (!kernel_instance_ptr->CheckResourceSafety()) {
                   const auto err = "FrameGraph::BindKernel - Kernel instance resource is not safe to bind, some resource binding is empty! it will be crash becuase of invalid access.";
                   MessageManager::Log(MessageType::Error, err);
                   throw std::runtime_error(err);
             }
             kernel_instance_ptr->GenerateResourcesBarrier(_prev);
             kernel_instance_ptr->PushParameterTable(_current);
-            if(is_compute) {
+            if (is_compute) {
                   vkCmdExecuteCommands(_cmdBuffer, 1, &_prev);
                   vkCmdExecuteCommands(_cmdBuffer, 1, &_current);
                   _current = nullptr;
                   _prev = nullptr;
             }
       }
+
+      _currentKernel = kernel;
 }
 
 void LoFi::FrameGraph::ExpandSecondaryCommandBuffer() {
-
       VkCommandBufferAllocateInfo second_command_buffer_ai{};
       second_command_buffer_ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
       second_command_buffer_ai.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;

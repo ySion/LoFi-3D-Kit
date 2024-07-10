@@ -101,6 +101,51 @@ namespace LoFi::Internal {
       const char* GetImageLayoutString(VkImageLayout layout);
 
       const char* GetResourceUsageString(ResourceUsage stage);
+
+      enum class ContextResourceType {
+            UNKONWN,
+            WINDOW,
+            IMAGE,
+            BUFFER,
+            IMAGE_VIEW,
+            BUFFER_VIEW,
+            PIPELINE,
+            PIPELINE_LAYOUT
+      };
+
+      struct ContextResourceRecoveryInfo {
+            ContextResourceType Type = ContextResourceType::UNKONWN;
+            std::optional<size_t> Resource1{};
+            std::optional<size_t> Resource2{};
+            std::optional<size_t> Resource3{};
+            std::optional<size_t> Resource4{};
+      };
+
+      class FreeList {
+      public:
+            uint32_t Gen() {
+                  if (_free.empty()) {
+                        return _top++;
+                  } else {
+                        uint32_t id = _free.back();
+                        _free.pop_back();
+                        return id;
+                  }
+            }
+
+            void Free(uint32_t id) {
+                  _free.push_back(id);
+            }
+
+            void Clear() {
+                  _top = 0;
+                  _free.clear();
+            }
+
+      private:
+            uint32_t _top{};
+            std::vector<uint32_t> _free{};
+      };
 }
 
 
