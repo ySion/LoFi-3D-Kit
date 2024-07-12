@@ -42,7 +42,9 @@ namespace LoFi {
 
             void CmdPopScissor(entt::entity render_node);
 
-            void CmdDrawRect(entt::entity render_node,uint32_t x, uint32_t y, uint32_t width, uint32_t height, float r, float g, float b, float a);
+            void CmdDrawRect(entt::entity render_node, uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t r, uint32_t g, uint32_t b, uint32_t a);
+
+            void CmdDrawPath(entt::entity render_node, std::span<glm::ivec2> pos, bool closed, uint32_t thickness, uint32_t r, uint32_t g, uint32_t b, uint32_t a, uint32_t expend = 1);
 
             //Start a new draw call
             void CmdNewLayer(entt::entity render_node);

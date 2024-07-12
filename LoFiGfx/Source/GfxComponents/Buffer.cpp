@@ -89,7 +89,7 @@ void Buffer::SetData(const void* p, uint64_t size) {
             if(size <= MAX_UPDATE_BFFER_SIZE) {
                   _dataCache.resize(size);
                   memcpy(_dataCache.data(), p, size);
-                  LoFi::GfxContext::Get()->EnqueueCommand([=](VkCommandBuffer cmd) {
+                  LoFi::GfxContext::Get()->EnqueueCommand([=, this](VkCommandBuffer cmd) {
                         this->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_DST);
                         vkCmdUpdateBuffer(cmd, _buffer, 0, size, _dataCache.data());
                   });
@@ -128,7 +128,7 @@ void Buffer::SetData(const void* p, uint64_t size) {
                   };
 
                   auto buffer = _buffer;
-                  LoFi::GfxContext::Get()->EnqueueCommand([=](VkCommandBuffer cmd) {
+                  LoFi::GfxContext::Get()->EnqueueCommand([=, this](VkCommandBuffer cmd) {
                         _intermediateBuffer->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_SRC);
                         this->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_DST);
                         vkCmdCopyBuffer(cmd, imm_buffer, buffer, 1, &copyinfo);

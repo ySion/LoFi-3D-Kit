@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.28)
 project(LoFi-Kit)
 
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/Binary/${CMAKE_BUILD_TYPE})

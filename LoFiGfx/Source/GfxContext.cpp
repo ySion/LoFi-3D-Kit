@@ -270,7 +270,7 @@ void GfxContext::Init() {
                         .drawIndirectFirstInstance = false,
                         .depthClamp = false,
                         .depthBiasClamp = false,
-                        .fillModeNonSolid = false,
+                        .fillModeNonSolid = true,
                         .depthBounds = false,
                         .wideLines = false,
                         .largePoints = false,

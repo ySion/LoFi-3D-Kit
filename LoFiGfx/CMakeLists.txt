@@ -37,12 +37,16 @@ target_compile_definitions(LoFiGfx PRIVATE LOFI_GFX_DLL_EXPORT)
 target_include_directories(LoFiGfx PUBLIC Include)
 target_include_directories(LoFiGfx PRIVATE Third)
 target_link_directories(LoFiGfx PRIVATE ThirdBin)
-target_link_libraries(LoFiGfx PRIVATE Vulkan::Vulkan SDL3::SDL3 EnTT::EnTT
+
+target_link_libraries(LoFiGfx PRIVATE Vulkan::Vulkan SDL3::SDL3 EnTT::EnTT mimalloc-secure
         spirv-cross-core
         glslang glslang-default-resource-limits SPIRV SPIRV-Tools-opt SPIRV-Tools GenericCodeGen MachineIndependent
-        msdf-atlas-gen msdfgen-core  msdfgen-ext freetype)
+        msdf-atlas-gen msdfgen-core  msdfgen-ext freetype Clipper2)
 
 target_compile_options(LoFiGfx PRIVATE /source-charset:utf-8)
+
+file(COPY ThirdBin/mimalloc-redirect.dll DESTINATION ${CMAKE_SOURCE_DIR}/Binary/${CMAKE_BUILD_TYPE})
+file(COPY ThirdBin/mimalloc-secure.dll DESTINATION ${CMAKE_SOURCE_DIR}/Binary/${CMAKE_BUILD_TYPE})
 
 
 

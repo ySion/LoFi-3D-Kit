@@ -28,27 +28,61 @@ PfxContext::PfxContext() {
       _instance = this;
 
       constexpr auto font_vs = R"(
-            layout(location = 0) in vec4 pos_uv;
-            layout(location = 1) in vec4 color;
+            //#set polygon_mode = line
+            #set cull_mode = none
+
+            layout(location = 0) in ivec3 in_pos_uv_color;
 
             layout(location = 0) out vec4 out_color;
 
+            void UnpackPos(uint v, out vec2 pos) {
+                    pos = vec2(
+                            (v & 0xFFFF),
+                            ((v >> 16) & 0xFFFF)
+                    ) / 65535.0f * 2.0f - vec2(1.0f, 1.0f);
+            }
+
+            void UnpackUV(uint v, out vec2 uv) {
+                  uv = vec2(
+                        (v & 0xFFFF) / 65535.0f,
+                        ((v >> 16) & 0xFFFF) / 65535.0f
+                  );
+            }
+
+            void UnpackColor(uint v, out vec4 color) {
+                  color = vec4(
+                        (v & 0xFF) / 255.0f,
+                        ((v >> 8) & 0xFF) / 255.0f,
+                        ((v >> 16) & 0xFF) / 255.0f,
+                        ((v >> 24) & 0xFF) / 255.0f
+                  );
+            }
+
             void VSMain() {
-                  gl_Position = vec4(pos_uv.xy, 0.0f, 1.0f);
+
+                  vec2 pos;
+                  vec2 uv;
+                  vec4 color;
+
+                  UnpackPos(in_pos_uv_color.x, pos);
+                  UnpackUV(in_pos_uv_color.y, uv);
+                  UnpackColor(in_pos_uv_color.z, color);
+
+                  gl_Position = vec4(pos, 0.0f, 1.0f);
                   out_color = color;
             }
       )";
 
       constexpr auto font_ps = R"(
             #set rt = r8g8b8a8_unorm
-            #set color_blend = alpha
+            #set color_blend = add
 
             layout(location = 0) in vec4 color;
 
             layout(location = 0) out vec4 outColor;
 
             void FSMain() {
-                  outColor = color;
+                  outColor = color; //vec4(color.r, color.r=g=, 1.0, 1.0);
             }
       )";
 
@@ -275,7 +309,7 @@ void PfxContext::CmdPopScissor(entt::entity render_node) {
       comp->PopScissor();
 }
 
-void PfxContext::CmdDrawRect(entt::entity render_node, uint32_t x, uint32_t y, uint32_t width, uint32_t height, float r, float g, float b, float a) {
+void PfxContext::CmdDrawRect(entt::entity render_node, uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t r, uint32_t g, uint32_t b, uint32_t a) {
       if (!_world.valid(render_node)) {
             const auto err = "PfxContext::CmdDrawRect - Invalid handle";
             MessageManager::Log(MessageType::Error, err);
@@ -290,6 +324,23 @@ void PfxContext::CmdDrawRect(entt::entity render_node, uint32_t x, uint32_t y, u
       }
 
       comp->DrawRect(x, y, width, height, r, g, b, a);
+}
+
+void PfxContext::CmdDrawPath(entt::entity render_node, std::span<glm::ivec2> pos, bool closed, uint32_t thickness, uint32_t r, uint32_t g, uint32_t b, uint32_t a, uint32_t expand) {
+      if (!_world.valid(render_node)) {
+            const auto err = "PfxContext::CmdDrawPath - Invalid handle";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      auto comp = _world.try_get<LoFi::Component::Ptx::RenderNode>(render_node);
+      if (!comp) {
+            const auto err = "PfxContext::CmdDrawPath - this handle is not a render node";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
+
+      comp->DrawPath(pos, closed, thickness, r, g, b, a, expand);
 }
 
 void PfxContext::CmdNewLayer(entt::entity render_node) {

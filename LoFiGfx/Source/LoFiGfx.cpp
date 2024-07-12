@@ -7,10 +7,18 @@
 
 #include "GfxContext.h"
 #include "PfxContext.h"
-#include "entt/entt.hpp"
 #include "SDL3/SDL.h"
+#include "entt/entt.hpp"
+#include "mimalloc/mimalloc.h"
 
 void GStart() {
+      mi_version();
+      mi_option_set(mi_option_verbose, 1);
+      mi_option_set(mi_option_show_stats, 1);
+      mi_option_set(mi_option_show_errors, 1);
+      mi_option_set(mi_option_arena_eager_commit, 2);
+      mi_option_set(mi_option_reserve_huge_os_pages, 2);
+
       const auto vs = R"(
             layout(location = 0) in vec3 pos;
             layout(location = 1) in vec3 color;
@@ -138,12 +146,10 @@ void GStart() {
       const auto square_vert = ctx->CreateBuffer(square_vt);
       const auto square_index = ctx->CreateBuffer(square_id);
 
-
-
       //CreateWindows
-      //const auto win1 = ctx->CreateWindow("Triangle", 960, 540);
-      //const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
-      //const auto win3 = ctx->CreateWindow("Merge", 800, 600);
+      const auto win1 = ctx->CreateWindow("Triangle", 960, 540);
+      const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
+      const auto win3 = ctx->CreateWindow("Merge", 800, 600);
       const auto win4 = ctx->CreateWindow("Font", 600, 600);
 
       const auto rt1 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 960, 540);
@@ -153,9 +159,9 @@ void GStart() {
 
       const auto ds = ctx->CreateTexture2D(VK_FORMAT_D32_SFLOAT, 800, 600);
 
-      //ctx->MapRenderTargetToWindow(rt1, win1);
-      //ctx->MapRenderTargetToWindow(rt2, win2);
-      //ctx->MapRenderTargetToWindow(rt3, win3);
+      ctx->MapRenderTargetToWindow(rt1, win1);
+      ctx->MapRenderTargetToWindow(rt2, win2);
+      ctx->MapRenderTargetToWindow(rt3, win3);
       ctx->MapRenderTargetToWindow(rt0, win4);
 
       const auto program = ctx->CreateProgram({vs, ps});
@@ -175,12 +181,11 @@ void GStart() {
       const auto font_kernel = ctx->CreateKernel(font_program);
       const auto font_kernel_instance = ctx->CreateKernelInstance(font_kernel);
 
-
       std::unique_ptr<LoFi::PfxContext> pfx = std::make_unique<LoFi::PfxContext>();
-      if(!pfx->LoadFont("D:/llt.ttf")) {
-            printf("Start Failed");
-            return;
-      }
+      //if(!pfx->LoadFont("D:/llt.ttf")) {
+      //      printf("Start Failed");
+      //      return;
+      //}
 
       auto font_altas = pfx->GetAtlas();
       //auto myfront_mesh = pfx->GenText(L'中', 32);
@@ -191,17 +196,111 @@ void GStart() {
       //       return;
       // }
 
-      ctx->BindKernelResource(font_kernel_instance, "font_atlas", font_altas);
+      ctx->BindKernelResource(font_kernel_instance, "font_atlas", noise);
 
       auto render_node_2d = pfx->CreateRenderNode();
 
       pfx->CmdReset(render_node_2d);
-      pfx->CmdSetVirtualCanvasSize(render_node_2d, 100, 100);
-      pfx->CmdDrawRect(render_node_2d, 50, 40, 40, 50, 1.0f, 0.0f, 0.0f, 0.5f);
-      pfx->CmdDrawRect(render_node_2d, 10, 10, 60, 50, 0.0f, 0.0f, 1.0f, 0.5f);
+      pfx->CmdSetVirtualCanvasSize(render_node_2d, 1000, 1000);
+      pfx->CmdDrawRect(render_node_2d, 50, 40, 40, 50, 255, 0, 0, 127);
+      pfx->CmdDrawRect(render_node_2d, 10, 10, 60, 50, 0, 0, 255,128);
+
+      //std::vector<glm::ivec2> path = {{100, 100}, {100, 800}, {800, 500}, {800, 800}, {900, 800}, {900, 200}, {200, 200}};
+
+      std::vector<glm::ivec2> path = {};
+      //draw a snake
+      glm::ivec2 now = {100,  100};
+
+      for(uint32_t j = 0; j < 30; j++) {
+            now.x += 25;
+            path.push_back(now);
+      }
+
+      for(uint32_t j = 0; j < 30; j++) {
+            now.y += 25;
+            path.push_back(now);
+      }
+      for(uint32_t j = 0; j < 30; j++) {
+            now.x -= 25;
+            path.push_back(now);
+      }
+      for(uint32_t j = 0; j < 30; j++) {
+            now.y -= 25;
+            path.push_back(now);
+      }
+
+
+      {
+            auto start = SDL_GetPerformanceCounter();
+            for(uint32_t i = 0; i < 1000; i++) {
+                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 255, 255, 255);
+                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 0, 255, 127);
+            }
+            auto end = SDL_GetPerformanceCounter();
+            printf("use Time 1: %f\n", (double)((end - start) * 1000.0 / SDL_GetPerformanceFrequency()));
+      }
+      pfx->CmdReset(render_node_2d);
+      {
+            auto start = SDL_GetPerformanceCounter();
+            for(uint32_t i = 0; i < 1000; i++) {
+                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 255, 255, 255);
+                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 0, 255, 127);
+            }
+            auto end = SDL_GetPerformanceCounter();
+            printf("use Time 2: %f\n", (double)((end - start) * 1000.0 / SDL_GetPerformanceFrequency()));
+      }
+      pfx->CmdReset(render_node_2d);
+      {
+            auto start = SDL_GetPerformanceCounter();
+            for(uint32_t i = 0; i < 1000; i++) {
+                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 255, 255, 255);
+                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 0, 255, 127);
+            }
+            auto end = SDL_GetPerformanceCounter();
+            printf("use Time 3: %f\n", (double)((end - start) * 1000.0 / SDL_GetPerformanceFrequency()));
+      }
+      pfx->CmdReset(render_node_2d);
+      {
+            auto start = SDL_GetPerformanceCounter();
+            for(uint32_t i = 0; i < 1000; i++) {
+                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 255, 255, 255);
+                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 0, 255, 127);
+            }
+            auto end = SDL_GetPerformanceCounter();
+            printf("use Time 4: %f\n", (double)((end - start) * 1000.0 / SDL_GetPerformanceFrequency()));
+      }
+      pfx->CmdReset(render_node_2d);
+      {
+            auto start = SDL_GetPerformanceCounter();
+            for(uint32_t i = 0; i < 1000; i++) {
+                  pfx->CmdDrawPath(render_node_2d, path, true, 20, 255, 255, 255, 255);
+                  pfx->CmdDrawPath(render_node_2d, path, true, 20, 255, 0, 255, 127);
+            }
+            auto end = SDL_GetPerformanceCounter();
+            printf("use Time 5: %f\n", (double)((end - start) * 1000.0 / SDL_GetPerformanceFrequency()));
+      }
+      pfx->CmdReset(render_node_2d);
+      {
+            auto start = SDL_GetPerformanceCounter();
+            for(uint32_t i = 0; i < 1000; i++) {
+                  pfx->CmdDrawPath(render_node_2d, path, true, 20, 255, 255, 255, 255);
+                  pfx->CmdDrawPath(render_node_2d, path, true, 20, 255, 0, 255, 127);
+            }
+            auto end = SDL_GetPerformanceCounter();
+            printf("use Time 6: %f\n", (double)((end - start) * 1000.0 / SDL_GetPerformanceFrequency()));
+      }
+      pfx->CmdReset(render_node_2d);
+      {
+            auto start = SDL_GetPerformanceCounter();
+            for(uint32_t i = 0; i < 1000; i++) {
+                  pfx->CmdDrawPath(render_node_2d, path, true, 20, 255, 255, 255, 255);
+                  pfx->CmdDrawPath(render_node_2d, path, true, 20, 255, 0, 255, 127);
+            }
+            auto end = SDL_GetPerformanceCounter();
+            printf("use Time 7: %f\n", (double)((end - start) * 1000.0 / SDL_GetPerformanceFrequency()));
+      }
+
       pfx->CmdGenerate(render_node_2d);
-
-
 
       std::atomic<bool> should_close = false;
       auto func = std::async(std::launch::async, [&] {
@@ -216,7 +315,6 @@ void GStart() {
                   ctx->CmdBeginPass({{rt0}});
                   pfx->CmdEmitCommand(render_node_2d);
                   ctx->CmdEndPass();
-
 
                   //Pass 1
                   ctx->CmdBeginPass({{rt1}});

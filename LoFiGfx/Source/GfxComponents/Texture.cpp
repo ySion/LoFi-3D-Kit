@@ -65,7 +65,7 @@ void Texture::SetData(const void* data, size_t size) {
       vmaGetAllocationInfo(volkGetLoadedVmaAllocator(), _memory, &info);
 
       if (info.size < size) {
-            auto str = std::format(R"(Texture::SetData - Size Mismatch, Expected: {} {}, Actual: {})", info.size, size);
+            auto str = std::format(R"(Texture::SetData - Size Mismatch, Expected: {}, Actual: {})", info.size, size);
             MessageManager::Log(MessageType::Error, str);
             return;
       }

@@ -26,6 +26,14 @@ Class& operator=(Class&&) = delete
 #include "entt/entt.hpp"
 #include "Concurrent/concurrentqueue.h"
 
+//enable sse
+#define GLM_FORCE_SWIZZLE
+#define GLM_FORCE_INTRINSICS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
+
 namespace LoFi {
 
       struct ContextSetupParam {

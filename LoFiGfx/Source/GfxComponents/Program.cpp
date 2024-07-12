@@ -1172,11 +1172,48 @@ void Program::ParseVS(const std::vector<uint32_t>& spv) {
                                     }
                         }
                   } else if (type.basetype == spirv_cross::SPIRType::Int) {
-                        input_format = VK_FORMAT_R32_SINT;
-                        curr_size = 4;
+                        switch (type.vecsize) {
+                              case 1: input_format = VK_FORMAT_R32_SINT;
+                              curr_size = 4;
+                              break;
+                              case 2: input_format = VK_FORMAT_R32G32_SINT;
+                              curr_size = 8;
+                              break;
+                              case 3: input_format = VK_FORMAT_R32G32B32_SINT;
+                              curr_size = 12;
+                              break;
+                              case 4: input_format = VK_FORMAT_R32G32B32A32_SINT;
+                              curr_size = 16;
+                              break;
+                              default:
+                                    {
+                                          const auto err = std::format("Program::ParseVS - stage inputs has invalid ivecsize: {}, at location {}, binding {}", type.vecsize, location, binding);
+                                          throw std::runtime_error(err);
+                                    }
+                        }
+                        //curr_size = 4;
                   } else if (type.basetype == spirv_cross::SPIRType::UInt) {
-                        input_format = VK_FORMAT_R32_UINT;
-                        curr_size = 4;
+                        switch (type.vecsize) {
+                              case 1: input_format = VK_FORMAT_R32_UINT;
+                              curr_size = 4;
+                              break;
+                              case 2: input_format = VK_FORMAT_R32G32_UINT;
+                              curr_size = 8;
+                              break;
+                              case 3: input_format = VK_FORMAT_R32G32B32_UINT;
+                              curr_size = 12;
+                              break;
+                              case 4: input_format = VK_FORMAT_R32G32B32A32_UINT;
+                              curr_size = 16;
+                              break;
+                              default:
+                                    {
+                                          const auto err = std::format("Program::ParseVS - stage inputs has invalid ivecsize: {}, at location {}, binding {}", type.vecsize, location, binding);
+                                          throw std::runtime_error(err);
+                                    }
+                        }
+                        //input_format = VK_FORMAT_R32_UINT;
+                        //curr_size = 4;
                   }
 
                   if (input_format == VK_FORMAT_UNDEFINED) {
@@ -1571,7 +1608,7 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                   _vertexInputStateCreateInfo.pVertexBindingDescriptions = _vertexInputBindingDescription.data();
                   _vertexInputStateCreateInfo.vertexBindingDescriptionCount = _vertexInputBindingDescription.size();
             }
-            if (values.size() == 2) {
+            else if (values.size() == 2) {
                   if (!_autoVSInputStageBind) {
                         error_msg = "Auto vertex input stage bind is disabled, please disable it by adding #set vs_binding = [binding, stride_size, binding_rate] in shader source code.";
                         return false;
@@ -1594,7 +1631,7 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                         return ErrorArgument(key, 3, values[2], error_msg, "vertex, instance");
                   }
             } else {
-                  return ErrorArgumentUnmatching(key, 4, values.size(), error_msg, "binding, stride_size, binding_rate");
+                  return ErrorArgumentUnmatching(key, 3, values.size(), error_msg, "binding, stride_size, binding_rate");
             }
       } else if (key == "depth_bias") {
             if (values.size() == 3) {

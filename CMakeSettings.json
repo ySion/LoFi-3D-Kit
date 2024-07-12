@@ -20,7 +20,7 @@
             "cmakeCommandArgs": "",
             "buildCommandArgs": "",
             "ctestCommandArgs": "",
-            "inheritEnvironments": [ "msvc_x64_x64" ]
+            "inheritEnvironments": [ "msvc_x64" ]
         },
         {
             "name": "ReleaseDbg",
@@ -42,8 +42,7 @@
             "cmakeCommandArgs": "",
             "buildCommandArgs": "",
             "ctestCommandArgs": "",
-            "inheritEnvironments": [ "msvc_x64_x64" ],
-            "variables": []
+            "inheritEnvironments": [ "msvc_x64_x64" ]
         }
     ]
 }
