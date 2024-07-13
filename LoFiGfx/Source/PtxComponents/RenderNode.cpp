@@ -154,8 +154,38 @@ void RenderNode::NewLayer() {
 
 void RenderNode::GetPathSegmentLineTangent(std::span<glm::ivec2> pos, bool closed, std::vector<glm::vec2>& tang) {
       if(pos.size() < 2) return;
-      if(closed) {
+      if(closed && pos.size() > 2) {
             tang.resize(pos.size());
+
+            uint32_t simd_loop = (tang.size() - 1) / 4;
+            uint32_t i = 0;
+            for(i = 0; i < simd_loop * 4; i += 4) {
+                  glm::vec2 temp1 = pos[i + 1] - pos[i];
+                  glm::vec2 temp2 = pos[i + 2] - pos[i + 1];
+                  glm::vec2 temp3 = pos[i + 3] - pos[i + 2];
+                  glm::vec2 temp4 = pos[i + 4] - pos[i + 3];
+
+                  tang[i] = glm::normalize(temp1);
+                  tang[i+ 1] = glm::normalize(temp2);
+                  tang[i+ 2] = glm::normalize(temp3);
+                  tang[i+ 3] = glm::normalize(temp4);
+                  // printf("STans (%f, %f)\n", tang[i].x, tang[i].y);
+                  // printf("STans (%f, %f)\n", tang[i + 1].x, tang[i + 1].y);
+                  // printf("STans (%f, %f)\n", tang[i + 2].x, tang[i + 2].y);
+                  // printf("STans (%f, %f)\n", tang[i + 3].x, tang[i + 3].y);
+            }
+
+            for(; i < tang.size() - 1; i++) {
+                  glm::vec2 temp = pos[i + 1] - pos[i];
+                  tang[i] = glm::normalize(temp);
+                  //printf("STans (%f, %f)\n", tang[i].x, tang[i].y);
+            }
+            glm::vec2 temp = pos.front() - pos.back();
+            tang.back() = glm::normalize(glm::vec2(pos.front() - pos.back()));
+            //printf("STans (%f, %f)\n", tang.back().x, tang.back().y);
+
+      } else {
+            tang.resize(pos.size() - 1);
 
             uint32_t simd_loop = (tang.size() - 1) / 4;
             uint32_t i = 0;
@@ -171,26 +201,7 @@ void RenderNode::GetPathSegmentLineTangent(std::span<glm::ivec2> pos, bool close
                   //printf("STans (%f, %f)\n", tang[i].x, tang[i].y);
             }
 
-            for(; i < tang.size() - 1; i++) {
-                  glm::vec2 temp = pos[i + 1] - pos[i];
-                  tang[i] = glm::normalize(temp);
-                  //printf("STans (%f, %f)\n", tang[i].x, tang[i].y);
-            }
-
-
-            // for(uint32_t i = 0; i < tang.size() - 1; i++) {
-            //       glm::vec2 temp = pos[i + 1] - pos[i];
-            //       tang[i] = glm::normalize(temp);
-            //       //printf("STans (%f, %f)\n", tang[i].x, tang[i].y);
-            // }
-
-            glm::vec2 temp = pos.front() - pos.back();
-            tang.back() = glm::normalize(glm::vec2(pos.front() - pos.back()));
-            //printf("STans (%f, %f)\n", tang.back().x, tang.back().y);
-
-      } else {
-            tang.resize(pos.size() - 1);
-            for(uint32_t i = 0; i < tang.size(); i++) {
+            for(i = 0; i < tang.size(); i++) {
                   tang[i] = glm::normalize(glm::vec2(pos[i + 1] - pos[i]));
                   //printf("STans (%f, %f)\n", tang[i].x, tang[i].y);
             }
@@ -202,29 +213,48 @@ void RenderNode::GetPathSegmentLineNormal(std::span<glm::ivec2> pos, bool closed
       GetPathSegmentLineTangent(pos, closed, tang);
 
       normal.resize(tang.size());
-      sharp_angle.reserve(tang.size());
+      sharp_angle.resize(tang.size() - 1);
 
-      for(uint32_t i = 0; i < tang.size(); i++) {
+      uint32_t simd_count = normal.size() / 4;
+      uint32_t i = 0;
+
+      for(; i < simd_count; i+= 4) {
+            normal[i] = glm::vec2(-tang[i].y, tang[i].x);
+            normal[i + 1] = glm::vec2(-tang[i + 1].y, tang[i + 1].x);
+            normal[i + 2] = glm::vec2(-tang[i + 2].y, tang[i + 2].x);
+            normal[i + 3] = glm::vec2(-tang[i + 3].y, tang[i + 3].x);
+      }
+
+      for(; i < normal.size(); i++) {
             normal[i] = glm::vec2(-tang[i].y, tang[i].x);
       }
 
-      for(uint32_t i = 1; i < normal.size(); i++) {
-            glm::vec3 current = glm::vec3(tang[i], 0);
-            glm::vec3 prev = glm::vec3(-tang[i - 1], 0);
-            glm::vec3 C = glm::cross(current, prev);
-            sharp_angle.emplace_back(C.z > 0);
+      simd_count = (normal.size() - 1) / 4;
+
+      for(i = 0; i < simd_count; i += 4) {
+            sharp_angle[i ] = glm::cross(glm::vec3(tang[i + 1], 0), glm::vec3(-tang[i], 0)).z > 0;
+            sharp_angle[i + 1] = glm::cross(glm::vec3(tang[i + 2], 0), glm::vec3(-tang[i + 1], 0)).z > 0;
+            sharp_angle[i + 2] = glm::cross(glm::vec3(tang[i + 3], 0), glm::vec3(-tang[i + 2], 0)).z > 0;
+            sharp_angle[i + 3] = glm::cross(glm::vec3(tang[i + 4], 0), glm::vec3(-tang[i + 3], 0)).z > 0;
       }
 
-      if(closed) {
+      for(; i < normal.size() - 1; i++) {
+            glm::vec3 prev = glm::vec3(-tang[i], 0);
+            glm::vec3 current = glm::vec3(tang[i + 1], 0);
+            glm::vec3 C = glm::cross(current, prev);
+            sharp_angle[i] = C.z > 0;
+      }
+
+      if(closed && pos.size() > 2) {
             glm::vec3 end_current = glm::vec3(tang.front(), 0);
             glm::vec3 end_prev = glm::vec3(-tang.back(), 0);
             glm::vec3 C = glm::cross(end_current, end_prev);
             sharp_angle.emplace_back(C.z > 0);
       }
 
-      // for(uint32_t i = 0; i < normal.size(); i++) {
-      //       printf("Normal (%f, %f)\n", normal[i].x, normal[i].y);
-      // }
+       // for(uint32_t i = 0; i < normal.size(); i++) {
+       //       printf("Normal (%f, %f)\n", normal[i].x, normal[i].y);
+       // }
 }
 
 void RenderNode::GetPathSegmentJoltPointNormal(std::span<glm::ivec2> pos, bool closed,
@@ -236,30 +266,60 @@ void RenderNode::GetPathSegmentJoltPointNormal(std::span<glm::ivec2> pos, bool c
 
       if(pos.size() < 2) return;
       GetPathSegmentLineNormal(pos, closed, line_normal, line_tang, angle_sharp);
-
       if(pos.size() == 2) return;
 
       if(closed) { // 封闭
             jolts_normal.resize(line_normal.size());
             half_angle.resize(line_normal.size());
 
-            for(uint32_t i = 0; i < line_normal.size() - 1; i++) {
+            uint32_t simd_count = (line_normal.size() - 1) / 4;
+            uint32_t i = 0;
+            for(; i < simd_count; i += 4) {
+                  jolts_normal[i] = glm::normalize(line_normal[i] + line_normal[i + 1]);
+                  jolts_normal[i + 1] = glm::normalize(line_normal[i + 1] + line_normal[i + 2]);
+                  jolts_normal[i + 2] = glm::normalize(line_normal[i + 2] + line_normal[i + 3]);
+                  jolts_normal[i + 3] = glm::normalize(line_normal[i + 3] + line_normal[i + 4]);
+
+                  half_angle[i] = (glm::pi<float>() - glm::acos(glm::dot(line_normal[i], line_normal[i + 1]))) / 2.0f;
+                  half_angle[i + 1] = (glm::pi<float>() - glm::acos(glm::dot(line_normal[i + 1], line_normal[i + 2]))) / 2.0f;
+                  half_angle[i + 2] = (glm::pi<float>() - glm::acos(glm::dot(line_normal[i + 2], line_normal[i + 3]))) / 2.0f;
+                  half_angle[i + 3] = (glm::pi<float>() - glm::acos(glm::dot(line_normal[i + 3], line_normal[i + 4]))) / 2.0f;
+                  //printf("Jolt Normal (%f, %f) Sharp angel %f\n",jolts_normal[i].x, jolts_normal[i].y,  glm::degrees(half_angle[i]));
+                  //printf("Jolt Normal (%f, %f) Sharp angel %f\n",jolts_normal[i + 1].x, jolts_normal[i + 1].y,  glm::degrees(half_angle[i]));
+                  //printf("Jolt Normal (%f, %f) Sharp angel %f\n",jolts_normal[i + 2].x, jolts_normal[i + 2].y,  glm::degrees(half_angle[i]));
+                  //printf("Jolt Normal (%f, %f) Sharp angel %f\n",jolts_normal[i + 3].x, jolts_normal[i + 3].y,  glm::degrees(half_angle[i]));
+            }
+
+            for(; i < line_normal.size() - 1; i++) {
                   jolts_normal[i] = glm::normalize(line_normal[i] + line_normal[i + 1]);
                   half_angle[i] = (glm::pi<float>() - glm::acos(glm::dot(line_normal[i], line_normal[i + 1]))) / 2.0f;
                   //printf("Jolt Normal (%f, %f) Sharp angel %f\n",jolts_normal[i].x, jolts_normal[i].y,  glm::degrees(half_angle[i]));
-
             }
 
             jolts_normal.back() = glm::normalize(line_normal.back() + line_normal.front());
             half_angle.back() = (glm::pi<float>() - glm::acos(glm::dot(line_normal.back(), line_normal.front()))) / 2.0f;
             //printf("Jolt Normal (%f, %f) Sharp angel %f\n",jolts_normal.back().x, jolts_normal.back().y,  glm::degrees(half_angle.back()));
 
-
       } else {
             jolts_normal.resize(line_normal.size() - 1);
             half_angle.resize(line_normal.size() - 1);
 
-            for(uint32_t i = 0; i < line_normal.size() - 1; i++) {
+            uint32_t simd_count = (line_normal.size() - 1) / 4;
+            uint32_t i = 0;
+
+            for(; i < simd_count; i += 4) {
+                  jolts_normal[i] = glm::normalize(line_normal[i] + line_normal[i + 1]);
+                  jolts_normal[i + 1] = glm::normalize(line_normal[i + 1] + line_normal[i + 2]);
+                  jolts_normal[i + 2] = glm::normalize(line_normal[i + 2] + line_normal[i + 3]);
+                  jolts_normal[i + 3] = glm::normalize(line_normal[i + 3] + line_normal[i + 4]);
+
+                  half_angle[i] = (glm::pi<float>() - glm::acos(glm::dot(line_normal[i], line_normal[i + 1]))) / 2.0f;
+                  half_angle[i + 1] = (glm::pi<float>() - glm::acos(glm::dot(line_normal[i + 1], line_normal[i + 2]))) / 2.0f;
+                  half_angle[i + 2] = (glm::pi<float>() - glm::acos(glm::dot(line_normal[i + 2], line_normal[i + 3]))) / 2.0f;
+                  half_angle[i + 3] = (glm::pi<float>() - glm::acos(glm::dot(line_normal[i + 3], line_normal[i + 4]))) / 2.0f;
+            }
+
+            for(; i < line_normal.size() - 1; i++) {
                   jolts_normal[i] = glm::normalize(line_normal[i] + line_normal[i + 1]);
                   half_angle[i] = (glm::pi<float>() - glm::acos(glm::dot(line_normal[i], line_normal[i + 1]))) / 2.0f;
                   //printf("Jolt Normal (%f, %f) Sharp angel %f\n",jolts_normal[i].x, jolts_normal[i].y,  glm::degrees(half_angle[i]));
@@ -270,355 +330,187 @@ void RenderNode::GetPathSegmentJoltPointNormal(std::span<glm::ivec2> pos, bool c
 void RenderNode::ExtrudeUp(std::span<glm::ivec2> pos, bool closed, uint32_t distance, uint32_t expend_layers, std::vector<glm::vec2>& vertex, std::vector<uint32_t>& index) {
       if(pos.size() <= 2) { return; }
 
-      if(closed) { // 封闭
-            line_tang.clear();
-            line_norm.clear();
-            jolt_norm.clear();
-            angle_sharp.clear();
-            half_angle.clear();
-            vertex.clear();
-            index.clear();
+      GetPathSegmentJoltPointNormal(pos, closed, line_norm, line_tang, angle_sharp, jolt_norm, half_angle);
 
-            GetPathSegmentJoltPointNormal(pos, closed, line_norm, line_tang, angle_sharp, jolt_norm, half_angle);
+      if(closed && pos.size() > 2) { // 封闭
 
-            vertex.reserve(line_tang.size() * 6); // 1 line extend to 4 point
-            index.reserve(line_tang.size() * 12); // 1 line extend to 2 triangle, 6 index
+            vertex.resize(line_tang.size() * 4);
+            index.resize(line_tang.size() * 12);
 
-            //Outer
+            //first
+            uint32_t last_t {};
+            uint32_t last_m {};
+            uint32_t last_b {};
+
             {
-                  uint32_t current_vertex_base_index = vertex.size();
+                  vertex[1] = pos.front(); // mid left
 
                   if(angle_sharp.back()) {
-                        vertex.emplace_back(glm::vec2(pos.front()) + jolt_norm.back() * ((float)distance / glm::sin(half_angle.back()))); // top left
+                        vertex[0] = (glm::vec2(pos.front()) + jolt_norm.back() * ((float)distance / glm::sin(half_angle.back()))); // top
+                        vertex[2] = (glm::vec2(pos.front()) - line_norm.front() * (float)distance); // bottom
+                        vertex.back() = (glm::vec2(pos.front()) - line_norm.back() * (float)distance);  // bottom last
+
+                        last_t = 0;
+                        last_m = 1;
+                        last_b= vertex.size() - 1;
+
                   } else {
-                        vertex.emplace_back(glm::vec2(pos.front()) + line_norm.front() * (float)distance); // top left
+                        vertex[0] = (glm::vec2(pos.front()) + line_norm.front() * (float)distance); // top
+                        vertex.back() = (glm::vec2(pos.front()) + line_norm.back() * (float)distance); // top last
+
+                        vertex[2] = (glm::vec2(pos.front()) - jolt_norm.back() * ((float)distance / glm::sin(half_angle.back()))); // bottom
+
+                        last_t = vertex.size() - 1;
+                        last_m = 1;
+                        last_b= 2;
                   }
-
-                  if(angle_sharp[0]) {
-                        vertex.emplace_back(glm::vec2(pos[1]) + jolt_norm[0] * ((float)distance / glm::sin(half_angle[0]))); // top right
-                  } else {
-                        vertex.emplace_back(glm::vec2(pos[1]) + line_norm[0] * (float)distance); // top right
-                  }
-                  vertex.emplace_back(pos[0]); // bottom left
-                  vertex.emplace_back(pos[1]); // bottom right
-
-                  //012 321
-                  index.emplace_back(current_vertex_base_index);
-                  index.emplace_back(current_vertex_base_index + 1);
-                  index.emplace_back(current_vertex_base_index + 2);
-
-                  index.emplace_back(current_vertex_base_index + 3);
-                  index.emplace_back(current_vertex_base_index + 2);
-                  index.emplace_back(current_vertex_base_index + 1);
             }
 
-            //med
-            for (uint32_t i  = 1; i < line_norm.size() - 1; i++) {
-                  uint32_t current_vertex_base_index = vertex.size();
-                  if(angle_sharp[i - 1]) {
-                        vertex.emplace_back(glm::vec2(pos[i]) + jolt_norm[i - 1] * ((float)distance / glm::sin(half_angle[i - 1]))); // top left
-                  } else {
-                        vertex.emplace_back(glm::vec2(pos[i]) + line_norm[i] * (float)distance); // top left
-                  }
+            uint32_t t = 0, m = 1 ,b = 2;
+            for (uint32_t i  = 0; i < line_norm.size() - 1; i++) {
+
+                  const uint32_t idx = 3 + i * 4;
+                  const uint32_t index_offset = i * 12;
+
+                  index[index_offset] = t;
+                  index[index_offset + 1] = idx + 1;
+                  index[index_offset + 2] = m;
+
+                  index[index_offset + 3] = idx;
+                  index[index_offset + 4] = m;
+                  index[index_offset + 5] = idx + 1;
+
+                  index[index_offset + 6] = m;
+                  index[index_offset + 7] = idx;
+                  index[index_offset + 8] = b;
+
+                  index[index_offset + 9] = idx + 2;
+                  index[index_offset + 10] = b;
+                  index[index_offset + 11] = idx;
+
+                  vertex[idx] = pos[i + 1]; // mid
 
                   if(angle_sharp[i]) {
-                        vertex.emplace_back(glm::vec2(pos[i + 1]) + jolt_norm[i] * ((float)distance / glm::sin(half_angle[i]))); // top right
+                        vertex[idx + 1] = (glm::vec2(pos[i + 1]) + jolt_norm[i] * ((float)distance / glm::sin(half_angle[i]))); // top
+
+                        vertex[idx + 2] = (glm::vec2(pos[i + 1]) - line_norm[i] * (float)distance); // bottom
+                        vertex[idx + 3] = (glm::vec2(pos[i + 1]) - line_norm[i + 1] * (float)distance); // bottom next
+
+                        m = idx;
+                        t = idx + 1;
+                        b = idx + 3;
                   } else {
-                        vertex.emplace_back(glm::vec2(pos[i + 1]) + line_norm[i] * (float)distance); // top right
+                        vertex[idx + 1] = (glm::vec2(pos[i + 1]) + line_norm[i] * (float)distance); // top
+                        vertex[idx + 3] = (glm::vec2(pos[i + 1]) + line_norm[i + 1] * (float)distance); // top next
+
+                        vertex[idx + 2] = (glm::vec2(pos[i + 1]) - jolt_norm[i] * ((float)distance / glm::sin(half_angle[i]))); // bottom
+
+                        m = idx;
+                        t = idx + 3;
+                        b = idx + 2;
                   }
-
-                  vertex.emplace_back(pos[i]); // bottom left
-                  vertex.emplace_back(pos[i + 1]); // bottom right
-
-                  //012 321
-                  index.emplace_back(current_vertex_base_index);
-                  index.emplace_back(current_vertex_base_index + 1);
-                  index.emplace_back(current_vertex_base_index + 2);
-
-                  index.emplace_back(current_vertex_base_index + 3);
-                  index.emplace_back(current_vertex_base_index + 2);
-                  index.emplace_back(current_vertex_base_index + 1);
             }
 
-            //last
             {
-                  uint32_t current_vertex_base_index = vertex.size();
+                  const uint32_t index_offset = (line_norm.size() - 1) * 12;
 
-                  if(angle_sharp[jolt_norm.size() - 2]) {
-                        vertex.emplace_back(glm::vec2(pos.back()) + jolt_norm[jolt_norm.size() - 2] * ((float)distance / glm::sin(half_angle[half_angle.size() - 2]))); // top left
-                  } else {
-                        vertex.emplace_back(glm::vec2(pos.back()) + line_norm.back() * (float)distance); // top left
-                  }
+                  index[index_offset] = t;
+                  index[index_offset + 1] = last_t;
+                  index[index_offset + 2] = m;
 
-                  if(angle_sharp.back()) {
-                        vertex.emplace_back(glm::vec2(pos.front()) + jolt_norm.back() * ((float)distance / glm::sin(half_angle.back()))); // top right
-                  } else {
-                        vertex.emplace_back(glm::vec2(pos.front()) + line_norm.back() * (float)distance); // top right
-                  }
+                  index[index_offset + 3] = last_m;
+                  index[index_offset + 4] = m;
+                  index[index_offset + 5] = last_t;
 
-                  vertex.emplace_back(pos.back()); // bottom left
-                  vertex.emplace_back(pos.front()); // bottom right
+                  index[index_offset + 6] = m;
+                  index[index_offset + 7] = last_m;
+                  index[index_offset + 8] = b;
 
-                  //012 321
-                  index.emplace_back(current_vertex_base_index);
-                  index.emplace_back(current_vertex_base_index + 1);
-                  index.emplace_back(current_vertex_base_index + 2);
-
-                  index.emplace_back(current_vertex_base_index + 3);
-                  index.emplace_back(current_vertex_base_index + 2);
-                  index.emplace_back(current_vertex_base_index + 1);
-            }
-
-            //Inner
-            {
-                  uint32_t current_vertex_base_index = vertex.size();
-
-                  vertex.emplace_back(pos[0]); // top left
-                  vertex.emplace_back(pos[1]); // top right
-
-                  if(!angle_sharp.back()) {
-                        vertex.emplace_back(glm::vec2(pos.front()) - jolt_norm.back() * ((float)distance / glm::sin(half_angle.back()))); // bottom left
-                  } else {
-                        vertex.emplace_back(glm::vec2(pos.front()) - line_norm.front() * (float)distance); // bottom left
-                  }
-
-                  if(!angle_sharp.front()) {
-                        vertex.emplace_back(glm::vec2(pos[1]) - jolt_norm[0] * ((float)distance / glm::sin(half_angle[0]))); // bottom right
-                  } else {
-                        vertex.emplace_back(glm::vec2(pos[1]) - line_norm[0] * (float)distance); // bottom right
-                  }
-
-                  //012 321
-                  index.emplace_back(current_vertex_base_index);
-                  index.emplace_back(current_vertex_base_index + 1);
-                  index.emplace_back(current_vertex_base_index + 2);
-
-                  index.emplace_back(current_vertex_base_index + 3);
-                  index.emplace_back(current_vertex_base_index + 2);
-                  index.emplace_back(current_vertex_base_index + 1);
-            }
-
-            //med
-            for (uint32_t i  = 1; i < line_norm.size() - 1; i++) {
-                   uint32_t current_vertex_base_index = vertex.size();
-
-                   vertex.emplace_back(pos[i]); // top left
-                   vertex.emplace_back(pos[i + 1]); // top right
-
-                   if(!angle_sharp[i - 1]) {
-                         vertex.emplace_back(glm::vec2(pos[i]) - jolt_norm[i - 1] * ((float)distance / glm::sin(half_angle[i - 1]))); // bottom left
-                   } else {
-                         vertex.emplace_back(glm::vec2(pos[i]) - line_norm[i] * (float)distance); // bottom left
-                   }
-
-                   if(!angle_sharp[i]) {
-                         vertex.emplace_back(glm::vec2(pos[i + 1]) - jolt_norm[i] * ((float)distance / glm::sin(half_angle[i]))); // bottom right
-                   } else {
-                         vertex.emplace_back(glm::vec2(pos[i + 1]) - line_norm[i] * (float)distance); // bottom right
-                   }
-
-                   //012 321
-                   index.emplace_back(current_vertex_base_index);
-                   index.emplace_back(current_vertex_base_index + 1);
-                   index.emplace_back(current_vertex_base_index + 2);
-
-                   index.emplace_back(current_vertex_base_index + 3);
-                   index.emplace_back(current_vertex_base_index + 2);
-                   index.emplace_back(current_vertex_base_index + 1);
-            }
-
-            //last
-            {
-                  uint32_t current_vertex_base_index = vertex.size();
-
-                  vertex.emplace_back(pos.back()); // top left
-                  vertex.emplace_back(pos.front()); // top right
-
-                  if(!angle_sharp[jolt_norm.size() - 2]) {
-                        vertex.emplace_back(glm::vec2(pos.back()) - jolt_norm[jolt_norm.size() - 2] * ((float)distance / glm::sin(half_angle[half_angle.size() - 2]))); // bottom left
-                  } else {
-                        vertex.emplace_back(glm::vec2(pos.back()) - line_norm.back() * (float)distance); // bottom left
-                  }
-
-                  if(!angle_sharp.back()) {
-                        vertex.emplace_back(glm::vec2(pos.front()) - jolt_norm.back() * ((float)distance / glm::sin(half_angle.back()))); // bottom right
-                  } else {
-                        vertex.emplace_back(glm::vec2(pos.front()) - line_norm.back() * (float)distance); // bottom right
-                  }
-
-                  //012 321
-                  index.emplace_back(current_vertex_base_index);
-                  index.emplace_back(current_vertex_base_index + 1);
-                  index.emplace_back(current_vertex_base_index + 2);
-
-                  index.emplace_back(current_vertex_base_index + 3);
-                  index.emplace_back(current_vertex_base_index + 2);
-                  index.emplace_back(current_vertex_base_index + 1);
+                  index[index_offset + 9] = last_b;
+                  index[index_offset + 10] = b;
+                  index[index_offset + 11] = last_m;
             }
 
 
       } else {
-            line_tang.clear();
-            line_norm.clear();
-            jolt_norm.clear();
-            angle_sharp.clear();
-            half_angle.clear();
 
-            GetPathSegmentJoltPointNormal(pos, closed, line_norm, line_tang, angle_sharp, jolt_norm, half_angle);
-            return ;
-            vertex.reserve(line_norm.size() * 6); // 1 line extend to 4 point
-            index.reserve(line_norm.size() * 12); // 1 line extend to 2 triangle, 6 index
+            vertex.resize((line_tang.size()- 1) * 4 + 6);
+            index.resize(line_tang.size() * 12);
+            //first
 
-            //Up
-            //first segment
             {
-                  uint32_t current_vertex_base_index = vertex.size();
-
-                  vertex.emplace_back(glm::vec2(pos[0]) + line_norm[0] * (float)distance); // top left
-                  if(angle_sharp[0]) {
-                        vertex.emplace_back(glm::vec2(pos[1]) + jolt_norm[0] * ((float)distance / glm::sin(half_angle[0]))); // top right
-                  } else {
-                        vertex.emplace_back(glm::vec2(pos[1]) + line_norm[0] * (float)distance); // top right
-                  }
-                  vertex.emplace_back(pos[0]); // bottom left
-                  vertex.emplace_back(pos[1]); // bottom right
-
-                  //012 321
-                  index.emplace_back(current_vertex_base_index);
-                  index.emplace_back(current_vertex_base_index + 1);
-                  index.emplace_back(current_vertex_base_index + 2);
-
-                  index.emplace_back(current_vertex_base_index + 3);
-                  index.emplace_back(current_vertex_base_index + 2);
-                  index.emplace_back(current_vertex_base_index + 1);
+                  vertex[0] = glm::vec2(pos[0]) + line_norm[0] * (float)distance; // top
+                  vertex[1] = pos[0]; // mid
+                  vertex[2] = glm::vec2(pos[0]) - line_norm[0] * (float)distance; // bottom
             }
 
-            // med segments
-            for (uint32_t i  = 1; i < line_norm.size() - 1; i++) {
-                  uint32_t current_vertex_base_index = vertex.size();
-                  if(angle_sharp[i - 1]) {
-                        vertex.emplace_back(glm::vec2(pos[i]) + jolt_norm[i - 1] * ((float)distance / glm::sin(half_angle[i - 1]))); // top left
-                  } else {
-                        vertex.emplace_back(glm::vec2(pos[i]) + line_norm[i] * (float)distance); // top left
-                  }
+            uint32_t t = 0, m = 1 ,b = 2;
+            for (uint32_t i  = 0; i < line_norm.size() - 1; i++) {
+
+                  const uint32_t idx = 3 + i * 4;
+                  const uint32_t index_offset = i * 12;
+
+                  index[index_offset] = t;
+                  index[index_offset + 1] = idx + 1;
+                  index[index_offset + 2] = m;
+
+                  index[index_offset + 3] = idx;
+                  index[index_offset + 4] = m;
+                  index[index_offset + 5] = idx + 1;
+
+                  index[index_offset + 6] = m;
+                  index[index_offset + 7] = idx;
+                  index[index_offset + 8] = b;
+
+                  index[index_offset + 9] = idx + 2;
+                  index[index_offset + 10] = b;
+                  index[index_offset + 11] = idx;
+
+                  vertex[idx] = pos[i + 1]; // mid
 
                   if(angle_sharp[i]) {
-                        vertex.emplace_back(glm::vec2(pos[i + 1]) + jolt_norm[i] * ((float)distance / glm::sin(half_angle[i]))); // top right
+                        vertex[idx + 1] = (glm::vec2(pos[i + 1]) + jolt_norm[i] * ((float)distance / glm::sin(half_angle[i]))); // top
+
+                        vertex[idx + 2] = (glm::vec2(pos[i + 1]) - line_norm[i] * (float)distance); // bottom
+                        vertex[idx + 3] = (glm::vec2(pos[i + 1]) - line_norm[i + 1] * (float)distance); // bottom next
+
+                        m = idx;
+                        t = idx + 1;
+                        b = idx + 3;
                   } else {
-                        vertex.emplace_back(glm::vec2(pos[i + 1]) + line_norm[i] * (float)distance); // top right
+                        vertex[idx + 1] = (glm::vec2(pos[i + 1]) + line_norm[i] * (float)distance); // top
+                        vertex[idx + 3] = (glm::vec2(pos[i + 1]) + line_norm[i + 1] * (float)distance); // top next
+
+                        vertex[idx + 2] = (glm::vec2(pos[i + 1]) - jolt_norm[i] * ((float)distance / glm::sin(half_angle[i]))); // bottom
+
+                        m = idx;
+                        t = idx + 3;
+                        b = idx + 2;
                   }
-
-                  vertex.emplace_back(pos[i]); // bottom left
-                  vertex.emplace_back(pos[i + 1]); // bottom right
-
-                  //012 321
-                  index.emplace_back(current_vertex_base_index);
-                  index.emplace_back(current_vertex_base_index + 1);
-                  index.emplace_back(current_vertex_base_index + 2);
-
-                  index.emplace_back(current_vertex_base_index + 3);
-                  index.emplace_back(current_vertex_base_index + 2);
-                  index.emplace_back(current_vertex_base_index + 1);
             }
 
-            //last segment
             {
-                  uint32_t current_vertex_base_index = vertex.size();
+                  vertex[vertex.size() - 3] = glm::vec2(pos.back()) + line_norm.back() * (float)distance; // top
+                  vertex[vertex.size() - 2] = pos.back(); // mid
+                  vertex[vertex.size() - 1] = glm::vec2(pos.back()) - line_norm.back() * (float)distance; // bottom
 
-                  if(angle_sharp.back()) {
-                        vertex.emplace_back(glm::vec2(pos[pos.size() - 2]) + jolt_norm.back() * ((float)distance / glm::sin(half_angle.back()))); // top left
-                  } else {
-                        vertex.emplace_back(glm::vec2(pos[pos.size() - 2]) + line_norm.back() * (float)distance); // top left
-                  }
-                  vertex.emplace_back(glm::vec2(pos.back()) + line_norm.back() * (float)distance); // top right
-                  vertex.emplace_back(pos[pos.size() - 2]); // bottom left
-                  vertex.emplace_back(pos.back()); // bottom right
+                  const uint32_t index_offset = (line_norm.size() - 1) * 12;
 
-                  //012 023
-                  index.emplace_back(current_vertex_base_index);
-                  index.emplace_back(current_vertex_base_index + 1);
-                  index.emplace_back(current_vertex_base_index + 2);
+                  index[index_offset] = t;
+                  index[index_offset + 1] = vertex.size() - 3;
+                  index[index_offset + 2] = m;
 
-                  index.emplace_back(current_vertex_base_index + 3);
-                  index.emplace_back(current_vertex_base_index + 2);
-                  index.emplace_back(current_vertex_base_index + 1);
-            }
+                  index[index_offset + 3] = vertex.size() - 2;
+                  index[index_offset + 4] = m;
+                  index[index_offset + 5] = vertex.size() - 3;
 
-            //Down
-            //first segment
-            {
-                  uint32_t current_vertex_base_index = vertex.size();
+                  index[index_offset + 6] = m;
+                  index[index_offset + 7] = vertex.size() - 2;
+                  index[index_offset + 8] = b;
 
-                  vertex.emplace_back(pos[0]); // top left
-                  vertex.emplace_back(pos[1]); // top right
-                  vertex.emplace_back(glm::vec2(pos[0]) - line_norm[0] * (float)distance); // bottom left
-                  if(!angle_sharp[0]) {
-                        vertex.emplace_back(glm::vec2(pos[1]) - jolt_norm[0] * ((float)distance / glm::sin(half_angle[0]))); // bottom right
-                  } else {
-                        vertex.emplace_back(glm::vec2(pos[1]) - line_norm[0] * (float)distance); // bottom right
-                  }
-
-                  //012 321
-                  index.emplace_back(current_vertex_base_index);
-                  index.emplace_back(current_vertex_base_index + 1);
-                  index.emplace_back(current_vertex_base_index + 2);
-
-                  index.emplace_back(current_vertex_base_index + 3);
-                  index.emplace_back(current_vertex_base_index + 2);
-                  index.emplace_back(current_vertex_base_index + 1);
-            }
-
-            // med segments
-            for (uint32_t i  = 1; i < line_norm.size() - 1; i++) {
-                  uint32_t current_vertex_base_index = vertex.size();
-
-                  vertex.emplace_back(pos[i]); // top left
-                  vertex.emplace_back(pos[i + 1]); // top right
-
-                  if(!angle_sharp[i - 1]) {
-                        vertex.emplace_back(glm::vec2(pos[i]) - jolt_norm[i - 1] * ((float)distance / glm::sin(half_angle[i - 1]))); // bottom left
-                  } else {
-                        vertex.emplace_back(glm::vec2(pos[i]) - line_norm[i] * (float)distance); // bottom left
-                  }
-
-                  if(!angle_sharp[i]) {
-                        vertex.emplace_back(glm::vec2(pos[i + 1]) - jolt_norm[i] * ((float)distance / glm::sin(half_angle[i]))); // bottom right
-                  } else {
-                        vertex.emplace_back(glm::vec2(pos[i + 1]) - line_norm[i] * (float)distance); // bottom right
-                  }
-
-                  //012 321
-                  index.emplace_back(current_vertex_base_index);
-                  index.emplace_back(current_vertex_base_index + 1);
-                  index.emplace_back(current_vertex_base_index + 2);
-
-                  index.emplace_back(current_vertex_base_index + 3);
-                  index.emplace_back(current_vertex_base_index + 2);
-                  index.emplace_back(current_vertex_base_index + 1);
-            }
-
-            //last segment
-            {
-                  uint32_t current_vertex_base_index = vertex.size();
-
-                  vertex.emplace_back(pos[pos.size() - 2]); // top left
-                  vertex.emplace_back(pos.back()); // top right
-
-                  if(!angle_sharp.back()) {
-                        vertex.emplace_back(glm::vec2(pos[pos.size() - 2]) - jolt_norm.back() * ((float)distance / glm::sin(half_angle.back()))); // bottom left
-                  } else {
-                        vertex.emplace_back(glm::vec2(pos[pos.size() - 2]) - line_norm.back() * (float)distance); // bottom left
-                  }
-                  vertex.emplace_back(glm::vec2(pos.back()) - line_norm.back() * (float)distance); // bottom right
-
-                  //012 023
-                  index.emplace_back(current_vertex_base_index);
-                  index.emplace_back(current_vertex_base_index + 1);
-                  index.emplace_back(current_vertex_base_index + 2);
-
-                  index.emplace_back(current_vertex_base_index + 3);
-                  index.emplace_back(current_vertex_base_index + 2);
-                  index.emplace_back(current_vertex_base_index + 1);
+                  index[index_offset + 9] = vertex.size() - 1;
+                  index[index_offset + 10] = b;
+                  index[index_offset + 11] = vertex.size() - 2;
             }
       }
 }
@@ -631,8 +523,6 @@ void RenderNode::DrawPath(std::span<glm::ivec2> pos, bool closed, uint32_t thick
       }
 
       if(pos.size() != 2) {
-            //expended_vertex.clear();
-            //indexs.clear();
 
             ExtrudeUp(pos, closed, thickness, 1, expended_vertex, indexs);
 

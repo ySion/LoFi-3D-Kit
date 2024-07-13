@@ -10,6 +10,9 @@
 #include "SDL3/SDL.h"
 #include "entt/entt.hpp"
 #include "mimalloc/mimalloc.h"
+#include "taskflow/taskflow.hpp"
+#include "taskflow/algorithm/for_each.hpp"
+
 
 void GStart() {
       mi_version();
@@ -202,32 +205,33 @@ void GStart() {
 
       pfx->CmdReset(render_node_2d);
       pfx->CmdSetVirtualCanvasSize(render_node_2d, 1000, 1000);
-      pfx->CmdDrawRect(render_node_2d, 50, 40, 40, 50, 255, 0, 0, 127);
-      pfx->CmdDrawRect(render_node_2d, 10, 10, 60, 50, 0, 0, 255,128);
+      //pfx->CmdDrawRect(render_node_2d, 50, 40, 40, 50, 255, 0, 0, 127);
+      //pfx->CmdDrawRect(render_node_2d, 10, 10, 60, 50, 0, 0, 255,128);
 
-      //std::vector<glm::ivec2> path = {{100, 100}, {100, 800}, {800, 500}, {800, 800}, {900, 800}, {900, 200}, {200, 200}};
+      std::vector<glm::ivec2> path = {{100, 100}, {100, 800}, {800, 500}, {800, 800}, {900, 800}, {900, 200}, {200, 200}};
+      //pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 0, 255, 127);
 
-      std::vector<glm::ivec2> path = {};
-      //draw a snake
-      glm::ivec2 now = {100,  100};
-
-      for(uint32_t j = 0; j < 30; j++) {
-            now.x += 25;
-            path.push_back(now);
-      }
-
-      for(uint32_t j = 0; j < 30; j++) {
-            now.y += 25;
-            path.push_back(now);
-      }
-      for(uint32_t j = 0; j < 30; j++) {
-            now.x -= 25;
-            path.push_back(now);
-      }
-      for(uint32_t j = 0; j < 30; j++) {
-            now.y -= 25;
-            path.push_back(now);
-      }
+      // std::vector<glm::ivec2> path = {};
+      // //draw a snake
+      // glm::ivec2 now = {100,  100};
+      //
+      // for(uint32_t j = 0; j < 30; j++) {
+      //       now.x += 25;
+      //       path.push_back(now);
+      // }
+      //
+      // for(uint32_t j = 0; j < 30; j++) {
+      //       now.y += 25;
+      //       path.push_back(now);
+      // }
+      // for(uint32_t j = 0; j < 30; j++) {
+      //       now.x -= 25;
+      //       path.push_back(now);
+      // }
+      // for(uint32_t j = 0; j < 25; j++) {
+      //       now.y -= 25;
+      //       path.push_back(now);
+      // }
 
 
       {

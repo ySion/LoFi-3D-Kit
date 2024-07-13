@@ -28,7 +28,7 @@ PfxContext::PfxContext() {
       _instance = this;
 
       constexpr auto font_vs = R"(
-            //#set polygon_mode = line
+            #set polygon_mode = line
             #set cull_mode = none
 
             layout(location = 0) in ivec3 in_pos_uv_color;
