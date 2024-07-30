@@ -15,19 +15,18 @@ set(Source_List
         Source/GfxComponents/Program.cpp
         Source/GfxComponents/Buffer.cpp
         Source/GfxComponents/Defines.h
-        Source/GfxComponents/ResourcePushConstant.cpp
-        Source/GfxComponents/ResourcePushConstant.h
+        Source/GfxComponents/PushConstantBuffer.cpp
+        Source/GfxComponents/PushConstantBuffer.h
         Source/GfxComponents/Kernel.cpp
         Source/GfxComponents/Kernel.h
-        Source/GfxComponents/KernelInstance.cpp
-        Source/GfxComponents/KernelInstance.h
         Source/FrameGraph.cpp
         Source/FrameGraph.h
-        Source/GfxComponents/FrameResource.cpp
-        Source/GfxComponents/FrameResource.h
+        Source/GfxComponents/Buffer3F.cpp
+        Source/GfxComponents/Buffer3F.h
+
+
         Source/PfxContext.cpp
         Source/PfxContext.h
-        Source/PtxComponents/RenderNode.cpp
 )
 
 find_package(Vulkan REQUIRED)

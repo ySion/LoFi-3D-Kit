@@ -31,9 +31,13 @@ namespace LoFi::Component::Gfx {
 
             [[nodiscard]] auto& GetPushConstantDefine() const { return _pushConstantDefine;  }
 
-            [[nodiscard]] auto& GetResourceDefine() const { return _shaderResourceDefine;  }
+            void UseDefaultPushConstant(bool use) { _useDefaultPushConstant = use; }
 
-            [[nodiscard]] uint32_t GetParameterTableSize() const { return _parameterTableSize;  }
+            bool SetConstantValue(const std::string& name, const void* data);
+
+            bool FillConstantValue(const void* data, size_t size);
+
+            void CmdPushConstants(VkCommandBuffer cmd) const;
 
       private:
             void CreateAsGraphics(const Program* program);
@@ -45,17 +49,22 @@ namespace LoFi::Component::Gfx {
 
             bool _isComputeKernel = false;
 
+            bool _useDefaultPushConstant = true;
+
             VkPipeline _pipeline{};
 
             VkPipelineLayout _pipelineLayout{};
 
             VkPushConstantRange _pushConstantRange{};
 
-            uint32_t _parameterTableSize{};
-
-            entt::dense_map<std::string, ShaderResourceInfo> _shaderResourceDefine{};
-
             entt::dense_map<std::string, PushConstantMemberInfo> _pushConstantDefine{};
+
+            std::vector<uint8_t> _pushConstantBuffer{};
+
+            entt::entity buffer{};
+
+
+
       };
 }
 

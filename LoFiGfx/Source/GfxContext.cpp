@@ -9,10 +9,11 @@
 #include "GfxComponents/Texture.h"
 #include "GfxComponents/Program.h"
 #include "GfxComponents/Kernel.h"
-#include "GfxComponents/KernelInstance.h"
-#include "GfxComponents/FrameResource.h"
+#include "GfxComponents/Buffer3F.h"
 
 #include "SDL3/SDL.h"
+#include <fstream>
+#include <sstream>
 
 using namespace LoFi;
 using namespace LoFi::Internal;
@@ -36,7 +37,7 @@ void GfxContext::Init() {
       volkInitialize();
 
       std::vector<const char*> instance_layers{};
-      if (_bDebugMode) instance_layers.push_back("VK_LAYER_KHRONOS_validation");
+      //if (_bDebugMode) instance_layers.push_back("VK_LAYER_KHRONOS_validation");
 
       std::vector needed_instance_extension{
             "VK_KHR_surface",
@@ -105,9 +106,9 @@ void GfxContext::Init() {
                   PhysicalDevice ability(physical_device);
 
                   if (!ability.isQueueFamily0SupportAllQueue()) continue;
-                  if (!ability._accelerationStructureFeatures.accelerationStructure) continue;
-                  if (!ability._rayTracingFeatures.rayTracingPipeline) continue;
-                  if (!ability._meshShaderFeatures.meshShader) continue;
+                  //if (!ability._accelerationStructureFeatures.accelerationStructure) continue;
+                  //if (!ability._rayTracingFeatures.rayTracingPipeline) continue;
+                  //if (!ability._meshShaderFeatures.meshShader) continue;
 
                   auto finalCard = std::format("Physical device selected: {}", ability._properties2.properties.deviceName);
                   MessageManager::Log(MessageType::Normal, finalCard);
@@ -266,7 +267,7 @@ void GfxContext::Init() {
                         .sampleRateShading = false,
                         .dualSrcBlend = false,
                         .logicOp = false,
-                        .multiDrawIndirect = false,
+                        .multiDrawIndirect = true,
                         .drawIndirectFirstInstance = false,
                         .depthClamp = false,
                         .depthBiasClamp = false,
@@ -401,9 +402,9 @@ void GfxContext::Init() {
                   throw std::runtime_error("Failed to allocate command buffers");
             }
 
-            _frameGraphs[0] = std::make_unique<FrameGraph>(_commandBuffer[0], _commandPool);
-            _frameGraphs[1] = std::make_unique<FrameGraph>(_commandBuffer[1], _commandPool);
-            _frameGraphs[2] = std::make_unique<FrameGraph>(_commandBuffer[2], _commandPool);
+            _frameGraphs[0] = std::make_unique<FrameGraph>(_commandBuffer[0]);
+            _frameGraphs[1] = std::make_unique<FrameGraph>(_commandBuffer[1]);
+            _frameGraphs[2] = std::make_unique<FrameGraph>(_commandBuffer[2]);
       }
 
       {
@@ -546,6 +547,11 @@ void GfxContext::Shutdown() {
       vkDeviceWaitIdle(_device);
 
       vkDestroyCommandPool(_device, _commandPool, nullptr);
+
+      _frameGraphs[0].reset();
+      _frameGraphs[1].reset();
+      _frameGraphs[2].reset();
+
       {
             auto view = _world.view<Component::Gfx::Window, Component::Gfx::Swapchain>();
             _world.destroy(view.begin(), view.end());
@@ -562,12 +568,7 @@ void GfxContext::Shutdown() {
       }
 
       {
-            auto view = _world.view<Component::Gfx::FrameResource>();
-            _world.destroy(view.begin(), view.end());
-      }
-
-      {
-            auto view = _world.view<Component::Gfx::KernelInstance>();
+            auto view = _world.view<Component::Gfx::Buffer3F>();
             _world.destroy(view.begin(), view.end());
       }
 
@@ -602,7 +603,7 @@ void GfxContext::Shutdown() {
       vkDestroyInstance(_instance, nullptr);
 }
 
-entt::entity GfxContext::CreateWindow(const char* title, int w, int h) {
+entt::entity GfxContext::CreateWindow(const char* title, uint32_t w, uint32_t h) {
       if (w < 1 || h < 1) {
             const auto err = "Context::CreateWindow - Invalid window size";
             MessageManager::Log(MessageType::Error, err);
@@ -610,7 +611,7 @@ entt::entity GfxContext::CreateWindow(const char* title, int w, int h) {
       }
 
       auto id = _world.create();
-      auto& com = _world.emplace<Component::Gfx::Window>(id, id, title, w, h);
+      auto& com = _world.emplace<Component::Gfx::Window>(id, id, title, (int)w, (int)h);
 
       auto win_id = com.GetWindowID();
       _windowIdToWindow.emplace(win_id, id);
@@ -672,39 +673,24 @@ void GfxContext::CmdBindKernel(entt::entity kernel) const {
       _frameGraphs[GetCurrentFrameIndex()]->BindKernel(kernel);
 }
 
-bool GfxContext::BindKernelResource(entt::entity kernel_instance, const std::string& resource_name, entt::entity resource) {
-      if(!_world.valid(kernel_instance)) {
-            const auto err = "Context::CmdBindResource - Invalid kernel instance entity";
-            MessageManager::Log(MessageType::Error, err);
-            return false;
-      }
-
-      if(!_world.valid(resource)) {
-            const auto err = "Context::CmdBindResource - Invalid resource entity";
-            MessageManager::Log(MessageType::Error, err);
-            return false;
-      }
-
-      const auto kernel_ptr = _world.try_get<Component::Gfx::KernelInstance>(kernel_instance);
-      if(!kernel_ptr) {
-            const auto err = "Context::CmdBindResource - this entity is not a kernel instance entity";
-            MessageManager::Log(MessageType::Error, err);
-            return false;
-      }
-
-      return kernel_ptr->BindResource(resource_name, resource);
+void GfxContext::CmdBindVertexBuffer(entt::entity buffer, uint32_t first_binding, uint32_t binding_count, size_t offset) const {
+      _frameGraphs[GetCurrentFrameIndex()]->BindVertexBuffer(buffer, first_binding, binding_count, offset);
 }
 
-void GfxContext::CmdBindVertexBuffer(entt::entity buffer, size_t offset) const {
-      _frameGraphs[GetCurrentFrameIndex()]->BindVertexBuffer(buffer, offset);
+void GfxContext::CmdBindIndexBuffer(entt::entity buffer, size_t offset) const {
+      _frameGraphs[GetCurrentFrameIndex()]->BindIndexBuffer(buffer, offset);
 }
 
 void GfxContext::CmdDraw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) const {
       _frameGraphs[GetCurrentFrameIndex()]->Draw(vertex_count, instance_count, first_vertex, first_instance);
 }
 
-void GfxContext::CmdDrawIndex(entt::entity index_buffer, size_t offset, std::optional<uint32_t> index_count) const {
-      _frameGraphs[GetCurrentFrameIndex()]->DrawIndex(index_buffer, offset, index_count);
+void GfxContext::CmdDrawIndex(uint32_t index_count, uint32_t instance_count, uint32_t first_index , int32_t vertex_offset, uint32_t first_instance) const {
+      _frameGraphs[GetCurrentFrameIndex()]->DrawIndex(index_count, instance_count, first_index, vertex_offset, first_instance);
+}
+
+void GfxContext::CmdDrawIndexedIndirect(entt::entity indirect_buffer, size_t offset, uint32_t draw_count, uint32_t stride) const {
+      _frameGraphs[GetCurrentFrameIndex()]->DrawIndexedIndirect(indirect_buffer, offset, draw_count, stride);
 }
 
 void GfxContext::CmdSetViewport(float x, float y, float w, float h, float min_depth, float max_depth) const {
@@ -716,12 +702,12 @@ void GfxContext::CmdSetViewport(const VkViewport& viewport) const {
       _frameGraphs[GetCurrentFrameIndex()]->SetViewport(viewport);
 }
 
-void GfxContext::CmdSetViewportAuto() const{
-      _frameGraphs[GetCurrentFrameIndex()]->SetViewportAuto();
+void GfxContext::CmdSetViewportAuto(bool invert_y) const {
+      _frameGraphs[GetCurrentFrameIndex()]->SetViewportAuto(invert_y);
 }
 
-void GfxContext::CmdSetScissor(int x, int y, uint32_t w, uint32_t h) const{
-      const auto scissor = VkRect2D {
+void GfxContext::CmdSetScissor(int x, int y, uint32_t w, uint32_t h) const {
+      const auto scissor = VkRect2D{
             .offset = {x, y},
             .extent = {w, h}
       };
@@ -734,6 +720,22 @@ void GfxContext::CmdSetScissor(const VkRect2D scissor) const {
 
 void GfxContext::CmdSetScissorAuto() const {
       _frameGraphs[GetCurrentFrameIndex()]->SetScissorAuto();
+}
+
+void GfxContext::CmdPushConstant(entt::entity push_constant_buffer) const {
+      _frameGraphs[GetCurrentFrameIndex()]->PushConstant(push_constant_buffer);
+}
+
+void GfxContext::BeginComputePass() const {
+      _frameGraphs[GetCurrentFrameIndex()]->BeginComputePass();
+}
+
+auto GfxContext::EndComputePass() -> void {
+      _frameGraphs[GetCurrentFrameIndex()]->EndComputePass();
+}
+
+void GfxContext::CmdComputeDispatch(uint32_t x, uint32_t y, uint32_t z) const {
+      _frameGraphs[GetCurrentFrameIndex()]->ComputeDispatch(x, y, z);
 }
 
 entt::entity GfxContext::CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts) {
@@ -795,17 +797,81 @@ entt::entity GfxContext::CreateTexture2D(VkFormat format, uint32_t w, uint32_t h
             //TODO
       }
 
-      if (!is_depth_stencil) {
-            MakeBindlessIndexTextureForSampler(id);
-            MakeBindlessIndexTextureForStorage(id);
+      if(!is_depth_stencil) {
+            MakeBindlessIndexTexture(id);
+      }
+
+      return id;
+}
+
+entt::entity GfxContext::CreateAATexture2D(VkFormat format, uint32_t w, uint32_t h) {
+      if (w == 0 || h == 0) {
+            const auto err = std::format("Context::CreateTexture2D - Invalid texture size, w = {}, h = {}, create texture failed, return null.", w, h);
+            MessageManager::Log(MessageType::Error, err);
+            return entt::null;
+      }
+
+      auto id = _world.create();
+      auto is_depth_stencil = IsDepthStencilFormat(format);
+      VkImageCreateInfo image_ci{};
+      image_ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+      image_ci.imageType = VK_IMAGE_TYPE_2D;
+      image_ci.format = format;
+      image_ci.extent = VkExtent3D{(uint32_t)w, (uint32_t)h, 1};
+      image_ci.mipLevels = 1;
+      image_ci.arrayLayers = 1;
+      image_ci.samples = VK_SAMPLE_COUNT_4_BIT;
+      image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
+      image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+      image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      image_ci.flags = 0;
+
+      if (is_depth_stencil) {
+            image_ci.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+      } else {
+            image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+      }
+
+      VkImageAspectFlags as_flag = VK_IMAGE_ASPECT_COLOR_BIT;
+
+      if (IsDepthStencilOnlyFormat(format)) {
+            as_flag = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+      } else if (IsDepthOnlyFormat(format)) {
+            as_flag = VK_IMAGE_ASPECT_DEPTH_BIT;
+      }
+
+      VkImageViewCreateInfo view_ci{};
+      view_ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+      view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+      view_ci.format = format;
+      view_ci.components.r = VK_COMPONENT_SWIZZLE_R;
+      view_ci.components.g = VK_COMPONENT_SWIZZLE_G;
+      view_ci.components.b = VK_COMPONENT_SWIZZLE_B;
+      view_ci.components.a = VK_COMPONENT_SWIZZLE_A;
+      view_ci.subresourceRange.aspectMask = as_flag;
+      view_ci.subresourceRange.baseMipLevel = 0;
+      view_ci.subresourceRange.levelCount = 1;
+      view_ci.subresourceRange.baseArrayLayer = 0;
+      view_ci.subresourceRange.layerCount = 1;
+
+      VmaAllocationCreateInfo alloc_ci{};
+      alloc_ci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+
+      try {
+            _world.emplace<Component::Gfx::Texture>(id, id, image_ci, alloc_ci).CreateView(view_ci);
+      } catch (const std::exception& e) {
+            _world.destroy(id);
+            const auto err = std::format("Context::CreateTexture2D - {}", e.what());
+            MessageManager::Log(MessageType::Error, err);
+            return entt::null;
       }
 
       return id;
 }
 
 entt::entity GfxContext::CreateTexture2D(const void* pixel_data, size_t size, VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts) {
-      const entt::entity tex =  CreateTexture2D(format, w, h, mipMapCounts);
-      FillTexture2D(tex, pixel_data, size);
+      const entt::entity tex = CreateTexture2D(format, w, h, mipMapCounts);
+      UploadTexture2D(tex, pixel_data, size);
       return tex;
 }
 
@@ -848,11 +914,11 @@ entt::entity GfxContext::CreateBuffer(const void* data, uint64_t size, bool cpu_
       return id;
 }
 
-entt::entity GfxContext::CreateProgram(const std::vector<std::string_view>& source_codes, const std::string& program_name) {
+entt::entity GfxContext::CreateProgram(const std::vector<std::string_view>& source_codes, std::string_view config, std::string_view program_name) {
       auto id = _world.create();
 
       try {
-            _world.emplace<Component::Gfx::Program>(id, id, program_name, source_codes);
+            _world.emplace<Component::Gfx::Program>(id, id, program_name, config, source_codes);
       } catch (const std::exception& e) {
             _world.destroy(id);
             MessageManager::Log(MessageType::Error, e.what());
@@ -860,6 +926,28 @@ entt::entity GfxContext::CreateProgram(const std::vector<std::string_view>& sour
       }
 
       return id;
+}
+
+entt::entity GfxContext::CreateProgramFromFile(const std::vector<std::string_view>& source_files, std::string_view config, std::string_view program_name) {
+      std::vector<std::string> codes{};
+      for (const auto& file : source_files) {
+            std::string code{};
+            std::ifstream source_file(file.data());
+            if(!source_file.is_open()) {
+                  const auto err = std::format("Context::CreateProgramFromFile - Failed to open file {}", file);
+                  MessageManager::Log(MessageType::Error, err);
+                  return entt::null;
+            }
+            std::ostringstream oss;
+            oss << source_file.rdbuf();
+            codes.emplace_back(oss.str());
+      }
+      std::vector<std::string_view> codes_view{};
+      for (const auto& code : codes) {
+            codes_view.emplace_back(code);
+      }
+
+      return CreateProgram(codes_view, config, program_name);
 }
 
 entt::entity GfxContext::CreateKernel(entt::entity program) {
@@ -876,24 +964,10 @@ entt::entity GfxContext::CreateKernel(entt::entity program) {
       return id;
 }
 
-entt::entity GfxContext::CreateKernelInstance(entt::entity kernel) {
-      auto id = _world.create();
-
-      try {
-            _world.emplace<Component::Gfx::KernelInstance>(id, id, kernel);
-      } catch (const std::exception& e) {
-            _world.destroy(id);
-            MessageManager::Log(MessageType::Error, e.what());
-            return entt::null;
-      }
-
-      return id;
-}
-
-entt::entity GfxContext::CreateFrameResource(uint64_t size, bool hight_dynamic) {
+entt::entity GfxContext::CreateBuffer3F(uint64_t size, bool hight_dynamic) {
       auto id = _world.create();
       try {
-            _world.emplace<Component::Gfx::FrameResource>(id, id, size, hight_dynamic);
+            _world.emplace<Component::Gfx::Buffer3F>(id, id, size, hight_dynamic);
       } catch (const std::exception& e) {
             _world.destroy(id);
             MessageManager::Log(MessageType::Error, e.what());
@@ -902,10 +976,10 @@ entt::entity GfxContext::CreateFrameResource(uint64_t size, bool hight_dynamic) 
       return id;
 }
 
-entt::entity GfxContext::CreateFrameResource(void* data, uint64_t size, bool hight_dynamic) {
+entt::entity GfxContext::CreateBuffer3F(void* data, uint64_t size, bool hight_dynamic) {
       auto id = _world.create();
       try {
-            auto& comp = _world.emplace<Component::Gfx::FrameResource>(id, id, size, hight_dynamic);
+            auto& comp = _world.emplace<Component::Gfx::Buffer3F>(id, id, size, hight_dynamic);
             comp.SetData(data, size, 0);
       } catch (const std::exception& e) {
             _world.destroy(id);
@@ -922,7 +996,7 @@ void GfxContext::SetFrameResourceData(entt::entity frame_resource, void* data, u
             throw std::runtime_error(err);
       }
 
-      const auto ptr = _world.try_get<Component::Gfx::FrameResource>(frame_resource);
+      const auto ptr = _world.try_get<Component::Gfx::Buffer3F>(frame_resource);
       if (!ptr) {
             const auto err = "Context::SetFrameResourceData - this entity is not a frame resource";
             MessageManager::Log(MessageType::Error, err);
@@ -932,13 +1006,47 @@ void GfxContext::SetFrameResourceData(entt::entity frame_resource, void* data, u
       ptr->SetData(data, size, offset);
 }
 
+bool GfxContext::SetKernelConstant(entt::entity kernel, const std::string& name, void* data) {
+      if (!_world.valid(kernel)) {
+            const auto err = "Context::SetKernelConstant - Invalid kernel entity";
+            MessageManager::Log(MessageType::Error, err);
+            return false;
+      }
+
+      auto ptr = _world.try_get<Component::Gfx::Kernel>(kernel);
+      if (!ptr) {
+            const auto err = "Context::SetKernelConstant - this entity is not a kernel";
+            MessageManager::Log(MessageType::Error, err);
+            return false;
+      }
+
+      return ptr->SetConstantValue(name, data);
+}
+
+bool GfxContext::FillKernelConstant(entt::entity kernel, const void* data, size_t size) {
+      if (!_world.valid(kernel)) {
+            const auto err = "Context::FillKernelConstant - Invalid kernel entity";
+            MessageManager::Log(MessageType::Error, err);
+            return false;
+      }
+
+      auto ptr = _world.try_get<Component::Gfx::Kernel>(kernel);
+      if (!ptr) {
+            const auto err = "Context::FillKernelConstant - this entity is not a kernel";
+            MessageManager::Log(MessageType::Error, err);
+            return false;
+      }
+
+      return ptr->FillConstantValue(data, size);
+}
+
 void GfxContext::DestroyHandle(entt::entity handle) {
       if (_world.valid(handle)) {
             _world.destroy(handle);
       }
 }
 
-void GfxContext::SetBufferData(entt::entity buffer, const void* data, uint64_t size) {
+void GfxContext::UploadBuffer(entt::entity buffer, const void* data, uint64_t size) {
       if (!_world.valid(buffer)) {
             const auto err = "Context::SetBufferData - Invalid buffer entity";
             MessageManager::Log(MessageType::Error, err);
@@ -956,7 +1064,25 @@ void GfxContext::SetBufferData(entt::entity buffer, const void* data, uint64_t s
       buffer_component->SetData(data, size);
 }
 
-void GfxContext::FillTexture2D(entt::entity texture, const void* data, uint64_t size) {
+void GfxContext::ResizeBuffer(entt::entity buffer, uint64_t size) {
+        if (!_world.valid(buffer)) {
+                const auto err = "Context::ResizeBuffer - Invalid buffer entity";
+                MessageManager::Log(MessageType::Error, err);
+                throw std::runtime_error(err);
+        }
+
+        auto buffer_component = _world.try_get<Component::Gfx::Buffer>(buffer);
+
+        if (!buffer_component) {
+                const auto err = "Context::ResizeBuffer - this entity is not a buffer";
+                MessageManager::Log(MessageType::Error, err);
+                throw std::runtime_error(err);
+        }
+
+        buffer_component->Recreate(size);
+}
+
+void GfxContext::UploadTexture2D(entt::entity texture, const void* data, uint64_t size) {
       if (!_world.valid(texture)) {
             const auto err = "Context::SetTexture2DData - Invalid texture entity";
             MessageManager::Log(MessageType::Error, err);
@@ -994,25 +1120,15 @@ void* GfxContext::PollEvent() {
       return &event;
 }
 
-void GfxContext::EnqueueCommand(const std::function<void(VkCommandBuffer)>& command) {
-      _commandQueue.push_back(command);
-}
-
 void GfxContext::BeginFrame() {
-
-      Component::Gfx::KernelInstance::UpdateAll();
-      Component::Gfx::FrameResource::UpdateAll();
-
       PrepareWindowRenderTarget();
 
       _frameGraphs[GetCurrentFrameIndex()]->BeginFrame();
       auto cmd = _frameGraphs[GetCurrentFrameIndex()]->GetCommandBuffer();
 
-      for (const auto& i : _commandQueue) {
-            i(cmd);
-      }
-
-      _commandQueue.clear();
+      Component::Gfx::Buffer::UpdateAll(cmd);
+      Component::Gfx::Buffer3F::UpdateAll();
+      Component::Gfx::Texture::UpdateAll(cmd);
 
       _world.view<Component::Gfx::Swapchain>().each([&](auto entity, const Component::Gfx::Swapchain& swapchain) {
             swapchain.BeginFrame(cmd);
@@ -1020,7 +1136,6 @@ void GfxContext::BeginFrame() {
 }
 
 void GfxContext::EndFrame() {
-
       auto cmd_buf = _frameGraphs[GetCurrentFrameIndex()]->GetCommandBuffer();
 
       auto window_count = _windowIdToWindow.size();
@@ -1074,9 +1189,7 @@ void GfxContext::EndFrame() {
 
       auto res = vkQueuePresentKHR(_queue, &present_info);
       if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
-            // _world.view<Component::Gfx::Swapchain>().each([&](auto entity, auto& s) {
-            //       s.CreateOrRecreateSwapChain();
-            // });
+
       } else if (res != VK_SUCCESS) {
             const auto err = "frame_end:Failed to present";
             MessageManager::Log(MessageType::Error, err);
@@ -1088,17 +1201,17 @@ void GfxContext::EndFrame() {
       GoNextFrame();
 }
 
-void GfxContext::CmdBeginPass(const std::vector<RenderPassBeginArgument>& textures) const {
-      _frameGraphs[GetCurrentFrameIndex()]->BeginPass(textures);
+void GfxContext::CmdBeginRenderPass(const std::vector<RenderPassBeginArgument>& textures) const {
+      _frameGraphs[GetCurrentFrameIndex()]->BeginRenderPass(textures);
 }
 
-void GfxContext::CmdEndPass() const {
-      _frameGraphs[GetCurrentFrameIndex()]->EndPass();
+void GfxContext::CmdEndRenderPass() const {
+      _frameGraphs[GetCurrentFrameIndex()]->EndRenderPass();
 }
 
-uint32_t GfxContext::MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t viewIndex) {
+uint32_t GfxContext::MakeBindlessIndexTexture(entt::entity texture, uint32_t viewIndex) {
       if (!_world.valid(texture)) {
-            const auto err = "Context::MakeBindlessIndexTextureForSampler - Invalid texture entity";
+            const auto err = "Context::MakeBindlessIndexTexture - Invalid texture entity";
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
@@ -1117,15 +1230,16 @@ uint32_t GfxContext::MakeBindlessIndexTextureForSampler(entt::entity texture, ui
             sampler = _defaultSampler;
       }
 
-      VkDescriptorImageInfo image_info = {
+      //Sample
+      VkDescriptorImageInfo image_info_sampler = {
             .sampler = sampler,
             .imageView = texture_component->GetView(viewIndex),
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
       };
 
-      auto free_index = _bindlessIndexFreeList[0].Gen();
+      auto free_index = _textureBindlessIndexFreeList.Gen();
 
-      VkWriteDescriptorSet write{
+      VkWriteDescriptorSet write_sampler{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = nullptr,
             .dstSet = _bindlessDescriptorSet,
@@ -1133,51 +1247,21 @@ uint32_t GfxContext::MakeBindlessIndexTextureForSampler(entt::entity texture, ui
             .dstArrayElement = free_index,
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .pImageInfo = &image_info,
+            .pImageInfo = &image_info_sampler,
             .pBufferInfo = nullptr,
             .pTexelBufferView = nullptr
       };
 
-      vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
+      vkUpdateDescriptorSets(_device, 1, &write_sampler, 0, nullptr);
 
-      texture_component->SetBindlessIndexForSampler(free_index);
-
-      auto str = std::format("Context::MakeBindlessIndexTextureForSampler - Texture id: {}, index: {}", (uint32_t)texture_component->GetID(), free_index);
-      MessageManager::Log(MessageType::Normal, str);
-
-      return free_index;
-}
-
-uint32_t GfxContext::MakeBindlessIndexTextureForStorage(entt::entity texture, uint32_t viewIndex) {
-      if (!_world.valid(texture)) {
-            const auto err = "Context::MakeBindlessIndexTextureForComputeKernel - Invalid texture entity";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      auto texture_component = _world.try_get<Component::Gfx::Texture>(texture);
-
-      if (!texture_component) {
-            const auto err = "Context::BindRawTexture - Invalid texture entity";
-            MessageManager::Log(MessageType::Error, err);
-            throw std::runtime_error(err);
-      }
-
-      VkSampler sampler = texture_component->GetSampler();
-
-      if (sampler == VK_NULL_HANDLE) {
-            sampler = _defaultSampler;
-      }
-
-      VkDescriptorImageInfo image_info = {
+      //Storage:
+      VkDescriptorImageInfo image_info_storage = {
             .sampler = sampler,
             .imageView = texture_component->GetView(viewIndex),
             .imageLayout = VK_IMAGE_LAYOUT_GENERAL
       };
 
-      auto free_index = _bindlessIndexFreeList[1].Gen();
-
-      VkWriteDescriptorSet write{
+      VkWriteDescriptorSet write_compute{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = nullptr,
             .dstSet = _bindlessDescriptorSet,
@@ -1185,18 +1269,16 @@ uint32_t GfxContext::MakeBindlessIndexTextureForStorage(entt::entity texture, ui
             .dstArrayElement = free_index,
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-            .pImageInfo = &image_info,
+            .pImageInfo = &image_info_storage,
             .pBufferInfo = nullptr,
             .pTexelBufferView = nullptr
       };
 
-      vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
+      vkUpdateDescriptorSets(_device, 1, &write_compute, 0, nullptr);
 
-      texture_component->SetBindlessIndexForStorage(free_index);
-
-      auto str = std::format("Context::MakeBindlessIndexTextureForComputeKernel - Texture id: {}, index: {}", (uint32_t)texture_component->GetID(), free_index);
+      texture_component->SetBindlessIndex(free_index);
+      auto str = std::format("Context::MakeBindlessIndexTexture - Texture id: {}, index: {}", (uint32_t)texture_component->GetID(), free_index);
       MessageManager::Log(MessageType::Normal, str);
-
       return free_index;
 }
 
@@ -1222,6 +1304,65 @@ void GfxContext::SetTextureSampler(entt::entity image, const VkSamplerCreateInfo
             }
             _samplers.emplace(sampler_ci, sampler);
       }
+}
+
+uint32_t GfxContext::GetTextureBindlessIndex(entt::entity texture) {
+      if (!_world.valid(texture)) {
+            const auto err = "Context::GetTextureBindlessIndex - Invalid texture entity";
+            MessageManager::Log(MessageType::Error, err);
+            return 0;
+      }
+
+      const auto texture_component = _world.try_get<Component::Gfx::Texture>(texture);
+      if (!texture_component) {
+            const auto err = "Context::GetTextureBindlessIndex - this entity is not a texture";
+            MessageManager::Log(MessageType::Error, err);
+            return 0;
+      }
+
+      if(texture_component->IsTextureFormatDepthStencilOnly()) {
+            const auto err = "Context::GetTextureBindlessIndex - this texture is a depth stencil texture, it can't be used as bindless texture!";
+            MessageManager::Log(MessageType::Error, err);
+            return 0;
+      }
+
+      return texture_component->GetBindlessIndex().value();
+}
+
+uint64_t GfxContext::GetBufferBindlessAddress(entt::entity buffer) {
+      if (!_world.valid(buffer)) {
+            const auto err = "Context::GetBufferBindlessAddress - Invalid buffer entity";
+            MessageManager::Log(MessageType::Error, err);
+            return 0;
+      }
+
+      const auto buffer_component = _world.try_get<Component::Gfx::Buffer>(buffer);
+      if (!buffer_component) {
+            const auto err = "Context::GetBufferBindlessAddress - this entity is not a buffer";
+            MessageManager::Log(MessageType::Error, err);
+            return 0;
+      }
+      return buffer_component->GetAddress();
+}
+
+void GfxContext::AsSampledTexure(entt::entity texture, KernelType which_kernel_use) const {
+      _frameGraphs[GetCurrentFrameIndex()]->AsSampledTexure(texture, which_kernel_use);
+}
+
+void GfxContext::AsReadTexure(entt::entity texture, KernelType which_kernel_use) const {
+      _frameGraphs[GetCurrentFrameIndex()]->AsReadTexure(texture, which_kernel_use);
+}
+
+void GfxContext::AsWriteTexture(entt::entity texture, KernelType which_kernel_use) const {
+      _frameGraphs[GetCurrentFrameIndex()]->AsWriteTexture(texture, which_kernel_use);
+}
+
+void GfxContext::AsWriteBuffer(entt::entity buffer, KernelType which_kernel_use) const {
+      _frameGraphs[GetCurrentFrameIndex()]->AsWriteBuffer(buffer, which_kernel_use);
+}
+
+void GfxContext::AsReadBuffer(entt::entity buffer, KernelType which_kernel_use) const {
+      _frameGraphs[GetCurrentFrameIndex()]->AsReadBuffer(buffer, which_kernel_use);
 }
 
 void GfxContext::PrepareWindowRenderTarget() {
@@ -1417,10 +1558,7 @@ void GfxContext::RecoveryContextResourceImage(const ContextResourceRecoveryInfo&
             auto alloc = (VmaAllocation)pack.Resource2.value();
             vmaDestroyImage(_allocator, image, alloc);
 
-            if (pack.Resource3.has_value())
-                  _bindlessIndexFreeList[0].Free(pack.Resource3.value());
-            if (pack.Resource4.has_value())
-                  _bindlessIndexFreeList[1].Free(pack.Resource4.value());
+            if (pack.Resource3.has_value()) _textureBindlessIndexFreeList.Free(pack.Resource3.value());
 
             MessageManager::Log(MessageType::Normal, "Recovery Resource Image");
       } else {

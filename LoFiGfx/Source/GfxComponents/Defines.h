@@ -8,9 +8,9 @@
 
 namespace LoFi::Component::Gfx {
 
-      struct TagMultiFrameResourceOrBufferChanged {};
+      struct TagDataChanged {};
 
-      struct TagMultiFrameResourceOrBufferUpdateCompleted {};
+      struct TagDataUpdateCompleted {};
 
       struct KernelParamResource {
             uint32_t Modified = 0;

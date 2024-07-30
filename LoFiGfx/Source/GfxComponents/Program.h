@@ -37,43 +37,38 @@ namespace LoFi::Component::Gfx {
 
             ~Program();
 
-            explicit Program(entt::entity id, std::string_view name, const std::vector<std::string_view>& sources);
+            explicit Program(entt::entity id, std::string_view name, std::string_view config, const std::vector<std::string_view>& sources);
 
             // TODO: LoadFromCache
 
             [[nodiscard]] bool IsCompiled() const { return _isCompiled; }
 
-            [[nodiscard]] bool IsGraphicsShader() const { return _shaderType == ProgramType::GRAPHICS; }
+            [[nodiscard]] bool IsGraphicsShader() const { return _programType == ProgramType::GRAPHICS; }
 
-            [[nodiscard]] bool IsComputeShader() const { return _shaderType == ProgramType::COMPUTE; }
+            [[nodiscard]] bool IsComputeShader() const { return _programType == ProgramType::COMPUTE; }
 
-            [[nodiscard]] auto GetProgramType() const {return _shaderType;}
+            [[nodiscard]] auto GetProgramType() const {return _programType;}
 
             [[nodiscard]] auto& GetPushConstantDefine() const { return _pushConstantDefine;  }
 
             [[nodiscard]] auto& GetPushConstantRange() const { return  _pushConstantRange;}
-
-            [[nodiscard]] auto& GetResourceDefine() const { return _shaderResourceDefine;  }
-
-            [[nodiscard]] uint32_t GetParameterTableSize() const { return _parameterTableSize;  }
 
             [[nodiscard]] const entt::dense_map<glslang_stage_t, std::pair<std::vector<uint32_t>, VkShaderModule>>& GetShaderModules() const { return _shaderModules; }
 
       private:
             static bool CompileFromCode(const char* source, glslang_stage_t shader_type, std::vector<uint32_t>& spv, std::string& err_msg);
 
-            bool ParseMarco(std::string_view input_code, std::string& output_codes, std::string& error_message, glslang_stage_t shader_type);
+            void ConfigParseStage(std::string_view config);
 
             void CompileCompute(std::string_view source);
 
             void CompileGraphics(const std::vector<std::pair<std::string_view, glslang_stage_t>>& sources);
 
-            bool ParseSetters(std::string_view codes, entt::dense_map<std::string, std::vector<std::string>>& _setters, std::string& output_codes, std::string& error_message,
-            glslang_stage_t shader_type);
+            bool ParseConfig(std::string_view Config, std::string& error_message);
 
-            bool AnalyzeSetter(const std::pair<std::string, std::vector<std::string>>& setter, std::string& error_msg, glslang_stage_t shader_type);
+            bool AnalyzeConfig(const std::pair<std::string, std::vector<std::string>>& setter, std::string& error_msg);
 
-            bool VaildateSetter(std::string_view key, std::string_view value);
+            bool VaildateConfig(std::string_view key, std::string_view value);
 
             void ParseVS(const std::vector<uint32_t>& spv);
 
@@ -91,21 +86,17 @@ namespace LoFi::Component::Gfx {
       private:
             bool _isCompiled{};
 
-            entt::dense_map<glslang_stage_t, std::pair<std::vector<uint32_t>, VkShaderModule>> _shaderModules{};
-
-            entt::dense_map<std::string, std::string> _shaderBufferResourceDefineCode{};
-
-            entt::dense_map<std::string, ShaderResourceInfo> _shaderResourceDefine{};
-
             bool _autoVSInputStageBind = true;
 
-            uint32_t _parameterTableSize {};
+            ProgramType _programType = ProgramType::UNKNOWN;
 
-            ProgramType _shaderType = ProgramType::UNKNOWN;
+            std::string_view _config{};
 
             entt::dense_map<uint32_t, VkVertexInputRate> _autoVSInputBindRateTable{};
 
             entt::dense_map<std::string, PushConstantMemberInfo> _pushConstantDefine{};
+
+            entt::dense_map<glslang_stage_t, std::pair<std::vector<uint32_t>, VkShaderModule>> _shaderModules{};
 
       private:
             VkPipelineInputAssemblyStateCreateInfo _inputAssemblyStateCreateInfo{};
@@ -129,5 +120,7 @@ namespace LoFi::Component::Gfx {
             std::vector<VkFormat> _renderTargetFormat{};
 
             VkPushConstantRange _pushConstantRange{};
+
+            VkPipelineMultisampleStateCreateInfo _multiSampleCreateInfo{};
       };
 }

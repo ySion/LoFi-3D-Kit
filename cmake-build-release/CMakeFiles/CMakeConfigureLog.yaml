@@ -1,0 +1,1093 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineSystem.cmake:233 (message)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      The system is: Windows - 10.0.22631 - AMD64
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+      Compiler: C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-cl.exe 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      
+      
+      Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "CMakeCCompilerId.exe"
+      
+      The C compiler identification is Clang, found in:
+        F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/3.28.1/CompilerIdC/CMakeCCompilerId.exe
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:1182 (message)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:247 (CMAKE_DETERMINE_MSVC_SHOWINCLUDES_PREFIX)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Detecting C compiler /showIncludes prefix:
+        Note: including file: ./foo.h
+        
+      Found prefix "Note: including file: "
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+      Compiler: C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-cl.exe 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CMakeCXXCompilerId.exe"
+      
+      The CXX compiler identification is Clang, found in:
+        F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/3.28.1/CompilerIdCXX/CMakeCXXCompilerId.exe
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:1182 (message)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:247 (CMAKE_DETERMINE_MSVC_SHOWINCLUDES_PREFIX)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Detecting CXX compiler /showIncludes prefix:
+        Note: including file: ./foo.h
+        
+      Found prefix "Note: including file: "
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCompilerABI.cmake:57 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    checks:
+      - "Detecting C compiler ABI info"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-uncws8"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-uncws8"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+    buildResult:
+      variable: "CMAKE_C_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-uncws8'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_623cc
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo   /DWIN32 /D_WINDOWS  /Ob0 /Od /RTC1 -MDd -Zi /showIncludes /FoCMakeFiles\\cmTC_623cc.dir\\CMakeCCompilerABI.c.obj /FdCMakeFiles\\cmTC_623cc.dir\\ -c -- "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\share\\cmake-3.28\\Modules\\CMakeCCompilerABI.c"
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_623cc.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_623cc.dir\\CMakeCCompilerABI.c.obj  /out:cmTC_623cc.exe /implib:cmTC_623cc.lib /pdb:cmTC_623cc.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console   && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCompilerABI.cmake:57 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    checks:
+      - "Detecting CXX compiler ABI info"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-e3y7lo"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-e3y7lo"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+    buildResult:
+      variable: "CMAKE_CXX_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-e3y7lo'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_f82b7
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -TP   /DWIN32 /D_WINDOWS /EHsc  /Ob0 /Od /RTC1 -MDd -Zi /showIncludes /FoCMakeFiles\\cmTC_f82b7.dir\\CMakeCXXCompilerABI.cpp.obj /FdCMakeFiles\\cmTC_f82b7.dir\\ -c -- "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\share\\cmake-3.28\\Modules\\CMakeCXXCompilerABI.cpp"
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_f82b7.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_f82b7.dir\\CMakeCXXCompilerABI.cpp.obj  /out:cmTC_f82b7.exe /implib:cmTC_f82b7.lib /pdb:cmTC_f82b7.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console   && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/FeatureTesting.cmake:34 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/FeatureTesting.cmake:84 (_record_compiler_features)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Compiler/CMakeCommonCompilerMacros.cmake:121 (_record_compiler_features_cxx)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCompileFeatures.cmake:70 (cmake_record_cxx_compile_features)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeTestCXXCompiler.cmake:70 (CMAKE_DETERMINE_COMPILE_FEATURES)"
+      - "CMakeLists.txt:2 (project)"
+    checks:
+      - "Detecting CXX compile features"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-mawidg"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-mawidg"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+    buildResult:
+      variable: "CMAKE_CXX_FEATURE_TEST"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-mawidg'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_66529
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -TP   /DWIN32 /D_WINDOWS /EHsc  /Ob0 /Od /RTC1 -MDd -Zi   -std:c++14 /showIncludes /FoCMakeFiles\\cmTC_66529.dir\\feature_tests.cxx.obj /FdCMakeFiles\\cmTC_66529.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-mawidg\\feature_tests.cxx
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_66529.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_66529.dir\\feature_tests.cxx.obj  /out:cmTC_66529.exe /implib:cmTC_66529.lib /pdb:cmTC_66529.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/FeatureTesting.cmake:34 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/FeatureTesting.cmake:84 (_record_compiler_features)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Compiler/CMakeCommonCompilerMacros.cmake:129 (_record_compiler_features_cxx)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeDetermineCompileFeatures.cmake:70 (cmake_record_cxx_compile_features)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CMakeTestCXXCompiler.cmake:70 (CMAKE_DETERMINE_COMPILE_FEATURES)"
+      - "CMakeLists.txt:2 (project)"
+    checks:
+      - "Detecting CXX compile features"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-oqm6km"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-oqm6km"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+    buildResult:
+      variable: "CMAKE_CXX_FEATURE_TEST"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-oqm6km'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_95983
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -TP   /DWIN32 /D_WINDOWS /EHsc  /Ob0 /Od /RTC1 -MDd -Zi /showIncludes /FoCMakeFiles\\cmTC_95983.dir\\feature_tests.cxx.obj /FdCMakeFiles\\cmTC_95983.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-oqm6km\\feature_tests.cxx
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_95983.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_95983.dir\\feature_tests.cxx.obj  /out:cmTC_95983.exe /implib:cmTC_95983.lib /pdb:cmTC_95983.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "Third/SDL/cmake/sdlcpu.cmake:82 (try_compile)"
+      - "Third/SDL/CMakeLists.txt:60 (SDL_DetectTargetCPUArchitectures)"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/Third/SDL/CMakeFiles/CMakeTmp/SDL_detect_arch/CMakeFiles/CMakeTmp"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/Third/SDL/CMakeFiles/CMakeTmp/SDL_detect_arch/CMakeFiles/CMakeTmp"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+    buildResult:
+      variable: "SDL_CPU_CHECK_ALL"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/Third/SDL/CMakeFiles/CMakeTmp/SDL_detect_arch/CMakeFiles/CMakeTmp'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_93546
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo   /DWIN32 /D_WINDOWS  /Ob0 /Od /RTC1 -MDd -Zi /showIncludes /FoCMakeFiles\\cmTC_93546.dir\\SDL_detect_arch.c.obj /FdCMakeFiles\\cmTC_93546.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\Third\\SDL\\CMakeFiles\\CMakeTmp\\SDL_detect_arch.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_93546.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_93546.dir\\SDL_detect_arch.c.obj  /out:cmTC_93546.exe /implib:cmTC_93546.lib /pdb:cmTC_93546.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "Third/SDL/cmake/sdlcompilers.cmake:47 (check_c_compiler_flag)"
+      - "Third/SDL/CMakeLists.txt:398 (SDL_AddCommonCompilerFlags)"
+    checks:
+      - "Performing Test HAVE_GCC_WALL"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-bytshz"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-bytshz"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "HAVE_GCC_WALL"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-bytshz'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_59f69
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAVE_GCC_WALL  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi   -Wall /showIncludes /FoCMakeFiles\\cmTC_59f69.dir\\src.c.obj /FdCMakeFiles\\cmTC_59f69.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-bytshz\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_59f69.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_59f69.dir\\src.c.obj  /out:cmTC_59f69.exe /implib:cmTC_59f69.lib /pdb:cmTC_59f69.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "Third/SDL/cmake/sdlcompilers.cmake:57 (check_c_compiler_flag)"
+      - "Third/SDL/CMakeLists.txt:398 (SDL_AddCommonCompilerFlags)"
+    checks:
+      - "Performing Test HAVE_GCC_WUNDEF"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-cgmb3g"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-cgmb3g"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "HAVE_GCC_WUNDEF"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-cgmb3g'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_676ae
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAVE_GCC_WUNDEF  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi   -Wundef /showIncludes /FoCMakeFiles\\cmTC_676ae.dir\\src.c.obj /FdCMakeFiles\\cmTC_676ae.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-cgmb3g\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_676ae.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_676ae.dir\\src.c.obj  /out:cmTC_676ae.exe /implib:cmTC_676ae.lib /pdb:cmTC_676ae.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "Third/SDL/cmake/sdlcompilers.cmake:62 (check_c_compiler_flag)"
+      - "Third/SDL/CMakeLists.txt:398 (SDL_AddCommonCompilerFlags)"
+    checks:
+      - "Performing Test HAVE_GCC_WFLOAT_CONVERSION"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-v3xzty"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-v3xzty"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "HAVE_GCC_WFLOAT_CONVERSION"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-v3xzty'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_ad677
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAVE_GCC_WFLOAT_CONVERSION  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi   -Wfloat-conversion /showIncludes /FoCMakeFiles\\cmTC_ad677.dir\\src.c.obj /FdCMakeFiles\\cmTC_ad677.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-v3xzty\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_ad677.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_ad677.dir\\src.c.obj  /out:cmTC_ad677.exe /implib:cmTC_ad677.lib /pdb:cmTC_ad677.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "Third/SDL/cmake/sdlcompilers.cmake:67 (check_c_compiler_flag)"
+      - "Third/SDL/CMakeLists.txt:398 (SDL_AddCommonCompilerFlags)"
+    checks:
+      - "Performing Test HAVE_GCC_NO_STRICT_ALIASING"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-jp1fl8"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-jp1fl8"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "HAVE_GCC_NO_STRICT_ALIASING"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-jp1fl8'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_1a35b
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAVE_GCC_NO_STRICT_ALIASING  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi   -fno-strict-aliasing /showIncludes /FoCMakeFiles\\cmTC_1a35b.dir\\src.c.obj /FdCMakeFiles\\cmTC_1a35b.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-jp1fl8\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_1a35b.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_1a35b.dir\\src.c.obj  /out:cmTC_1a35b.exe /implib:cmTC_1a35b.lib /pdb:cmTC_1a35b.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "Third/SDL/cmake/sdlcompilers.cmake:72 (check_c_compiler_flag)"
+      - "Third/SDL/CMakeLists.txt:398 (SDL_AddCommonCompilerFlags)"
+    checks:
+      - "Performing Test HAVE_GCC_WDOCUMENTATION"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-me8mhi"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-me8mhi"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "HAVE_GCC_WDOCUMENTATION"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-me8mhi'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_2eee4
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAVE_GCC_WDOCUMENTATION  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi   -Wdocumentation /showIncludes /FoCMakeFiles\\cmTC_2eee4.dir\\src.c.obj /FdCMakeFiles\\cmTC_2eee4.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-me8mhi\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_2eee4.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_2eee4.dir\\src.c.obj  /out:cmTC_2eee4.exe /implib:cmTC_2eee4.lib /pdb:cmTC_2eee4.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "Third/SDL/cmake/sdlcompilers.cmake:83 (check_c_compiler_flag)"
+      - "Third/SDL/CMakeLists.txt:398 (SDL_AddCommonCompilerFlags)"
+    checks:
+      - "Performing Test HAVE_GCC_WDOCUMENTATION_UNKNOWN_COMMAND"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-9oj9bu"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-9oj9bu"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "HAVE_GCC_WDOCUMENTATION_UNKNOWN_COMMAND"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-9oj9bu'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_5fe9b
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAVE_GCC_WDOCUMENTATION_UNKNOWN_COMMAND  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi   -Wdocumentation-unknown-command /showIncludes /FoCMakeFiles\\cmTC_5fe9b.dir\\src.c.obj /FdCMakeFiles\\cmTC_5fe9b.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-9oj9bu\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_5fe9b.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_5fe9b.dir\\src.c.obj  /out:cmTC_5fe9b.exe /implib:cmTC_5fe9b.lib /pdb:cmTC_5fe9b.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "Third/SDL/cmake/sdlcompilers.cmake:94 (check_c_compiler_flag)"
+      - "Third/SDL/CMakeLists.txt:398 (SDL_AddCommonCompilerFlags)"
+    checks:
+      - "Performing Test HAVE_GCC_COMMENT_BLOCK_COMMANDS"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-00kmoi"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-00kmoi"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "HAVE_GCC_COMMENT_BLOCK_COMMANDS"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-00kmoi'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_e224c
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAVE_GCC_COMMENT_BLOCK_COMMANDS  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi   -fcomment-block-commands=threadsafety /showIncludes /FoCMakeFiles\\cmTC_e224c.dir\\src.c.obj /FdCMakeFiles\\cmTC_e224c.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-00kmoi\\src.c
+        clang-cl: warning: unknown argument ignored in clang-cl: '-fcomment-block-commands=threadsafety' [-Wunknown-argument]
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_e224c.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_e224c.dir\\src.c.obj  /out:cmTC_e224c.exe /implib:cmTC_e224c.lib /pdb:cmTC_e224c.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "Third/SDL/cmake/sdlcompilers.cmake:98 (check_c_compiler_flag)"
+      - "Third/SDL/CMakeLists.txt:398 (SDL_AddCommonCompilerFlags)"
+    checks:
+      - "Performing Test HAVE_CLANG_COMMENT_BLOCK_COMMANDS"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-ymhb35"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-ymhb35"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "HAVE_CLANG_COMMENT_BLOCK_COMMANDS"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-ymhb35'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_2c803
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAVE_CLANG_COMMENT_BLOCK_COMMANDS  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi   /clang:-fcomment-block-commands=threadsafety /showIncludes /FoCMakeFiles\\cmTC_2c803.dir\\src.c.obj /FdCMakeFiles\\cmTC_2c803.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-ymhb35\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_2c803.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_2c803.dir\\src.c.obj  /out:cmTC_2c803.exe /implib:cmTC_2c803.lib /pdb:cmTC_2c803.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "Third/SDL/cmake/sdlcompilers.cmake:104 (check_c_compiler_flag)"
+      - "Third/SDL/CMakeLists.txt:398 (SDL_AddCommonCompilerFlags)"
+    checks:
+      - "Performing Test HAVE_GCC_WSHADOW"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-yinauo"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-yinauo"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "HAVE_GCC_WSHADOW"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-yinauo'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_8ca43
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAVE_GCC_WSHADOW  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi   -Wshadow /showIncludes /FoCMakeFiles\\cmTC_8ca43.dir\\src.c.obj /FdCMakeFiles\\cmTC_8ca43.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-yinauo\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_8ca43.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_8ca43.dir\\src.c.obj  /out:cmTC_8ca43.exe /implib:cmTC_8ca43.lib /pdb:cmTC_8ca43.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "Third/SDL/cmake/sdlcompilers.cmake:109 (check_c_compiler_flag)"
+      - "Third/SDL/CMakeLists.txt:398 (SDL_AddCommonCompilerFlags)"
+    checks:
+      - "Performing Test HAVE_GCC_WUNUSED_LOCAL_TYPEDEFS"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-b66fqx"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-b66fqx"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "HAVE_GCC_WUNUSED_LOCAL_TYPEDEFS"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-b66fqx'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_923de
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAVE_GCC_WUNUSED_LOCAL_TYPEDEFS  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi   -Wunused-local-typedefs /showIncludes /FoCMakeFiles\\cmTC_923de.dir\\src.c.obj /FdCMakeFiles\\cmTC_923de.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-b66fqx\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_923de.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_923de.dir\\src.c.obj  /out:cmTC_923de.exe /implib:cmTC_923de.lib /pdb:cmTC_923de.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "Third/SDL/cmake/sdlcompilers.cmake:114 (check_c_compiler_flag)"
+      - "Third/SDL/CMakeLists.txt:398 (SDL_AddCommonCompilerFlags)"
+    checks:
+      - "Performing Test HAVE_GCC_WIMPLICIT_FALLTHROUGH"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-il9stx"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-il9stx"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "HAVE_GCC_WIMPLICIT_FALLTHROUGH"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-il9stx'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_0b498
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAVE_GCC_WIMPLICIT_FALLTHROUGH  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi   -Wimplicit-fallthrough /showIncludes /FoCMakeFiles\\cmTC_0b498.dir\\src.c.obj /FdCMakeFiles\\cmTC_0b498.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-il9stx\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_0b498.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_0b498.dir\\src.c.obj  /out:cmTC_0b498.exe /implib:cmTC_0b498.lib /pdb:cmTC_0b498.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "Third/SDL/cmake/sdlcompilers.cmake:135 (check_c_compiler_flag)"
+      - "Third/SDL/CMakeLists.txt:398 (SDL_AddCommonCompilerFlags)"
+    checks:
+      - "Performing Test COMPILER_SUPPORTS_FCOLOR_DIAGNOSTICS"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-9o7c12"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-9o7c12"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "COMPILER_SUPPORTS_FCOLOR_DIAGNOSTICS"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-9o7c12'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_9567e
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DCOMPILER_SUPPORTS_FCOLOR_DIAGNOSTICS  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi   -fcolor-diagnostics /showIncludes /FoCMakeFiles\\cmTC_9567e.dir\\src.c.obj /FdCMakeFiles\\cmTC_9567e.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-9o7c12\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_9567e.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_9567e.dir\\src.c.obj  /out:cmTC_9567e.exe /implib:cmTC_9567e.lib /pdb:cmTC_9567e.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "Third/SDL/cmake/macros.cmake:304 (check_c_source_compiles)"
+      - "Third/SDL/CMakeLists.txt:436 (check_linker_supports_version_file)"
+    checks:
+      - "Performing Test LINKER_SUPPORTS_VERSION_SCRIPT"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-utotpf"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-utotpf"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "LINKER_SUPPORTS_VERSION_SCRIPT"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-utotpf'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_4bd8c
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DLINKER_SUPPORTS_VERSION_SCRIPT  /DWIN32 /D_WINDOWS  /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_4bd8c.dir\\src.c.obj /FdCMakeFiles\\cmTC_4bd8c.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-utotpf\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_4bd8c.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_4bd8c.dir\\src.c.obj  /out:cmTC_4bd8c.exe /implib:cmTC_4bd8c.lib /pdb:cmTC_4bd8c.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  -Wl,--version-script=F:/MyProjects/LoFi-Kit/cmake-build-release/Third/SDL/dummy.sym  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "Third/SDL/CMakeLists.txt:560 (check_c_source_compiles)"
+    checks:
+      - "Performing Test COMPILER_SUPPORTS_GCC_ATOMICS"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-fa9cnw"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-fa9cnw"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "COMPILER_SUPPORTS_GCC_ATOMICS"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-fa9cnw'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_749a0
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DCOMPILER_SUPPORTS_GCC_ATOMICS  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_749a0.dir\\src.c.obj /FdCMakeFiles\\cmTC_749a0.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-fa9cnw\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_749a0.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_749a0.dir\\src.c.obj  /out:cmTC_749a0.exe /implib:cmTC_749a0.lib /pdb:cmTC_749a0.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "Third/SDL/CMakeLists.txt:582 (check_c_source_compiles)"
+    checks:
+      - "Performing Test HAVE_GCC_FVISIBILITY"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-pcatc6"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-pcatc6"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "HAVE_GCC_FVISIBILITY"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-pcatc6'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_d1f57
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAVE_GCC_FVISIBILITY  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 -fvisibility=hidden -Werror /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_d1f57.dir\\src.c.obj /FdCMakeFiles\\cmTC_d1f57.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-pcatc6\\src.c
+        FAILED: CMakeFiles/cmTC_d1f57.dir/src.c.obj 
+        C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAVE_GCC_FVISIBILITY  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 -fvisibility=hidden -Werror /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_d1f57.dir\\src.c.obj /FdCMakeFiles\\cmTC_d1f57.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-pcatc6\\src.c
+        clang-cl: error: unknown argument ignored in clang-cl: '-fvisibility=hidden' [-Werror,-Wunknown-argument]
+        ninja: build stopped: subcommand failed.
+        
+      exitCode: 1
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckLinkerFlag.cmake:37 (cmake_check_source_compiles)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckLinkerFlag.cmake:44 (cmake_check_linker_flag)"
+      - "Third/SDL/CMakeLists.txt:607 (check_linker_flag)"
+    checks:
+      - "Performing Test LINKER_SUPPORTS_WL_NO_UNDEFINED"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-wmoe0c"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-wmoe0c"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "LINKER_SUPPORTS_WL_NO_UNDEFINED"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-wmoe0c'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_0afb7
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DLINKER_SUPPORTS_WL_NO_UNDEFINED  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_0afb7.dir\\src.c.obj /FdCMakeFiles\\cmTC_0afb7.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-wmoe0c\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_0afb7.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_0afb7.dir\\src.c.obj  /out:cmTC_0afb7.exe /implib:cmTC_0afb7.lib /pdb:cmTC_0afb7.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  -Wl,--no-undefined  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "Third/SDL/CMakeLists.txt:644 (check_c_source_compiles)"
+    checks:
+      - "Performing Test COMPILER_SUPPORTS_MMX"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-cmeq13"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-cmeq13"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "COMPILER_SUPPORTS_MMX"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-cmeq13'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_88b30
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DCOMPILER_SUPPORTS_MMX  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 -mmmx /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_88b30.dir\\src.c.obj /FdCMakeFiles\\cmTC_88b30.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-cmeq13\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_88b30.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_88b30.dir\\src.c.obj  /out:cmTC_88b30.exe /implib:cmTC_88b30.lib /pdb:cmTC_88b30.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "Third/SDL/CMakeLists.txt:665 (check_c_source_compiles)"
+    checks:
+      - "Performing Test COMPILER_SUPPORTS_SSE"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-b7sbk5"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-b7sbk5"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "COMPILER_SUPPORTS_SSE"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-b7sbk5'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_70f49
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DCOMPILER_SUPPORTS_SSE  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 -msse /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_70f49.dir\\src.c.obj /FdCMakeFiles\\cmTC_70f49.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-b7sbk5\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_70f49.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_70f49.dir\\src.c.obj  /out:cmTC_70f49.exe /implib:cmTC_70f49.lib /pdb:cmTC_70f49.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "Third/SDL/CMakeLists.txt:686 (check_c_source_compiles)"
+    checks:
+      - "Performing Test COMPILER_SUPPORTS_SSE2"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-414vo3"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-414vo3"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "COMPILER_SUPPORTS_SSE2"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-414vo3'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_b7cf2
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DCOMPILER_SUPPORTS_SSE2  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 -msse2 /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_b7cf2.dir\\src.c.obj /FdCMakeFiles\\cmTC_b7cf2.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-414vo3\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_b7cf2.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_b7cf2.dir\\src.c.obj  /out:cmTC_b7cf2.exe /implib:cmTC_b7cf2.lib /pdb:cmTC_b7cf2.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "Third/SDL/CMakeLists.txt:707 (check_c_source_compiles)"
+    checks:
+      - "Performing Test COMPILER_SUPPORTS_SSE3"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-g557xz"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-g557xz"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "COMPILER_SUPPORTS_SSE3"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-g557xz'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_abfc7
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DCOMPILER_SUPPORTS_SSE3  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 -msse3 /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_abfc7.dir\\src.c.obj /FdCMakeFiles\\cmTC_abfc7.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-g557xz\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_abfc7.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_abfc7.dir\\src.c.obj  /out:cmTC_abfc7.exe /implib:cmTC_abfc7.lib /pdb:cmTC_abfc7.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "Third/SDL/CMakeLists.txt:728 (check_c_source_compiles)"
+    checks:
+      - "Performing Test COMPILER_SUPPORTS_SSE4_1"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-utgxuk"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-utgxuk"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "COMPILER_SUPPORTS_SSE4_1"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-utgxuk'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_e3390
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DCOMPILER_SUPPORTS_SSE4_1  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 -msse4.1 /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_e3390.dir\\src.c.obj /FdCMakeFiles\\cmTC_e3390.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-utgxuk\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_e3390.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_e3390.dir\\src.c.obj  /out:cmTC_e3390.exe /implib:cmTC_e3390.lib /pdb:cmTC_e3390.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "Third/SDL/CMakeLists.txt:749 (check_c_source_compiles)"
+    checks:
+      - "Performing Test COMPILER_SUPPORTS_SSE4_2"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-o1o1de"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-o1o1de"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "COMPILER_SUPPORTS_SSE4_2"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-o1o1de'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_22d64
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DCOMPILER_SUPPORTS_SSE4_2  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 -msse4.2 /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_22d64.dir\\src.c.obj /FdCMakeFiles\\cmTC_22d64.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-o1o1de\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_22d64.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_22d64.dir\\src.c.obj  /out:cmTC_22d64.exe /implib:cmTC_22d64.lib /pdb:cmTC_22d64.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "Third/SDL/CMakeLists.txt:772 (check_c_source_compiles)"
+    checks:
+      - "Performing Test COMPILER_SUPPORTS_AVX"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-enb173"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-enb173"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "COMPILER_SUPPORTS_AVX"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-enb173'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_7a655
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DCOMPILER_SUPPORTS_AVX  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 -mavx /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_7a655.dir\\src.c.obj /FdCMakeFiles\\cmTC_7a655.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-enb173\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_7a655.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_7a655.dir\\src.c.obj  /out:cmTC_7a655.exe /implib:cmTC_7a655.lib /pdb:cmTC_7a655.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "Third/SDL/CMakeLists.txt:793 (check_c_source_compiles)"
+    checks:
+      - "Performing Test COMPILER_SUPPORTS_AVX2"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-3lkg45"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-3lkg45"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "COMPILER_SUPPORTS_AVX2"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-3lkg45'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_9e21d
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DCOMPILER_SUPPORTS_AVX2  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 -mavx2 /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_9e21d.dir\\src.c.obj /FdCMakeFiles\\cmTC_9e21d.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-3lkg45\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_9e21d.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_9e21d.dir\\src.c.obj  /out:cmTC_9e21d.exe /implib:cmTC_9e21d.lib /pdb:cmTC_9e21d.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "Third/SDL/CMakeLists.txt:814 (check_c_source_compiles)"
+    checks:
+      - "Performing Test COMPILER_SUPPORTS_AVX512F"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-s5oy3q"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-s5oy3q"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "COMPILER_SUPPORTS_AVX512F"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-s5oy3q'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_121b4
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DCOMPILER_SUPPORTS_AVX512F  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 -mavx512f /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_121b4.dir\\src.c.obj /FdCMakeFiles\\cmTC_121b4.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-s5oy3q\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_121b4.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_121b4.dir\\src.c.obj  /out:cmTC_121b4.exe /implib:cmTC_121b4.lib /pdb:cmTC_121b4.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "Third/SDL/CMakeLists.txt:1204 (check_c_compiler_flag)"
+    checks:
+      - "Performing Test HAS_Q_NO_USE_LIBIRC"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-synxy6"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-synxy6"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "HAS_Q_NO_USE_LIBIRC"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-synxy6'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_c622c
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAS_Q_NO_USE_LIBIRC  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi   /Q_no-use-libirc /showIncludes /FoCMakeFiles\\cmTC_c622c.dir\\src.c.obj /FdCMakeFiles\\cmTC_c622c.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-synxy6\\src.c
+        FAILED: CMakeFiles/cmTC_c622c.dir/src.c.obj 
+        C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAS_Q_NO_USE_LIBIRC  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi   /Q_no-use-libirc /showIncludes /FoCMakeFiles\\cmTC_c622c.dir\\src.c.obj /FdCMakeFiles\\cmTC_c622c.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-synxy6\\src.c
+        clang-cl: error: no such file or directory: '/Q_no-use-libirc'
+        ninja: build stopped: subcommand failed.
+        
+      exitCode: 1
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckIncludeFile.cmake:90 (try_compile)"
+      - "Third/SDL/CMakeLists.txt:1948 (check_include_file)"
+    checks:
+      - "Looking for dxgi1_6.h"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-x5x2ho"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-x5x2ho"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "HAVE_DXGI1_6_H"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-x5x2ho'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_f3758
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo   /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_f3758.dir\\CheckIncludeFile.c.obj /FdCMakeFiles\\cmTC_f3758.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-x5x2ho\\CheckIncludeFile.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_f3758.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_f3758.dir\\CheckIncludeFile.c.obj  /out:cmTC_f3758.exe /implib:cmTC_f3758.lib /pdb:cmTC_f3758.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake:52 (cmake_check_source_compiles)"
+      - "Third/SDL/CMakeLists.txt:1955 (check_c_source_compiles)"
+    checks:
+      - "Performing Test HAVE_MFAPI_H"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-84vpsv"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-84vpsv"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "HAVE_MFAPI_H"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-84vpsv'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_61875
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DHAVE_MFAPI_H  /DWIN32 /D_WINDOWS  -D_GNU_SOURCE=1 /Ob0 /Od  -MTd -Zi /showIncludes /FoCMakeFiles\\cmTC_61875.dir\\src.c.obj /FdCMakeFiles\\cmTC_61875.dir\\ -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-84vpsv\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\JetBrains\\CLion 2024.1.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_61875.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe /nologo CMakeFiles\\cmTC_61875.dir\\src.c.obj  /out:cmTC_61875.exe /implib:cmTC_61875.lib /pdb:cmTC_61875.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "C:/Program Files/JetBrains/CLion 2024.1.4/bin/cmake/win/x64/share/cmake-3.28/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "Third/SDL/CMakeLists.txt:3224 (check_c_compiler_flag)"
+    checks:
+      - "Performing Test COMPILER_SUPPORTS_Zl"
+    directories:
+      source: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-jk6030"
+      binary: "F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-jk6030"
+    cmakeVariables:
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Program Files/Microsoft Visual Studio/2022/Preview/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe"
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/Ob0 /Od "
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "F:/MyProjects/LoFi-Kit/Third/SDL/cmake"
+      CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    buildResult:
+      variable: "COMPILER_SUPPORTS_Zl"
+      cached: true
+      stdout: |
+        Change Dir: 'F:/MyProjects/LoFi-Kit/cmake-build-release/CMakeFiles/CMakeScratch/TryCompile-jk6030'
+        
+        Run Build Command(s): "C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe" -v cmTC_f45bc
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe  /nologo -DCOMPILER_SUPPORTS_Zl  /DWIN32 /D_WINDOWS  /Ob0 /Od  -MTd -Zi   /Zl /showIncludes /FoCMakeFiles\\cmTC_f45bc.dir\\src.c.obj /FdCMakeFiles\\cmTC_f45bc.dir\\cmTC_f45bc.pdb -c -- F:\\MyProjects\\LoFi-Kit\\cmake-build-release\\CMakeFiles\\CMakeScratch\\TryCompile-jk6030\\src.c
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\PROGRA~1\\MICROS~1\\2022\\Preview\\VC\\Tools\\Llvm\\x64\\bin\\llvm-lib.exe /nologo /machine:x64 /out:cmTC_f45bc.lib CMakeFiles\\cmTC_f45bc.dir\\src.c.obj  && cd ."
+        
+      exitCode: 0
+...

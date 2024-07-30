@@ -14,7 +14,7 @@ namespace LoFi {
 
         ~FrameGraph();
 
-        explicit FrameGraph(VkCommandBuffer cmd_buf, VkCommandPool cmd_pool);
+        explicit FrameGraph(VkCommandBuffer cmd_buf);
 
     public:
 
@@ -22,15 +22,25 @@ namespace LoFi {
 
         void EndFrame() const;
 
-        void BeginPass(const std::vector<RenderPassBeginArgument>& textures);
+        void BeginComputePass();
 
-        void EndPass();
+        void EndComputePass();
+
+        void ComputeDispatch(uint32_t x, uint32_t y, uint32_t z) const;
+
+        void BeginRenderPass(const std::vector<RenderPassBeginArgument>& textures);
+
+        void EndRenderPass();
 
         void BindKernel(entt::entity kernel);
 
-        void BindVertexBuffer(entt::entity buffer, size_t offset);
+        void BindVertexBuffer(entt::entity buffer, uint32_t first_binding, uint32_t binding_count, size_t offset);
 
-        void DrawIndex(entt::entity index_buffer, size_t offset = 0, std::optional<uint32_t> index_count = {}) const;
+        void BindIndexBuffer(entt::entity index_buffer, size_t offset) const;
+
+        void DrawIndexedIndirect(entt::entity indirect_bufer, size_t offset, uint32_t draw_count, uint32_t stride) const;
+
+        void DrawIndex(uint32_t index_count, uint32_t instance_count = 1, uint32_t first_index = 0, int32_t vertex_offset = 0, uint32_t first_instance = 0) const;
 
         void Draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) const;
 
@@ -38,11 +48,21 @@ namespace LoFi {
 
         void SetScissor(VkRect2D scissor) const;
 
-        void SetViewportAuto() const;
+        void SetViewportAuto(bool invert_y = true) const;
 
         void SetScissorAuto() const;
 
+        void PushConstant(entt::entity push_constant_buffer) const;
 
+        void AsSampledTexure(entt::entity texture, KernelType which_kernel_use = GRAPHICS) const;
+
+        void AsReadTexure(entt::entity texture, KernelType which_kernel_use = COMPUTE) const;
+
+        void AsWriteTexture(entt::entity texture, KernelType which_kernel_use = COMPUTE) const;
+
+        void AsWriteBuffer(entt::entity buffer, KernelType which_kernel_use = COMPUTE) const;
+
+        void AsReadBuffer(entt::entity buffer, KernelType which_kernel_use = COMPUTE) const;
 
     public:
         [[nodiscard]] VkCommandBuffer GetCommandBuffer() const { return _cmdBuffer; }
@@ -57,7 +77,7 @@ namespace LoFi {
 
         VkCommandBuffer _cmdBuffer;
 
-        VkCommandPool _cmdPool;
+        VkCommandPool _secondaryCmdPool {};
 
         std::vector<VkCommandBuffer> _secondaryCmdBufsFree{};
 
@@ -70,13 +90,10 @@ namespace LoFi {
         entt::registry& _world;
 
         VkRect2D _frameRenderingRenderArea{};
-
     private:
         entt::entity _currentKernel = entt::null;
 
-        entt::entity _currentVertexBuffer = entt::null;
-
-        bool _isPassBegin = false;
+        KernelType _passType = NONE;
     };
 
 }

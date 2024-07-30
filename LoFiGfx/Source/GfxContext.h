@@ -17,7 +17,6 @@ namespace LoFi {
             class Program;
             class Texture;
             class Kernel;
-            class KernelInstance;
       }
 
       class GfxContext {
@@ -25,7 +24,6 @@ namespace LoFi {
             friend class Component::Gfx::Program;
             friend class Component::Gfx::Texture;
             friend class Component::Gfx::Kernel;
-            friend class Component::Gfx::KernelInstance;
             friend class FrameGraph;
 
             struct SamplerCIHash {
@@ -53,15 +51,11 @@ namespace LoFi {
 
             void Init();
 
-            entt::entity CreateWindow(const char* title, int w, int h);
-
-            /* [[nodiscard]] entt::entity  CreateTexture2DArray();
-
-             [[nodiscard]] entt::entity  CreateTexture3D();
-
-             [[nodiscard]] entt::entity  CreateTextureCube();*/
+            entt::entity CreateWindow(const char* title, uint32_t w, uint32_t h);
 
             [[nodiscard]] entt::entity CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts = 1);
+
+            [[nodiscard]] entt::entity CreateAATexture2D(VkFormat format, uint32_t w, uint32_t h);
 
             [[nodiscard]] entt::entity CreateTexture2D(const void* pixel_data, size_t size, VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts = 1);
 
@@ -84,27 +78,33 @@ namespace LoFi {
                   return CreateBuffer(data.data(), N * sizeof(T), cpu_access);
             }
 
-            [[nodiscard]] entt::entity CreateProgram(const std::vector<std::string_view>& source_codes, const std::string& program_name = "defualt_program");
+            [[nodiscard]] entt::entity CreateProgram(const std::vector<std::string_view>& source_codes, std::string_view config, std::string_view program_name = "default_program");
+
+            [[nodiscard]] entt::entity CreateProgramFromFile(const std::vector<std::string_view>& source_files, std::string_view config, std::string_view program_name = "default_program");
+
 
             [[nodiscard]] entt::entity CreateKernel(entt::entity program);
 
-            [[nodiscard]] entt::entity CreateKernelInstance(entt::entity kernel);
+            [[nodiscard]] entt::entity CreateBuffer3F(uint64_t size, bool hight_dynamic = true);
 
-            [[nodiscard]] entt::entity CreateFrameResource(uint64_t size, bool hight_dynamic = true);
+            [[nodiscard]] entt::entity CreateBuffer3F(void* data, uint64_t size, bool hight_dynamic = true);
 
-            [[nodiscard]] entt::entity CreateFrameResource(void* data, uint64_t size, bool hight_dynamic = true);
+            void SetFrameResourceData(entt::entity frame_resource, void * data, uint64_t size, uint64_t offset = 0);
 
-            void SetFrameResourceData( entt::entity frame_resource, void * data, uint64_t size, uint64_t offset = 0);
+            bool SetKernelConstant(entt::entity kernel, const std::string& name, void* data);
+
+            template<class T>
+            bool SetKernelConstant(entt::entity kernel, const std::string& name, T data) { return SetKernelConstant(kernel, name, (void*)&data); }
+
+            bool FillKernelConstant(entt::entity kernel, const void* data, size_t size);
 
             void DestroyHandle(entt::entity);
 
-            void SetBufferData(entt::entity buffer, const void* data, uint64_t size);
+            void UploadBuffer(entt::entity buffer, const void* data, uint64_t size);
 
-            void FillTexture2D(entt::entity texture, const void* data, uint64_t size);
+            void ResizeBuffer(entt::entity buffer, uint64_t size);
 
-            //void SetTexture2DData(entt::entity texture, entt::entity buffer);
-
-            void EnqueueCommand(const std::function<void(VkCommandBuffer)>& command);
+            void UploadTexture2D(entt::entity texture, const void* data, uint64_t size);
 
             void* PollEvent();
 
@@ -118,25 +118,27 @@ namespace LoFi {
 
             void MapRenderTargetToWindow(entt::entity texture, entt::entity window);
 
-            bool BindKernelResource(entt::entity kernel_instance, const std::string& resource_name, entt::entity resource);
+            void CmdBeginRenderPass(const std::vector<RenderPassBeginArgument>& textures) const;
 
-            void CmdBeginPass(const std::vector<RenderPassBeginArgument>& textures) const;
-
-            void CmdEndPass() const;
+            void CmdEndRenderPass() const;
 
             void CmdBindKernel(entt::entity kernel) const;
 
-            void CmdBindVertexBuffer(entt::entity buffer, size_t offset = 0) const;
+            void CmdBindVertexBuffer(entt::entity buffer, uint32_t first_binding = 0, uint32_t binding_count = 1, size_t offset = 0) const;
+
+            void CmdBindIndexBuffer(entt::entity buffer, size_t offset = 0) const;
 
             void CmdDraw(uint32_t vertex_count, uint32_t instance_count = 1, uint32_t first_vertex = 0, uint32_t first_instance = 0) const;
 
-            void CmdDrawIndex(entt::entity index_buffer, size_t offset = 0, std::optional<uint32_t> index_count = {}) const;
+            void CmdDrawIndex(uint32_t index_count, uint32_t instance_count = 1, uint32_t first_index = 0, int32_t vertex_offset = 0, uint32_t first_instance = 0) const;
+
+            void CmdDrawIndexedIndirect(entt::entity indirect_buffer, size_t offset, uint32_t draw_count, uint32_t stride) const;
 
             void CmdSetViewport(float x, float y, float w, float h, float min_depth = 0.0f, float max_depth = 1.0f) const;
 
             void CmdSetViewport(const VkViewport& viewport) const;
 
-            void CmdSetViewportAuto() const;
+            void CmdSetViewportAuto(bool invert_y = true) const;
 
             void CmdSetScissor(int x, int y, uint32_t w, uint32_t h) const;
 
@@ -144,18 +146,46 @@ namespace LoFi {
 
             void CmdSetScissorAuto() const;
 
+            void CmdPushConstant(entt::entity push_constant_buffer) const;
+
+            void BeginComputePass() const;
+
+            void EndComputePass();
+
+            void CmdComputeDispatch(uint32_t x, uint32_t y, uint32_t z) const;
+
+            void SetTextureSampler(entt::entity image, const VkSamplerCreateInfo& sampler_ci);
+
+            uint32_t GetTextureBindlessIndex(entt::entity texture);
+
+            uint64_t GetBufferBindlessAddress(entt::entity buffer);
+
+            void AsSampledTexure(entt::entity texture, KernelType which_kernel_use = GRAPHICS) const;
+
+            void AsReadTexure(entt::entity texture, KernelType which_kernel_use = COMPUTE) const;
+
+            void AsWriteTexture(entt::entity texture, KernelType which_kernel_use = COMPUTE) const;
+
+            void AsWriteBuffer(entt::entity buffer, KernelType which_kernel_use = COMPUTE) const;
+
+            void AsReadBuffer(entt::entity buffer, KernelType which_kernel_use = COMPUTE) const;
+
             uint32_t GetCurrentFrameIndex() const;
 
+            template<class T> T* UnsafeFetch(entt::entity id) {
+                  if(!_world.valid(id)) {
+                        return nullptr;
+                  }
+                  return _world.try_get<T>(id);
+            }
+
       private:
+
             void Shutdown();
 
             void RecoveryContextResource(const Internal::ContextResourceRecoveryInfo& pack);
 
-            uint32_t MakeBindlessIndexTextureForSampler(entt::entity texture, uint32_t viewIndex = 0);
-
-            uint32_t MakeBindlessIndexTextureForStorage(entt::entity texture, uint32_t viewIndex = 0);
-
-            void SetTextureSampler(entt::entity image, const VkSamplerCreateInfo& sampler_ci);
+            uint32_t MakeBindlessIndexTexture(entt::entity texture, uint32_t viewIndex = 0);
 
             void PrepareWindowRenderTarget();
 
@@ -221,10 +251,9 @@ namespace LoFi {
 
             entt::dense_map<VkSamplerCreateInfo, VkSampler, SamplerCIHash, SamplerCIEqual> _samplers{};
 
-            Internal::FreeList _bindlessIndexFreeList[2]{}; //texture_sample, texture_cs
+            Internal::FreeList _textureBindlessIndexFreeList{}; //texture_sample, texture_cs
 
       private:
-            std::vector<std::function<void(VkCommandBuffer)>> _commandQueue;
 
             entt::dense_map<uint32_t, entt::entity> _windowIdToWindow{};
 

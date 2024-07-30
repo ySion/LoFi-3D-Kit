@@ -1,6 +1,7 @@
 #include "Kernel.h"
 #include "Program.h"
 #include "../GfxContext.h"
+#include "../Message.h"
 
 using namespace LoFi::Component::Gfx;
 using namespace LoFi::Internal;
@@ -60,8 +61,6 @@ Kernel::Kernel(entt::entity id, entt::entity program) {
 void Kernel::CreateAsGraphics(const Program* program) {
       _pushConstantRange = program->GetPushConstantRange();
       _pushConstantDefine = program->GetPushConstantDefine();
-      _shaderResourceDefine = program->GetResourceDefine();
-      _parameterTableSize = program->GetParameterTableSize();
 
       VkPipelineLayoutCreateInfo pipeline_layout_ci{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -97,11 +96,7 @@ void Kernel::CreateAsGraphics(const Program* program) {
             .scissorCount = 1,
       };
 
-      VkPipelineMultisampleStateCreateInfo multisample_ci{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-            .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
-            .minSampleShading = 1.0f,
-      };
+      VkPipelineMultisampleStateCreateInfo multisample_ci = program->_multiSampleCreateInfo;
 
       std::array dynamic_states{
             VK_DYNAMIC_STATE_VIEWPORT,
@@ -138,13 +133,13 @@ void Kernel::CreateAsGraphics(const Program* program) {
       }
 
       _isComputeKernel = false;
+
+      _pushConstantBuffer.resize(_pushConstantRange.size);
 }
 
 void Kernel::CreateAsCompute(const Program* program) {
       _pushConstantRange = program->GetPushConstantRange();
       _pushConstantDefine = program->GetPushConstantDefine();
-      _shaderResourceDefine = program->GetResourceDefine();
-      _parameterTableSize = program->GetParameterTableSize();
 
       VkPipelineLayoutCreateInfo pipeline_layout_ci{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -178,4 +173,27 @@ void Kernel::CreateAsCompute(const Program* program) {
       }
 
       _isComputeKernel = true;
+      _pushConstantBuffer.resize(_pushConstantRange.size);
+}
+
+bool Kernel::SetConstantValue(const std::string& name, const void* data) {
+      if(const auto parameter_find = _pushConstantDefine.find(name); parameter_find != _pushConstantDefine.end()) {
+            const auto& [Offset, Size] = parameter_find->second;
+            std::memcpy(&_pushConstantBuffer.at(Offset), data, Size);
+            return true;
+      }
+      return false;
+}
+
+bool Kernel::FillConstantValue(const void* data, size_t size) {
+      if(_pushConstantBuffer.empty()) return false;
+      size_t copy_size = std::min(size, _pushConstantBuffer.size());
+      std::memcpy(_pushConstantBuffer.data(), data, copy_size);
+      return true;
+}
+
+void Kernel::CmdPushConstants(VkCommandBuffer cmd) const {
+      if(_pushConstantRange.size != 0 && _useDefaultPushConstant) {
+            vkCmdPushConstants(cmd, _pipelineLayout, VK_SHADER_STAGE_ALL, 0, _pushConstantBuffer.size(), _pushConstantBuffer.data());
+      }
 }

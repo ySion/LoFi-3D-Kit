@@ -30,10 +30,11 @@ Texture::Texture(entt::entity id, const VkImageCreateInfo& image_ci, const VmaAl
       const auto allocator = volkGetLoadedVmaAllocator();
       _imageCI = std::make_unique<VkImageCreateInfo>(image_ci);
       if (vmaCreateImage(allocator, &image_ci, &alloc_ci, &_image, &_memory, nullptr) != VK_SUCCESS) {
-            const std::string msg = "Failed to create image";
+            const std::string msg = "Texture::Texture - Failed to create image";
             MessageManager::Log(MessageType::Error, msg);
             throw std::runtime_error(msg);
       }
+      _memoryCI = std::make_unique<VmaAllocationCreateInfo>(alloc_ci);
       _id = id;
 }
 
@@ -58,6 +59,32 @@ void Texture::ClearViews() {
       ReleaseAllViews();
       _views.clear();
       _viewCIs.clear();
+}
+
+void Texture::Resize(uint32_t w, uint32_t h) {
+      if(_imageCI->extent.width == w && _imageCI->extent.height == h) return;
+
+      //remove all views
+      //remove images
+      ReleaseAllViews();
+      DestroyTexture();
+
+      auto& world = *volkGetLoadedEcsWorld();
+      const auto allocator = volkGetLoadedVmaAllocator();
+
+      _imageCI->extent.width = w;
+      _imageCI->extent.width = h;
+      if (vmaCreateImage(allocator, _imageCI.get(), _memoryCI.get(), &_image, &_memory, nullptr) != VK_SUCCESS) {
+            const std::string msg = "Texture::Resize - Failed to Resize image";
+            MessageManager::Log(MessageType::Error, msg);
+            throw std::runtime_error(msg);
+      }
+
+      for (auto& view_ci : _viewCIs) {
+            view_ci.image = _image;
+            CreateView(view_ci);
+      }
+
 }
 
 void Texture::SetData(const void* data, size_t size) {
@@ -114,16 +141,21 @@ void Texture::SetData(const void* data, size_t size) {
             }
       };
 
-      LoFi::GfxContext::Get()->EnqueueCommand([=, this](VkCommandBuffer cmd) {
+      _updateCommand = [=, this](VkCommandBuffer cmd) {
             this->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_DST);
             _intermediateBuffer->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_SRC);
             vkCmdCopyBufferToImage(cmd, imm_buffer, _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffer_copyto_image);
-      });
+      };
+
+      auto world = volkGetLoadedEcsWorld();
+      if(!world->any_of<TagDataChanged>(_id)) {
+            world->emplace<TagDataChanged>(_id);
+      }
 }
 
 void Texture::BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, ResourceUsage new_usage) {
 
-      if(new_kernel_type == _currentKernelType && new_usage == _currentUsage ) {
+      if(new_kernel_type == _currentKernelType && new_usage == _currentUsage) {
             return;
       }
 
@@ -357,21 +389,34 @@ void Texture::Clean() {
       }
 }
 
-void Texture::SetBindlessIndexForSampler(std::optional<uint32_t> index) {
-      _bindlessIndexForSampler = index;
-}
-
-void Texture::SetBindlessIndexForStorage(std::optional<uint32_t> index) {
-      _bindlessIndexForStorage = index;
+void Texture::SetBindlessIndex(std::optional<uint32_t> index) {
+      _bindlessIndex = index;
 }
 
 void Texture::DestroyTexture() {
-      ContextResourceRecoveryInfo info{
+      ContextResourceRecoveryInfo info {
             .Type = ContextResourceType::IMAGE,
             .Resource1 = (size_t)_image,
             .Resource2 = (size_t)_memory,
-            .Resource3 = _bindlessIndexForSampler,
-            .Resource4 = _bindlessIndexForStorage
+            .Resource3 = _bindlessIndex
       };
       GfxContext::Get()->RecoveryContextResource(info);
 }
+
+void Texture::Update(VkCommandBuffer cmd) {
+      if(_updateCommand) {
+            _updateCommand(cmd);
+            _updateCommand = nullptr;
+      }
+}
+
+void Texture::UpdateAll(VkCommandBuffer cmd) {
+      auto& world = *volkGetLoadedEcsWorld();
+      auto view = world.view<Texture, TagDataChanged>();
+      view.each([cmd](entt::entity e, Texture& texture){
+            texture.Update(cmd);
+      });
+
+      world.remove<TagDataChanged>(view.begin(), view.end());
+}
+

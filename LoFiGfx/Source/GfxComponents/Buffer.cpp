@@ -84,16 +84,14 @@ void Buffer::SetData(const void* p, uint64_t size) {
 
       if (IsHostSide()) {
             memcpy(Map(), p, size);
-            _vaildSize = size;
       } else {
             if(size <= MAX_UPDATE_BFFER_SIZE) {
                   _dataCache.resize(size);
                   memcpy(_dataCache.data(), p, size);
-                  LoFi::GfxContext::Get()->EnqueueCommand([=, this](VkCommandBuffer cmd) {
+                  _updateCommand = [=, this](VkCommandBuffer cmd) {
                         this->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_DST);
                         vkCmdUpdateBuffer(cmd, _buffer, 0, size, _dataCache.data());
-                  });
-                  _vaildSize = size;
+                  };
             } else {
                   if (_intermediateBuffer == nullptr) {
                         // create a upload buffer
@@ -128,13 +126,17 @@ void Buffer::SetData(const void* p, uint64_t size) {
                   };
 
                   auto buffer = _buffer;
-                  LoFi::GfxContext::Get()->EnqueueCommand([=, this](VkCommandBuffer cmd) {
+                  _updateCommand = [=, this](VkCommandBuffer cmd) {
                         _intermediateBuffer->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_SRC);
                         this->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_DST);
                         vkCmdCopyBuffer(cmd, imm_buffer, buffer, 1, &copyinfo);
-                  });
+                  };
 
-                  _vaildSize = size;
+            }
+
+            auto world = volkGetLoadedEcsWorld();
+            if(!world->any_of<TagDataChanged>(_id)) {
+                  world->emplace<TagDataChanged>(_id);
             }
       }
 }
@@ -145,8 +147,8 @@ void Buffer::Recreate(uint64_t size) {
       Unmap();
       DestroyBuffer();
 
+      size_t before_size = _bufferCI->size;
       _bufferCI->size = size;
-      _vaildSize = 0;
 
       if (vmaCreateBuffer(volkGetLoadedVmaAllocator(), _bufferCI.get(), _memoryCI.get(), &_buffer, &_memory, nullptr) != VK_SUCCESS) {
             const std::string msg = "Buffer::Recreate - Failed to create buffer";
@@ -164,7 +166,7 @@ void Buffer::Recreate(uint64_t size) {
       };
       _address = vkGetBufferDeviceAddress(volkGetLoadedDevice(), &address_info);
 
-      auto str = std::format(R"(Buffer::CreateBuffer - Recreate "{}" bytes at "{}" side)", _bufferCI->size, _isHostSide ? "Host" : "Device");
+      auto str = std::format(R"(Buffer::CreateBuffer - Recreate from "{}" to "{}" bytes at "{}" side)", before_size, _bufferCI->size, _isHostSide ? "Host" : "Device");
       MessageManager::Log(MessageType::Normal, str);
 }
 
@@ -186,7 +188,7 @@ void Buffer::BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, Reso
                   case ResourceUsage::READ_BUFFER:
                         barrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
                   break;
-                  case ResourceUsage::WRITE_TEXTURE:
+                  case ResourceUsage::WRITE_BUFFER:
                         barrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
                   break;
                   case ResourceUsage::READ_WRITE_BUFFER:
@@ -198,7 +200,6 @@ void Buffer::BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, Reso
                               throw std::runtime_error(err);
                   }
             }
-
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
 
       } else if (new_kernel_type == KernelType::GRAPHICS) {
@@ -207,7 +208,7 @@ void Buffer::BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, Reso
                         barrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
                         barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
                   break;
-                  case ResourceUsage::WRITE_TEXTURE:
+                  case ResourceUsage::WRITE_BUFFER:
                         barrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
                         barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
                   break;
@@ -228,7 +229,7 @@ void Buffer::BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, Reso
                         barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
                   break;
                   default: {
-                              const auto err  = std::format("Texture::BarrierLayout - The Barrier in Buffer, In Graphics kernel, resource's New Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              const auto err  = std::format("Buffer::BarrierLayout - The Barrier in Buffer, In Graphics kernel, resource's New Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
                               MessageManager::Log(MessageType::Error, err);
                               throw std::runtime_error(err);
                   }
@@ -244,7 +245,7 @@ void Buffer::BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, Reso
                   barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
                   break;
                   default: {
-                              const auto err  = std::format("Texture::BarrierLayout - The Barrier in Buffer, Out of Kernel, resource's New Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              const auto err  = std::format("Buffer::BarrierLayout - The Barrier in Buffer, Out of Kernel, resource's New Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
                               MessageManager::Log(MessageType::Error, err);
                               throw std::runtime_error(err);
                   }
@@ -256,12 +257,15 @@ void Buffer::BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, Reso
             switch (_currentUsage) {
                   case ResourceUsage::READ_BUFFER:
                         barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
                   break;
-                  case ResourceUsage::WRITE_TEXTURE:
+                  case ResourceUsage::WRITE_BUFFER:
                         barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
                   break;
                   case ResourceUsage::READ_WRITE_BUFFER:
                         barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+                        barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
                   break;
                   default: {
                               const auto err  = std::format("Buffer::BarrierLayout - The Barrier in Buffer, In Compute kernel, resource's Old Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
@@ -270,15 +274,13 @@ void Buffer::BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, Reso
                   }
             }
 
-            barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-
       } else if (_currentKernelType == KernelType::GRAPHICS) {
             switch (_currentUsage) {
                   case ResourceUsage::READ_BUFFER:
                         barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
                         barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
                   break;
-                  case ResourceUsage::WRITE_TEXTURE:
+                  case ResourceUsage::WRITE_BUFFER:
                         barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
                         barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
                   break;
@@ -299,7 +301,7 @@ void Buffer::BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, Reso
                         barrier.srcStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
                   break;
                   default: {
-                              const auto err  = std::format("Texture::BarrierLayout - The Barrier in Buffer, In Graphics kernel, resource's Old Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              const auto err  = std::format("Buffer::BarrierLayout - The Barrier in Buffer, In Graphics kernel, resource's Old Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
                               MessageManager::Log(MessageType::Error, err);
                               throw std::runtime_error(err);
                   }
@@ -319,7 +321,7 @@ void Buffer::BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, Reso
                         barrier.srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
                   break;
                   default: {
-                              const auto err  = std::format("Texture::BarrierLayout - The Barrier in Buffer, Out of Kernel, resource's Old Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
+                              const auto err  = std::format("Buffer::BarrierLayout - The Barrier in Buffer, Out of Kernel, resource's Old Usage can't be \"{}\"\n", GetResourceUsageString(new_usage));
                               MessageManager::Log(MessageType::Error, err);
                               throw std::runtime_error(err);
                   }
@@ -356,7 +358,6 @@ void Buffer::CreateBuffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocati
       vmaGetAllocationMemoryProperties(volkGetLoadedVmaAllocator(), _memory, &fgs);
       _isHostSide = (fgs & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
 
-      _vaildSize = 0;
 
       const auto address_info = VkBufferDeviceAddressInfo{
             .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
@@ -399,7 +400,6 @@ void Buffer::CreateViewFromCurrentViewCIs() {
 void Buffer::Clean() {
       ClearViews();
       DestroyBuffer();
-      _vaildSize = 0;
       _address = 0;
 }
 
@@ -411,3 +411,21 @@ void Buffer::DestroyBuffer() {
       };
       GfxContext::Get()->RecoveryContextResource(info);
 }
+
+void Buffer::Update(VkCommandBuffer cmd) {
+      if(_updateCommand) {
+            _updateCommand(cmd);
+            _updateCommand = nullptr;
+      }
+}
+
+void Buffer::UpdateAll(VkCommandBuffer cmd) {
+      auto& world = *volkGetLoadedEcsWorld();
+      auto view = world.view<Buffer, TagDataChanged>();
+      view.each([cmd](entt::entity e, Buffer& buffer){
+            buffer.Update(cmd);
+      });
+
+      world.remove<TagDataChanged>(view.begin(), view.end());
+}
+

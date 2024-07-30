@@ -48,6 +48,7 @@ namespace LoFi {
       struct RenderPassBeginArgument {
             entt::entity TextureHandle = entt::null;
             bool ClearBeforeRendering = true;
+            glm::vec4 ClearColor = glm::uvec4(0, 0, 0, 1.0f);
             uint32_t ViewIndex = 0;
       };
 

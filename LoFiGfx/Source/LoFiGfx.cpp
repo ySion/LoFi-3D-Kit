@@ -6,6 +6,7 @@
 #include <future>
 
 #include "GfxContext.h"
+//#include "PfxContext.h"
 #include "PfxContext.h"
 #include "SDL3/SDL.h"
 #include "entt/entt.hpp"
@@ -23,10 +24,20 @@ void GStart() {
       mi_option_set(mi_option_reserve_huge_os_pages, 2);
 
       const auto vs = R"(
+            #extension GL_EXT_nonuniform_qualifier : enable
+            #extension GL_EXT_buffer_reference : enable
+            #extension GL_EXT_scalar_block_layout : enable
+            #extension GL_EXT_buffer_reference2 : enable
+
             layout(location = 0) in vec3 pos;
             layout(location = 1) in vec3 color;
 
             layout(location = 0) out vec3 out_pos;
+
+            layout(push_constant) uniform Info{
+                  uint tex;
+                  float scale;
+            } info;
 
             void VSMain() {
                   gl_Position = vec4(pos, 1.0f);
@@ -35,28 +46,33 @@ void GStart() {
       )";
 
       const auto ps = R"(
-            #set rt = r8g8b8a8_unorm
-            #set ds = d32_sfloat
-
-            #set color_blend = false
+            #extension GL_EXT_nonuniform_qualifier : enable
+            #extension GL_EXT_buffer_reference : enable
+            #extension GL_EXT_scalar_block_layout : enable
+            #extension GL_EXT_buffer_reference2 : enable
 
             layout(location = 0) in vec3 pos;
             layout(location = 0) out vec4 outColor;
 
-            PickWTextures(rgba32f, 1D)
+            layout(binding = 0) uniform sampler2D tex[];
 
-            SAMPLED image1;
-
-            RBUFFER Info {
+            layout(push_constant) uniform Info{
+                  uint tex;
                   float scale;
-            }
+            } info;
 
             void FSMain() {
-                  uint image_hanlde = GetTextureHandle(image1);
-                  vec3 f = texture(GetSampled2D(image_hanlde), vec2(pos.x,  1.0-pos.y)).rgb;
-                  outColor = vec4(f, 1.0f) * (sin(GetBuffer(Info).scale) * 0.5 + 0.5);
+                  vec3 get_color = texture(tex[info.tex], pos.xy).rgb;
+                  outColor = vec4(get_color, 1.0f) * info.scale;
             }
       )";
+
+      const auto program_config = R"(
+            #set rt = r8g8b8a8_unorm
+            #set ds = d32_sfloat
+            #set color_blend = false
+      )";
+
 
       const auto font_vs = R"(
             layout(location = 0) in vec2 pos;
@@ -120,7 +136,7 @@ void GStart() {
       };
 
       std::array square_vt2 = {
-            -1.0f, 1.0f , 0.0f, 1.0f,
+            -1.0f, 1.0f, 0.0f, 1.0f,
             1.0f, 1.0f, 1.0f, 1.0f,
             1.0f, -1.0f, 1.0f, 0.0f,
             -1.0f, -1.0f, 0.0f, 0.0f,
@@ -129,17 +145,22 @@ void GStart() {
       std::array square_id = {0, 1, 2, 0, 2, 3};
 
       std::vector<float> noise_image(512 * 512 * 4);
-      for(int i = 0; i < 512; i++) {
-            for(int j = 0; j < 512; j++) {
-                  noise_image[i*512*4 + j*4 + 0] = sin(i / 10.0f) * 0.5f + 0.5f;
-                  noise_image[i*512*4 + j*4 + 1] = cos(j / 10.0f) * 0.5f + 0.5f;
-                  noise_image[i*512*4 + j*4 + 2] = 0.5f;
-                  noise_image[i*512*4 + j*4 + 3] = 1.0f;
+      for (int i = 0; i < 512; i++) {
+            for (int j = 0; j < 512; j++) {
+                  noise_image[i * 512 * 4 + j * 4 + 0] = sin(i / 10.0f) * 0.5f + 0.5f;
+                  noise_image[i * 512 * 4 + j * 4 + 1] = cos(j / 10.0f) * 0.5f + 0.5f;
+                  noise_image[i * 512 * 4 + j * 4 + 2] = 0.5f;
+                  noise_image[i * 512 * 4 + j * 4 + 3] = 1.0f;
             }
       }
-
-      auto ctx = std::make_unique<LoFi::GfxContext>();
-      ctx->Init();
+      std::unique_ptr<LoFi::GfxContext> ctx;
+      try {
+            ctx = std::make_unique<LoFi::GfxContext>();
+            ctx->Init();
+      } catch (const std::runtime_error& e) {
+            printf("SDL Init Error: %s\n", e.what());
+            return;
+      }
 
       const auto noise = ctx->CreateTexture2D(noise_image, VK_FORMAT_R32G32B32A32_SFLOAT, 512, 512);
 
@@ -150,198 +171,179 @@ void GStart() {
       const auto square_index = ctx->CreateBuffer(square_id);
 
       //CreateWindows
-      const auto win1 = ctx->CreateWindow("Triangle", 960, 540);
-      const auto win2 = ctx->CreateWindow("Rectangle", 400, 400);
-      const auto win3 = ctx->CreateWindow("Merge", 800, 600);
-      const auto win4 = ctx->CreateWindow("Font", 600, 600);
+      //const auto win1 = ctx->CreateWindow("Triangle", 960, 540);
+      const auto win2 = ctx->CreateWindow("2Draw", 1920 * 0.75, 1080 * 0.75);
+      //const auto win3 = ctx->CreateWindow("Merge", 800, 600);
 
       const auto rt1 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 960, 540);
-      const auto rt2 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 400, 400);
+      const auto rt2 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 1920 * 0.75, 1080 * 0.75);
+      const auto med_rt = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 960, 540);
       const auto rt3 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 800, 600);
-      const auto rt0 = ctx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, 600, 600);
 
       const auto ds = ctx->CreateTexture2D(VK_FORMAT_D32_SFLOAT, 800, 600);
 
-      ctx->MapRenderTargetToWindow(rt1, win1);
+      //ctx->MapRenderTargetToWindow(rt1, win1);
       ctx->MapRenderTargetToWindow(rt2, win2);
-      ctx->MapRenderTargetToWindow(rt3, win3);
-      ctx->MapRenderTargetToWindow(rt0, win4);
+      //ctx->MapRenderTargetToWindow(rt3, win3);
 
-      const auto program = ctx->CreateProgram({vs, ps});
+      const auto program = ctx->CreateProgram({vs, ps}, program_config);
       const auto kernel = ctx->CreateKernel(program);
-      const auto kernel_instance = ctx->CreateKernelInstance(kernel);
-      const auto kernel_instance2 = ctx->CreateKernelInstance(kernel);
 
-      const auto info_param = ctx->CreateFrameResource(sizeof(float));
+      //const auto font_program = ctx->CreateProgram({font_vs, font_ps});
+      //const auto font_kernel = ctx->CreateKernel(font_program);
 
-      ctx->BindKernelResource(kernel_instance, "Info", info_param);
-      ctx->BindKernelResource(kernel_instance2, "Info", info_param);
-
-      ctx->BindKernelResource(kernel_instance, "image1", noise);
-      ctx->BindKernelResource(kernel_instance2, "image1", rt0);
-
-      const auto font_program = ctx->CreateProgram({font_vs, font_ps});
-      const auto font_kernel = ctx->CreateKernel(font_program);
-      const auto font_kernel_instance = ctx->CreateKernelInstance(font_kernel);
-
-      std::unique_ptr<LoFi::PfxContext> pfx = std::make_unique<LoFi::PfxContext>();
-      //if(!pfx->LoadFont("D:/llt.ttf")) {
-      //      printf("Start Failed");
-      //      return;
-      //}
-
-      auto font_altas = pfx->GetAtlas();
-      //auto myfront_mesh = pfx->GenText(L'中', 32);
-      //const auto square_vert2 = ctx->CreateBuffer(square_vt2);
-
-      // if(myfront_mesh == entt::null) {
-      //       printf("GenText Failed");
-      //       return;
-      // }
-
-      ctx->BindKernelResource(font_kernel_instance, "font_atlas", noise);
-
-      auto render_node_2d = pfx->CreateRenderNode();
-
-      pfx->CmdReset(render_node_2d);
-      pfx->CmdSetVirtualCanvasSize(render_node_2d, 1000, 1000);
-      //pfx->CmdDrawRect(render_node_2d, 50, 40, 40, 50, 255, 0, 0, 127);
-      //pfx->CmdDrawRect(render_node_2d, 10, 10, 60, 50, 0, 0, 255,128);
-
-      std::vector<glm::ivec2> path = {{100, 100}, {100, 800}, {800, 500}, {800, 800}, {900, 800}, {900, 200}, {200, 200}};
-      //pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 0, 255, 127);
-
-      // std::vector<glm::ivec2> path = {};
-      // //draw a snake
-      // glm::ivec2 now = {100,  100};
-      //
-      // for(uint32_t j = 0; j < 30; j++) {
-      //       now.x += 25;
-      //       path.push_back(now);
-      // }
-      //
-      // for(uint32_t j = 0; j < 30; j++) {
-      //       now.y += 25;
-      //       path.push_back(now);
-      // }
-      // for(uint32_t j = 0; j < 30; j++) {
-      //       now.x -= 25;
-      //       path.push_back(now);
-      // }
-      // for(uint32_t j = 0; j < 25; j++) {
-      //       now.y -= 25;
-      //       path.push_back(now);
-      // }
-
-
-      {
-            auto start = SDL_GetPerformanceCounter();
-            for(uint32_t i = 0; i < 1000; i++) {
-                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 255, 255, 255);
-                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 0, 255, 127);
-            }
-            auto end = SDL_GetPerformanceCounter();
-            printf("use Time 1: %f\n", (double)((end - start) * 1000.0 / SDL_GetPerformanceFrequency()));
-      }
-      pfx->CmdReset(render_node_2d);
-      {
-            auto start = SDL_GetPerformanceCounter();
-            for(uint32_t i = 0; i < 1000; i++) {
-                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 255, 255, 255);
-                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 0, 255, 127);
-            }
-            auto end = SDL_GetPerformanceCounter();
-            printf("use Time 2: %f\n", (double)((end - start) * 1000.0 / SDL_GetPerformanceFrequency()));
-      }
-      pfx->CmdReset(render_node_2d);
-      {
-            auto start = SDL_GetPerformanceCounter();
-            for(uint32_t i = 0; i < 1000; i++) {
-                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 255, 255, 255);
-                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 0, 255, 127);
-            }
-            auto end = SDL_GetPerformanceCounter();
-            printf("use Time 3: %f\n", (double)((end - start) * 1000.0 / SDL_GetPerformanceFrequency()));
-      }
-      pfx->CmdReset(render_node_2d);
-      {
-            auto start = SDL_GetPerformanceCounter();
-            for(uint32_t i = 0; i < 1000; i++) {
-                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 255, 255, 255);
-                  pfx->CmdDrawPath(render_node_2d, path, true, 10, 255, 0, 255, 127);
-            }
-            auto end = SDL_GetPerformanceCounter();
-            printf("use Time 4: %f\n", (double)((end - start) * 1000.0 / SDL_GetPerformanceFrequency()));
-      }
-      pfx->CmdReset(render_node_2d);
-      {
-            auto start = SDL_GetPerformanceCounter();
-            for(uint32_t i = 0; i < 1000; i++) {
-                  pfx->CmdDrawPath(render_node_2d, path, true, 20, 255, 255, 255, 255);
-                  pfx->CmdDrawPath(render_node_2d, path, true, 20, 255, 0, 255, 127);
-            }
-            auto end = SDL_GetPerformanceCounter();
-            printf("use Time 5: %f\n", (double)((end - start) * 1000.0 / SDL_GetPerformanceFrequency()));
-      }
-      pfx->CmdReset(render_node_2d);
-      {
-            auto start = SDL_GetPerformanceCounter();
-            for(uint32_t i = 0; i < 1000; i++) {
-                  pfx->CmdDrawPath(render_node_2d, path, true, 20, 255, 255, 255, 255);
-                  pfx->CmdDrawPath(render_node_2d, path, true, 20, 255, 0, 255, 127);
-            }
-            auto end = SDL_GetPerformanceCounter();
-            printf("use Time 6: %f\n", (double)((end - start) * 1000.0 / SDL_GetPerformanceFrequency()));
-      }
-      pfx->CmdReset(render_node_2d);
-      {
-            auto start = SDL_GetPerformanceCounter();
-            for(uint32_t i = 0; i < 1000; i++) {
-                  pfx->CmdDrawPath(render_node_2d, path, true, 20, 255, 255, 255, 255);
-                  pfx->CmdDrawPath(render_node_2d, path, true, 20, 255, 0, 255, 127);
-            }
-            auto end = SDL_GetPerformanceCounter();
-            printf("use Time 7: %f\n", (double)((end - start) * 1000.0 / SDL_GetPerformanceFrequency()));
-      }
-
-      pfx->CmdGenerate(render_node_2d);
-
+      float fps = 0;
+      auto sum = SDL_GetTicks();
+      auto prev = sum;
       std::atomic<bool> should_close = false;
+
+      ctx->SetKernelConstant(kernel, "scale", 0.5f);
+
+
+      const auto my_cs = R"(
+            #extension GL_EXT_nonuniform_qualifier : enable
+            #extension GL_EXT_buffer_reference : enable
+            #extension GL_EXT_scalar_block_layout : enable
+            #extension GL_EXT_buffer_reference2 : enable
+
+            layout(binding = 1, rgba8) uniform readonly image2D inputImage[];
+            layout(binding = 1, rgba8) uniform writeonly image2D outputImage[];
+
+            layout(push_constant) uniform Info{
+                  uint inTexture;
+                  uint outTexture;
+                  float scale;
+            } info;
+
+            layout(local_size_x = 4, local_size_y = 4, local_size_z = 1) in;
+
+            void CSMain() {
+                  vec4 pixel = imageLoad(inputImage[info.inTexture], ivec2(gl_GlobalInvocationID.xy));
+                  pixel *= info.scale;
+                  imageStore(outputImage[info.outTexture], ivec2(gl_GlobalInvocationID.xy), pixel);
+            }
+      )";
+
+      const auto cs_program = ctx->CreateProgram({my_cs}, "");
+      const auto cs_kernel = ctx->CreateKernel(cs_program);
+
+      ctx->SetKernelConstant(kernel, "scale", 0.8f);
+      ctx->SetKernelConstant(cs_kernel, "scale", 0.3f);
+
+      auto pfx = std::make_unique<LoFi::PfxContext>();
+
+
       auto func = std::async(std::launch::async, [&] {
             while (!should_close) {
                   float time = (float)((double)SDL_GetTicks() / 1000.0);
+                  auto current = SDL_GetTicks();
+                  sum += current - prev;
+                  prev = current;
+                  fps += 1.0f;
+                  if (sum > 1'000) {
+                        printf("FPS: %f\n", fps);
+                        sum = 0;
+                        fps = 0.0f;
+                  }
 
-                  ctx->SetFrameResourceData(info_param, &time, sizeof(float));
+                  float multi = (glm::sin(time) * 0.5f + 0.5f) * 0.5f;
+                  float multi2 = glm::clamp((glm::sin(time) * 0.5f + 0.5f), 0.0f, 1.0f);
+
+                  pfx->Reset();
+                  //pfx->PushScissor({0, 0, 3840 - 2048 * multi, 2160});
+                  for (int i = 0; i < 10; i++) {
+                        for (int j = 0; j < 10; j++) {
+                              pfx->DrawRoundBox(glm::vec2(300, 300) + glm::vec2(200 * j, 150 * i) + glm::vec2(300) * multi,
+                              {
+                                    .Size = {175, 125},
+                                    .RoundnessTopRight = multi2,
+                                    .RoundnessBottomRight = 0,
+                                    .RoundnessTopLeft = 0,
+                                    .RoundnessBottomLeft = 0}, 2.6f * i * j * multi2, {(i + 1) * 20, (j + 1) * 20, 128, 255});
+                        }
+                  }
+                  //pfx->PopScissor();
+                  pfx->DrawBox(glm::vec2(2400, 1200), {
+                        .Size = {800, 800}
+                  },60, {255, 0, 0, 255});
+
+                  pfx->DrawRoundBox(glm::vec2(2400, 400) - multi2 * glm::vec2(300, -300),
+                  {
+                        .Size = {360 * 2, 640 * 2},
+                        .RoundnessTopRight = multi2,
+                        .RoundnessBottomRight = multi2,
+                        .RoundnessTopLeft = 1.0f - multi2,
+                        .RoundnessBottomLeft = 1.0f - multi2
+                  }, 60 * multi2, {255, 0, 0, 255});
+
+                  pfx->DrawNGon(glm::vec2(700, 1300) + multi2 * glm::vec2(300, -300),
+                  {
+                        .Radius = 320,
+                        .SegmentCount = 5 + (9 * multi2),
+                        .Roundness = (1.0f - multi2)
+                  },60* multi2, {255, 0, 0, 255});
+
+                  pfx->DrawCircle(glm::vec2(700, 700) + multi2 * glm::vec2(300, -300),
+                {
+                      .Radius = 320
+                  }, 60* multi2, {255, 0, 0, 255});
+
+                  pfx->DispatchGenerateCommands();
+
 
                   ctx->BeginFrame();
 
-                  //Pass 0
-                  ctx->CmdBeginPass({{rt0}});
-                  pfx->CmdEmitCommand(render_node_2d);
-                  ctx->CmdEndPass();
+
+                  //Pass 2D
+
+                  ctx->CmdBeginRenderPass({LoFi::RenderPassBeginArgument{.TextureHandle = rt2, .ClearColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)}});
+                  pfx->EmitDrawCommand();
+                  ctx->CmdEndRenderPass();
+
 
                   //Pass 1
-                  ctx->CmdBeginPass({{rt1}});
-                  ctx->CmdBindKernel(kernel_instance);
+                  ctx->CmdBeginRenderPass({{rt1}});
+
+                  ctx->AsSampledTexure(noise);
+                  ctx->SetKernelConstant(kernel, "tex", ctx->GetTextureBindlessIndex(noise));
+
+                  ctx->CmdBindKernel(kernel);
                   ctx->CmdBindVertexBuffer(triangle_vert);
-                  ctx->CmdDrawIndex(triangle_index);
-                  ctx->CmdEndPass();
+                  ctx->CmdBindIndexBuffer(triangle_index);
+                  ctx->CmdDrawIndex(triangle_id.size());
+
+                  ctx->CmdEndRenderPass();
+
+                  //CS Stage
+                  ctx->BeginComputePass();
+
+                  ctx->AsReadTexure(rt1);
+                  ctx->AsWriteTexture(med_rt);
+
+                  ctx->SetKernelConstant(cs_kernel, "inTexture", ctx->GetTextureBindlessIndex(rt1));
+                  ctx->SetKernelConstant(cs_kernel, "outTexture", ctx->GetTextureBindlessIndex(med_rt));
+
+                  ctx->CmdBindKernel(cs_kernel);
+                  ctx->CmdComputeDispatch(960 / 4, 540 / 4, 1);
+
+                  ctx->EndComputePass();
 
                   //Pass 2
-                  ctx->CmdBeginPass({{rt2}});
-                  ctx->CmdBindKernel(kernel_instance);
-                  ctx->CmdBindVertexBuffer(square_vert);
-                  ctx->CmdDrawIndex(square_index);
-                  ctx->CmdEndPass();
+                  ctx->CmdBeginRenderPass({{rt3}, {ds}});
 
-                  //Pass 3
-                  ctx->CmdBeginPass({{rt3}, {ds}});
-                  ctx->CmdBindKernel(kernel_instance2);
+                  ctx->AsSampledTexure(rt1);
+                  ctx->SetKernelConstant(kernel, "tex", ctx->GetTextureBindlessIndex(rt1));
+
+                  ctx->CmdBindKernel(kernel);
                   ctx->CmdBindVertexBuffer(square_vert);
-                  ctx->CmdDrawIndex(square_index);
+                  ctx->CmdBindIndexBuffer(square_index);
+                  ctx->CmdDrawIndex(square_id.size());
+
                   ctx->CmdBindVertexBuffer(triangle_vert);
-                  ctx->CmdDrawIndex(triangle_index);
-                  ctx->CmdEndPass();
+                  ctx->CmdBindIndexBuffer(triangle_index);
+                  ctx->CmdDrawIndex(triangle_id.size());
+
+                  ctx->CmdEndRenderPass();
 
                   ctx->EndFrame();
             }

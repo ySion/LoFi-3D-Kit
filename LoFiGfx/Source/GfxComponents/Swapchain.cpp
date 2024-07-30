@@ -62,9 +62,12 @@ void Swapchain::SetMappedRenderTarget(entt::entity texture) {
 }
 
 void Swapchain::BeginFrame(VkCommandBuffer cmd) const {
-      if (_mappedRenderTarget == entt::null) {
+      if (_mappedRenderTarget != entt::null) {
             const auto render_traget = GetCurrentRenderTarget();
             render_traget->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_DST);
+      } else {
+            const auto render_traget = GetCurrentRenderTarget();
+            render_traget->BarrierLayout(cmd, NONE, ResourceUsage::PRESENT);
       }
 }
 

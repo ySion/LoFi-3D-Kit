@@ -8,6 +8,43 @@
 一个Vulkan GFX, 用于快速原型开发, 并且带有一个2D绘图库.
 ### Very Fucking hard to use!
 
+### 2D绘制器参数支持:
+
+G-H = Gradient Linear Horizontal
+
+G-V = Gradient Linear Vertical
+
+G-FP = Gradient Follow Path
+
+G-R = Gradient Center Radial
+
+G-CL = Gradient Linear with Custom Direction
+
+G-CR = Gradient Radial with Custom Center
+
+|                     | Shadow | Soft Anti-Aliasing | Texture | G-H | G-V | G-FP | G-R | G-C | G-CR |
+|--------------------:|:------:|:------------------:|:-------:|:---:|:---:|:----:|:---:|:---:|:----:|
+|                Path |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|                Rect |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|        Rounded Rect |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|            Triangle |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|             Polygon |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|              Circle |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|               Chord |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|                 Pie |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|             Ellipse |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|                Text |   -    |        SDF         |    -    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|         Path Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|         Rect Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+| Rounded Rect Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|     Triangle Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|      Polygon Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|       Circle Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|        Chord Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|          Pie Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|      Ellipse Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+
+
 ```c++
       const auto vs = R"(
             layout(location = 0) in vec3 pos;

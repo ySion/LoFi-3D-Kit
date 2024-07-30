@@ -56,13 +56,15 @@ Program::~Program() {
       _shaderModules.clear();
 }
 
-Program::Program(entt::entity id, std::string_view name, const std::vector<std::string_view>& sources) : _id(id) {
+Program::Program(entt::entity id, std::string_view name, std::string_view config, const std::vector<std::string_view>& sources) : _id(id) {
       auto& world = *volkGetLoadedEcsWorld();
 
       if (!world.valid(id)) {
             const auto err = "Program::Program: id is invalid";
             throw std::runtime_error(err);
       }
+
+      _config = config;
 
       ProgramCompilerGroup::TryInit();
 
@@ -88,10 +90,10 @@ Program::Program(entt::entity id, std::string_view name, const std::vector<std::
             graphics_sources.emplace_back(source_types.at(glslang_stage_t::GLSLANG_STAGE_VERTEX), glslang_stage_t::GLSLANG_STAGE_VERTEX);
             graphics_sources.emplace_back(source_types.at(glslang_stage_t::GLSLANG_STAGE_FRAGMENT), glslang_stage_t::GLSLANG_STAGE_FRAGMENT);
             CompileGraphics(graphics_sources);
-            _shaderType = ProgramType::GRAPHICS;
+            _programType = ProgramType::GRAPHICS;
       } else if (source_types.contains(glslang_stage_t::GLSLANG_STAGE_COMPUTE)) {
             CompileCompute(source_types.at(glslang_stage_t::GLSLANG_STAGE_COMPUTE));
-            _shaderType = ProgramType::COMPUTE;
+            _programType = ProgramType::COMPUTE;
       } else {
             const auto err = std::format("Program::Program - Failed to find shader type for shader program \"{}\", unknown shader type.", _programName);
             throw std::runtime_error(err);
@@ -102,8 +104,6 @@ Program::Program(entt::entity id, std::string_view name, const std::vector<std::
 
 
 void Program::CompileCompute(std::string_view source) {
-      entt::dense_map<std::string, std::vector<std::string>> setters{}; // TODO: setter
-
       _pushConstantRange = VkPushConstantRange{
             .stageFlags = VK_SHADER_STAGE_ALL,
             .offset = 0,
@@ -118,150 +118,28 @@ void Program::CompileCompute(std::string_view source) {
             .pCode = nullptr
       };
 
-      std::string shader_type_str = HelperShaderStageToString(GLSLANG_STAGE_COMPUTE);
+      //std::string header{};
+      //header += "#extension GL_EXT_nonuniform_qualifier : enable\n";
+      //header += "#extension GL_EXT_buffer_reference : enable\n";
+      //header += "#extension GL_EXT_scalar_block_layout : enable\n";
+      //header += "#extension GL_EXT_buffer_reference2 : require\n";
+      //header += "#define BindlessSamplerBinding 0\n";
+      //header += "#define BindlessStorageTextureBinding 1\n";
 
-      std::string source_output{};
-      std::string marco_parse_err_msg{};
-      if (!ParseMarco(source, source_output, marco_parse_err_msg, GLSLANG_STAGE_COMPUTE)) {
-            auto err = std::format("Program::ParseMarco - Failed to parse marco for shader program \"{}\" shader type :\"{}\".\nMarcoCompiler:\n{}",
-            _programName, shader_type_str, marco_parse_err_msg);
-            throw std::runtime_error(err);
-      }
-
-      std::string header{};
-      header += "#extension GL_EXT_nonuniform_qualifier : enable\n";
-      header += "#extension GL_EXT_buffer_reference : enable\n";
-      header += "#extension GL_EXT_scalar_block_layout : enable\n";
-      header += "#extension GL_EXT_buffer_reference2 : require\n";
-
-      header += "#define BindlessSamplerBinding 0\n";
-      header += "#define BindlessStorageTextureBinding 1\n";
-
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1D _bindlessSampled1D[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2D _bindlessSampled2D[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler3D _bindlessSampled3D[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform samplerCube _bindlessSampledCube[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1DArray _bindlessSampled1DArray[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2DArray _bindlessSampled2DArray[];\n";
-
-      header += "#define PickRTextures(format, Dim) \\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\n";
-
-      header += "#define PickWTextures(format, Dim) \\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\n";
-
-      header += "#define PickRWTextures(format, Dim) \\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\n";
-
-      header += "#define GetTextureHandle(Handle) pushConstant.parameterTable.Handle\n";
-
-      header += "#define GetSampled1D(Handle) _bindlessSampled1D[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetSampled2D(Handle) _bindlessSampled2D[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetSampled3D(Handle) _bindlessSampled3D[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetSampledCube(Handle) _bindlessSampledCube[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetSampled1DArray(Handle) _bindlessSampled1DArray[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetSampled2DArray(Handle) _bindlessSampled2DArray[nonuniformEXT(uint(Handle))]\n";
-
-      header += "#define GetRTexture(Handle, format, Dim) _bindlessRTexture##Dim##format[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetWTexture(Handle, format, Dim) _bindlessWTexture##Dim##format[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetRWTexture(Handle, format, Dim) _bindlessRWTexture##Dim##format[nonuniformEXT(uint(Handle))]\n";
-
-      header += "#define GetBuffer(Name) pushConstant.parameterTable.ptr##Name\n";
-
-      //constant parameter table
-      if(!_shaderResourceDefine.empty()) {
-            std::string buffer_pointer_define_code{};
-            for(const auto& item : _shaderBufferResourceDefineCode) {
-                  buffer_pointer_define_code += item.second + "\n";
-            }
-
-            std::string parameter_table_code = "layout(buffer_reference, scalar) readonly buffer ParameterTable {\n";
-
-            uint32_t resource_offset = 0;
-            bool align_to_8 = false;
-            uint32_t index_order = 0;
-            for(const auto& item : _shaderResourceDefine) {
-                  auto& [resource_name, info] = item;
-                  if(info.Type == ShaderResource::READ_BUFFER || info.Type == ShaderResource::WRITE_BUFFER || info.Type == ShaderResource::READ_WRITE_BUFFER) {
-                        parameter_table_code += std::format("\t {} ptr{};\n", resource_name, resource_name);
-                        info.Offset = resource_offset;
-                        info.Size = 8;
-                        resource_offset += 8;
-                        align_to_8 = true;
-
-                        info.Index = index_order;
-                        index_order++;
-                  }
-            }
-
-            for(const auto& item : _shaderResourceDefine) {
-                  const auto& [resource_name, info] = item;
-                  if(info.Type == ShaderResource::READ_TEXTURE || info.Type == ShaderResource::WRITE_TEXTURE || info.Type == ShaderResource::READ_WRITE_TEXTURE || info.Type == ShaderResource::SAMPLED_TEXTURE) {
-                        parameter_table_code += std::format("\t uint {};\n", resource_name);
-                        info.Offset = resource_offset;
-                        info.Size = 4;
-                        resource_offset += 4;
-
-                        info.Index = index_order;
-                        index_order++;
-                  }
-            }
-
-            if(align_to_8 && resource_offset % 8 != 0) {
-                  resource_offset += 8 - (resource_offset % 8);
-                  _parameterTableSize = resource_offset;
-            } else {
-                  _parameterTableSize = resource_offset;
-            }
-
-            parameter_table_code+= "};\n";
-
-            //gen push constant
-            parameter_table_code += "layout(push_constant) uniform readonly PushConstant {\n";
-            parameter_table_code += "\t ParameterTable parameterTable;\n";
-            parameter_table_code += "} pushConstant;\n";
-
-            //inssert to head
-            header += buffer_pointer_define_code;
-            header += parameter_table_code;
-      }
-
-      source_output.insert(source_output.begin(), header.begin(), header.end());
-      printf("\n=============================\n%s\n=============================\n", source_output.c_str());
-
-      // Parse Stage
-      setters.clear();
-
-      std::string setter_parse_err_msg{};
-      std::string source_code_output{};
-
+      std::string compile_err{};
       std::vector<uint32_t> spv{};
       VkShaderModule shader_module{};
 
-      if (!ParseSetters(source_output, setters, source_code_output, setter_parse_err_msg, GLSLANG_STAGE_COMPUTE)) {
-            auto err = std::format("Program::CompileCompute - Failed to parse setters for shader program \"{}\" shader type :\"{}\".\nSetterCompiler:\n{}",
-            _programName, shader_type_str, setter_parse_err_msg);
-            throw std::runtime_error(err);
+      std::string source_code_replace_entry = std::string{source};
+
+      for (auto& i : ShaderTypeMap) {
+            if (auto entry_pos = source.find(i.first); entry_pos != std::string::npos) {
+                  source_code_replace_entry.replace(entry_pos, 6, "  main");
+            }
       }
 
-      if (!CompileFromCode(source_code_output.data(), GLSLANG_STAGE_COMPUTE, spv, setter_parse_err_msg)) {
-            const auto err = std::format("Program::CompileCompute - Failed to compile shader program \"{}\", shader type :\"{}\".\nShaderCompiler:\n{}",
-            _programName, shader_type_str, setter_parse_err_msg);
+      if (!CompileFromCode(source_code_replace_entry.data(), GLSLANG_STAGE_COMPUTE, spv, compile_err)) {
+            const auto err = std::format(R"(Program::CompileCompute - Failed to create Compute Program: "{}" -- {}.)", _programName, compile_err);
             throw std::runtime_error(err);
       }
 
@@ -271,18 +149,18 @@ void Program::CompileCompute(std::string_view source) {
       shader_ci.pCode = spv.data();
 
       if (auto res = vkCreateShaderModule(volkGetLoadedDevice(), &shader_ci, nullptr, &shader_module); res != VK_SUCCESS) {
-            const auto err = std::format("Program::CompileCompute - Failed to create shader module for shader program \"{}\", shader type :\"{}\".",
-            _programName, shader_type_str);
+            const auto err = std::format(R"(Program::CompileCompute - Failed to create Compute Program: "{}".)",
+            _programName);
             throw std::runtime_error(err);
       }
 
       _shaderModules[GLSLANG_STAGE_COMPUTE] = std::make_pair(std::move(spv), shader_module);
-      const auto success = std::format("Program::CompileCompute - Successfully compiled Compute program \"{}\".", _programName);
+
+      const auto success = std::format(R"(Program::CompileCompute - Successfully compiled Compute program "{}".)", _programName);
       MessageManager::Log(MessageType::Normal, success);
 }
 
 void Program::CompileGraphics(const std::vector<std::pair<std::string_view, glslang_stage_t>>& sources) {
-      //Init Pipeline CIs, use default profile
       _inputAssemblyStateCreateInfo = VkPipelineInputAssemblyStateCreateInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
             .pNext = nullptr,
@@ -367,175 +245,45 @@ void Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
             .pCode = nullptr
       };
 
+      _multiSampleCreateInfo = VkPipelineMultisampleStateCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+            .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+            .minSampleShading = 1.0f,
+      };
+
       _vertexInputAttributeDescription.clear();
       _vertexInputBindingDescription.clear();
       _colorBlendAttachmentState.clear();
       _renderTargetFormat.clear();
 
-      entt::dense_map<std::string, std::vector<std::string>> setters{}; // TODO: setter
+      ConfigParseStage(_config);
 
-      std::vector<std::pair<std::string, glslang_stage_t>> source_after_marco{};
+      //header += "#extension GL_EXT_nonuniform_qualifier : enable\n";
+      //header += "#extension GL_EXT_buffer_reference : enable\n";
+      //header += "#extension GL_EXT_scalar_block_layout : enable\n";
+      //header += "#extension GL_EXT_buffer_reference2 : require\n";
+      //header += "#define BindlessSamplerBinding 0\n";
+      //header += "#define BindlessStorageTextureBinding 1\n";
 
-      for (auto item : sources) {
+      for (const auto& item : sources) {
             glslang_stage_t shader_type = item.second;
-            std::string_view source = item.first;
-
-            std::string shader_type_str = HelperShaderStageToString(shader_type);
-
-            std::string marco_parse_source_output{};
-            std::string marco_parse_err_msg{};
-            if (!ParseMarco(source, marco_parse_source_output, marco_parse_err_msg, shader_type)) {
-                  const auto err = std::format("Program::ParseMarco - Failed to parse marco for shader program \"{}\" shader type :\"{}\".\nMarcoCompiler:\n{}",
-                  _programName, shader_type_str, marco_parse_err_msg);
-                  throw std::runtime_error(err);
-            }
-            source_after_marco.emplace_back(std::move(marco_parse_source_output), shader_type);
-      }
-
-      //Head Gen
-
-      std::string header{};
-
-      header += "#extension GL_EXT_nonuniform_qualifier : enable\n";
-      header += "#extension GL_EXT_buffer_reference : enable\n";
-      header += "#extension GL_EXT_scalar_block_layout : enable\n";
-      header += "#extension GL_EXT_buffer_reference2 : require\n";
-
-      header += "#define BindlessSamplerBinding 0\n";
-      header += "#define BindlessStorageTextureBinding 1\n";
-
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1D _bindlessSampled1D[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2D _bindlessSampled2D[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler3D _bindlessSampled3D[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform samplerCube _bindlessSampledCube[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler1DArray _bindlessSampled1DArray[];\n";
-      header += "layout(set = 0, binding = BindlessSamplerBinding) uniform sampler2DArray _bindlessSampled2DArray[];\n";
-
-      header += "#define PickRTextures(format, Dim) \\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) readonly uniform image##Dim _bindlessRTexture##Dim##format[];\n";
-
-      header += "#define PickWTextures(format, Dim) \\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) writeonly uniform image##Dim _bindlessWTexture##Dim##format[];\n";
-
-      header += "#define PickRWTextures(format, Dim) \\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\\\n";
-      header += "layout(set = 0, binding = BindlessStorageTextureBinding, format) uniform image##Dim _bindlessRWTexture##Dim##format[];\n";
-
-      header += "#define GetTextureHandle(Handle) pushConstant.parameterTable.Handle\n";
-
-      header += "#define GetSampled1D(Handle) _bindlessSampled1D[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetSampled2D(Handle) _bindlessSampled2D[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetSampled3D(Handle) _bindlessSampled3D[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetSampledCube(Handle) _bindlessSampledCube[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetSampled1DArray(Handle) _bindlessSampled1DArray[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetSampled2DArray(Handle) _bindlessSampled2DArray[nonuniformEXT(uint(Handle))]\n";
-
-      header += "#define GetRTexture(Handle, format, Dim) _bindlessRTexture##Dim##format[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetWTexture(Handle, format, Dim) _bindlessWTexture##Dim##format[nonuniformEXT(uint(Handle))]\n";
-      header += "#define GetRWTexture(Handle, format, Dim) _bindlessRWTexture##Dim##format[nonuniformEXT(uint(Handle))]\n";
-
-      header += "#define GetBuffer(Name) pushConstant.parameterTable.ptr##Name\n";
-
-      //constant parameter table
-      if(!_shaderResourceDefine.empty()) {
-            std::string buffer_pointer_define_code{};
-            for(const auto& item : _shaderBufferResourceDefineCode) {
-                  buffer_pointer_define_code += item.second + "\n";
-            }
-
-            std::string parameter_table_code = "layout(buffer_reference, scalar) readonly buffer ParameterTable {\n";
-
-            uint32_t resource_offset = 0;
-            bool align_to_8 = false;
-            uint32_t index_order = 0;
-            for(const auto& item : _shaderResourceDefine) {
-                  auto& [resource_name, info] = item;
-                  if(info.Type == ShaderResource::READ_BUFFER || info.Type == ShaderResource::WRITE_BUFFER || info.Type == ShaderResource::READ_WRITE_BUFFER) {
-                        parameter_table_code += std::format("\t {} ptr{};\n", resource_name, resource_name);
-                        info.Offset = resource_offset;
-                        info.Size = 8;
-                        resource_offset += 8;
-                        align_to_8 = true;
-
-                        info.Index = index_order;
-                        index_order++;
-                  }
-            }
-
-            for(const auto& item : _shaderResourceDefine) {
-                  const auto& [resource_name, info] = item;
-                  if(info.Type == ShaderResource::READ_TEXTURE || info.Type == ShaderResource::WRITE_TEXTURE || info.Type == ShaderResource::READ_WRITE_TEXTURE || info.Type == ShaderResource::SAMPLED_TEXTURE) {
-                        parameter_table_code += std::format("\t uint {};\n", resource_name);
-                        info.Offset = resource_offset;
-                        info.Size = 4;
-                        resource_offset += 4;
-
-                        info.Index = index_order;
-                        index_order++;
-                  }
-            }
-
-            if(align_to_8 && resource_offset % 8 != 0) {
-                  resource_offset += 8 - (resource_offset % 8);
-                  _parameterTableSize = resource_offset;
-            } else {
-                  _parameterTableSize = resource_offset;
-            }
-
-            parameter_table_code+= "};\n";
-
-            //gen push constant
-            parameter_table_code += "layout(push_constant) uniform readonly PushConstant {\n";
-            parameter_table_code += "\t ParameterTable parameterTable;\n";
-            parameter_table_code += "} pushConstant;\n";
-
-            //inssert to head
-            header += buffer_pointer_define_code;
-            header += parameter_table_code;
-      }
-
-
-      for (auto& key : source_after_marco | std::views::keys) {
-            std::string& source = key;
-            source.insert(source.begin(), header.begin(), header.end());
-            printf("\n=============================\n%s\n=============================\n", source.c_str());
-      }
-
-      for (const auto& item : source_after_marco) {
-            glslang_stage_t shader_type = item.second;
-            const std::string& source = item.first;
-
-            setters.clear();
+            const std::string_view source = item.first;
 
             std::string setter_parse_err_msg{};
-            std::string source_code_output{};
 
             std::string shader_type_str = HelperShaderStageToString(shader_type);
             std::vector<uint32_t> spv{};
             VkShaderModule shader_module{};
+            std::string source_code_replace_entry = std::string{source};
 
-            if (!ParseSetters(source, setters, source_code_output, setter_parse_err_msg, shader_type)) {
-                  auto err = std::format("Program::CompileGraphics - Failed to parse setters for shader program \"{}\" shader type :\"{}\".\nSetterCompiler:\n{}",
-                  _programName, shader_type_str, setter_parse_err_msg);
-                  throw std::runtime_error(err);
+            for (auto& i : ShaderTypeMap) {
+                  if (auto entry_pos = source.find(i.first); entry_pos != std::string::npos) {
+                        source_code_replace_entry.replace(entry_pos, 6, "  main");
+                  }
             }
 
-            if (!CompileFromCode(source_code_output.data(), shader_type, spv, setter_parse_err_msg)) {
-                  const auto err = std::format("Program::CompileGraphics - Failed to compile shader program \"{}\", shader type :\"{}\".\nShaderCompiler:\n{}",
+            if (!CompileFromCode(source_code_replace_entry.data(), shader_type, spv, setter_parse_err_msg)) {
+                  const auto err = std::format("Program::CompileGraphics - Failed to create Graphic Program \"{}\", Err in Shader:\"{}\".\nShaderCompiler:\n{}",
                   _programName, shader_type_str, setter_parse_err_msg);
                   throw std::runtime_error(err);
             }
@@ -547,17 +295,16 @@ void Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
                         break;
                   default:
                         {
-                              const auto err = std::format("Program::CompileGraphics - Failed to parse shader program \"{}\", shader type :\"{}\".", _programName, shader_type_str);
+                              const auto err = std::format(R"(Program::CompileGraphics - Failed to create Graphic Program "{}", Err in Shader:"{}".)", _programName, shader_type_str);
                               throw std::runtime_error(err);
                         }
-                        break;
             }
 
             shader_ci.codeSize = spv.size() * sizeof(uint32_t);
             shader_ci.pCode = spv.data();
 
             if (auto res = vkCreateShaderModule(volkGetLoadedDevice(), &shader_ci, nullptr, &shader_module); res != VK_SUCCESS) {
-                  const auto err = std::format("Program::CompileGraphics - Failed to create shader module for shader program \"{}\", shader type :\"{}\".",
+                  const auto err = std::format(R"(Program::CompileGraphics - Failed to create Graphic Program "{}", Err in Shader:"{}".)",
                   _programName, shader_type_str);
                   throw std::runtime_error(err);
             }
@@ -565,7 +312,7 @@ void Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
             _shaderModules[shader_type] = std::make_pair(std::move(spv), shader_module);
       }
 
-      const auto success = std::format("Program::CompileGraphics - Successfully compiled Graphics program \"{}\".", _programName);
+      const auto success = std::format("Program::CompileGraphics - Successfully Create Graphics Program \"{}\".", _programName);
       MessageManager::Log(MessageType::Normal, success);
 }
 
@@ -637,320 +384,20 @@ bool Program::CompileFromCode(const char* source, glslang_stage_t shader_type, s
       return true;
 }
 
-bool Program::ParseMarco(std::string_view input_code, std::string& output_codes, std::string& error_message, glslang_stage_t shader_type) {
-      std::string_view source_code = input_code;
-
-      //return <word, code after word>
-      auto EatWord = [](const std::string_view str) -> std::optional<std::pair<std::string_view, std::string_view>> {
-            std::string_view::size_type word_start{};
-            std::string_view::size_type index{};
-
-            // eat space
-            for (; word_start < str.size(); word_start++) {
-                  if (str[word_start] == ' ' || str[word_start] == '\t' || str[word_start] == '\r' || str[word_start] == '\n') { continue; } else { break; }
-            }
-
-            index = word_start;
-            for (; index < str.size(); index++) {
-                  if (std::isalnum(str[index]) || str[index] == '_') { continue; } else { break; }
-            }
-
-            if (index == word_start) {
-                  return std::nullopt;
-            } else {
-                  if (index >= str.size()) {
-                        return std::make_pair(str.substr(word_start, index - word_start), std::string_view{});
-                  } else {
-                        return std::make_pair(str.substr(word_start, index - word_start), str.substr(index, str.size() - index));
-                  }
-            }
-      };
-
-      //return <code in front of marco, code after marco>
-      auto FindMarco = [](std::string_view codes, std::string_view marco) -> std::pair<std::string_view, std::string_view> {
-            if (const auto find_pos = codes.find(marco); find_pos != std::string_view::npos) {
-                  return std::make_pair(codes.substr(0, find_pos), codes.substr(find_pos + marco.size(), codes.size() - find_pos - marco.size()));
-            } else {
-                  return std::make_pair(codes, std::string_view{});
-            }
-      };
-
-      auto FindFrontMarcos = [&](std::string_view codes, const std::vector<std::string_view>& marcos) -> std::tuple<std::string_view, std::string_view, std::string_view> {
-            size_t find_pos = std::string_view::npos;
-            std::string_view marco = {};
-            for (auto i : marcos) {
-                  if (const auto res = codes.find(i); res != std::string_view::npos) {
-                        if (res < find_pos) {
-                              find_pos = res;
-                              marco = i;
-                        }
-                  }
-            }
-
-            if (!marco.empty()) {
-                  const auto temp = FindMarco(codes, marco);
-                  return std::make_tuple(temp.first, temp.second, marco);
-            } else {
-                  return std::make_tuple(codes, std::string_view{}, std::string{});
-            }
-      };
-
-      // return <code block, after code block>
-      auto EatCodeBlock = [](std::string_view str) -> std::optional<std::pair<std::string_view, std::string_view>> {
-            int64_t index = 0;
-
-            int64_t start = 0;
-            int64_t end = 0;
-            int64_t bracket_match_index = 0;
-
-            bool finded = false;
-            while (index < str.size()) {
-                  if (str[index] == '{') {
-                        if (finded) {
-                              bracket_match_index++;
-                        } else {
-                              finded = true;
-                              start = index;
-                              bracket_match_index++;
-                        }
-                  } else if (str[index] == '}') {
-                        if (finded) {
-                              bracket_match_index--;
-                              if (bracket_match_index == 0) {
-                                    end = index;
-
-                                    if (end + 1 >= str.size())
-                                          return std::make_pair(std::string_view{str.begin() + start, str.begin() + end + 1}, std::string_view{});
-                                    else
-                                          return std::make_pair(
-                                          std::string_view{str.begin() + start, str.begin() + end + 1},
-                                          std::string_view{str.begin() + end + 1, str.begin() + (int64_t)str.size()}
-                                          );
-                              }
-                        }
-                  }
-                  index++;
-            }
-
-            return std::nullopt;
-      };
-
-      output_codes = "";
-      std::vector<std::string_view> marcos_to_find{"PUSH_CONSTANT", "SAMPLED", "RWBUFFER", "RBUFFER", "WBUFFER" , "RWTEXTURE", "RTEXTURE", "WTEXTURE"};
-      while (true) {
-            auto [front, after, marco] = FindFrontMarcos(source_code, marcos_to_find);
-
-            if (after.empty()) {
-                  output_codes += front;
-                  break;
-            } else {
-                  output_codes += front;
-                  source_code = after;
-                  if (marco == "PUSH_CONSTANT") {
-                        auto struct_type_eat_word = EatWord(source_code);
-                        if (!struct_type_eat_word.has_value()) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement, need a name after \"{}\" key word.", marco);
-                              return false;
-                        }
-
-                        auto [struct_typename, code_after_struct_typename] = struct_type_eat_word.value(); // typename
-                        source_code = code_after_struct_typename;
-
-                        const auto eat_code_block = EatCodeBlock(source_code);
-                        if (!eat_code_block.has_value()) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement, need a code block after PUSH_CONSATNT");
-                              return false;
-                        }
-
-                        const auto [code_block, code_after_block] = eat_code_block.value();
-
-                        //output_codes += std::format("layout(std140, set = 0, binding = BindlessStorageBinding) readonly buffer {} {} _bindless{}[];", struct_typename, code_block, struct_typename);
-
-                        output_codes += std::format("layout(push_constant) uniform readonly Type{} {} {};", struct_typename, code_block, struct_typename);
-                        source_code = code_after_block;
-
-                  } else if (marco == "RBUFFER") {
-                        auto struct_type_eat_word = EatWord(source_code);
-                        if (!struct_type_eat_word.has_value()) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement, need a RBUFFER name after \"{}\" key word.", marco);
-                              return false;
-                        }
-
-                        auto [struct_typename, code_after_struct_typename] = struct_type_eat_word.value(); // typename
-                        source_code = code_after_struct_typename;
-
-                        const auto eat_code_block = EatCodeBlock(source_code);
-                        if (!eat_code_block.has_value()) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement, need a code block after RBUFFER type name \"{}\".", struct_typename);
-                              return false;
-                        }
-
-                        const auto [code_block, code_after_block] = eat_code_block.value();
-                        //output_codes += std::format("layout(buffer_reference, scalar) readonly buffer {} {};", struct_typename, code_block);
-                        source_code = code_after_block;
-
-                        const auto buffer_pointer_define_code =  std::format("layout(buffer_reference, scalar) readonly buffer {} {};", struct_typename, code_block);
-
-                        const auto struct_typename_str = std::string{struct_typename};
-                        if(const auto finder = _shaderBufferResourceDefineCode.find(struct_typename_str); finder != std::end(_shaderBufferResourceDefineCode)) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement,Resource name \"{}\" is repeat, use it directly.", struct_typename_str);
-                              return false;
-                        } else {
-                              _shaderBufferResourceDefineCode.emplace(struct_typename_str, buffer_pointer_define_code);
-                              _shaderResourceDefine.emplace(struct_typename_str, ShaderResourceInfo {ShaderResource::READ_BUFFER});
-                        }
-
-                  } else if (marco == "RWBUFFER") {
-                        auto struct_type_eat_word = EatWord(source_code);
-                        if (!struct_type_eat_word.has_value()) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement, need a RWBUFFER name after \"{}\" key word.", marco);
-                              return false;
-                        }
-
-                        auto [struct_typename, code_after_struct_typename] = struct_type_eat_word.value(); // typename
-                        source_code = code_after_struct_typename;
-
-                        const auto eat_code_block = EatCodeBlock(source_code);
-                        if (!eat_code_block.has_value()) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement, need a code block after RWBUFFER type name \"{}\".", struct_typename);
-                              return false;
-                        }
-
-                        const auto [code_block, code_after_block] = eat_code_block.value();
-
-                        //output_codes += std::format("layout(std140, set = 0, binding = BindlessStorageBinding) buffer {} {} _bindless{}[];", struct_typename, code_block, struct_typename);
-                        //output_codes += std::format("layout(buffer_reference, scalar) buffer {} {};", struct_typename, code_block);
-                        source_code = code_after_block;
-
-                        const auto buffer_pointer_define_code = std::format("layout(buffer_reference, scalar) buffer {} {};", struct_typename, code_block);
-
-                        const auto struct_typename_str = std::string{struct_typename};
-                        if(const auto finder = _shaderBufferResourceDefineCode.find(struct_typename_str); finder != std::end(_shaderBufferResourceDefineCode)) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement,Resource name \"{}\" is repeat, use it directly.", struct_typename_str);
-                              return false;
-                        } else {
-                              _shaderBufferResourceDefineCode.emplace(struct_typename_str, buffer_pointer_define_code);
-                              _shaderResourceDefine.emplace(struct_typename_str, ShaderResourceInfo {ShaderResource::READ_BUFFER});
-                        }
-
-                  } else if (marco == "WBUFFER") {
-                        auto struct_type_eat_word = EatWord(source_code);
-                        if (!struct_type_eat_word.has_value()) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement, need a WBUFFER name after \"{}\" key word.", marco);
-                              return false;
-                        }
-
-                        auto [struct_typename, code_after_struct_typename] = struct_type_eat_word.value(); // typename
-                        source_code = code_after_struct_typename;
-
-                        const auto eat_code_block = EatCodeBlock(source_code);
-                        if (!eat_code_block.has_value()) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement, need a code block after WBUFFER type name \"{}\".", struct_typename);
-                              return false;
-                        }
-
-                        const auto [code_block, code_after_block] = eat_code_block.value();
-
-                        //output_codes += std::format("layout(std140, set = 0, binding = BindlessStorageBinding) buffer {} {} _bindless{}[];", struct_typename, code_block, struct_typename);
-                        //output_codes += std::format("layout(buffer_reference, scalar) buffer {} {};", struct_typename, code_block);
-                        source_code = code_after_block;
-
-                        const auto buffer_pointer_define_code = std::format("layout(buffer_reference, scalar) writeonly buffer {} {};", struct_typename, code_block);
-
-                        const auto struct_typename_str = std::string{struct_typename};
-                        if(const auto finder = _shaderBufferResourceDefineCode.find(struct_typename_str); finder != std::end(_shaderBufferResourceDefineCode)) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement,Resource name \"{}\" is repeat, use it directly.", struct_typename_str);
-                              return false;
-                        } else {
-                              _shaderBufferResourceDefineCode.emplace(struct_typename_str, buffer_pointer_define_code);
-                              _shaderResourceDefine.emplace(struct_typename_str, ShaderResourceInfo {ShaderResource::WRITE_BUFFER});
-                        }
-
-                  } else if (marco == "SAMPLED") {
-                        auto struct_type_eat_word = EatWord(source_code);
-                        if (!struct_type_eat_word.has_value()) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement, need a SAMPELD texture name after \"{}\" key word.", marco);
-                              return false;
-                        }
-
-                        auto [texture_var_name, code_after_struct_typename] = struct_type_eat_word.value(); // typename
-                        source_code = code_after_struct_typename;
-
-                        const auto texture_handle_str = std::string{texture_var_name};
-                        if(const auto finder = _shaderBufferResourceDefineCode.find(texture_handle_str); finder != std::end(_shaderBufferResourceDefineCode)) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement,Resource name \"{}\" is repeat, use it directly.", texture_handle_str);
-                              return false;
-                        } else {
-                              _shaderResourceDefine.emplace(texture_handle_str, ShaderResourceInfo {ShaderResource::SAMPLED_TEXTURE});
-                        }
-
-                  } else if (marco == "RWTEXTURE") {
-                        auto struct_type_eat_word = EatWord(source_code);
-                        if (!struct_type_eat_word.has_value()) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement, need a RWTEXTURE name after \"{}\" key word.", marco);
-                              return false;
-                        }
-
-                        auto [texture_var_name, code_after_struct_typename] = struct_type_eat_word.value(); // typename
-                        source_code = code_after_struct_typename;
-
-                        const auto texture_handle_str = std::string{texture_var_name};
-                        if(const auto finder = _shaderBufferResourceDefineCode.find(texture_handle_str); finder != std::end(_shaderBufferResourceDefineCode)) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement,Resource name \"{}\" is repeat, use it directly.", texture_handle_str);
-                              return false;
-                        } else {
-                              _shaderResourceDefine.emplace(texture_handle_str, ShaderResourceInfo {ShaderResource::READ_WRITE_TEXTURE});
-                        }
-
-                  } else if (marco == "RTEXTURE") {
-                        auto struct_type_eat_word = EatWord(source_code);
-                        if (!struct_type_eat_word.has_value()) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement, need a RTEXTURE name after \"{}\" key word.", marco);
-                              return false;
-                        }
-
-                        auto [texture_var_name, code_after_struct_typename] = struct_type_eat_word.value(); // typename
-                        source_code = code_after_struct_typename;
-
-                        const auto texture_handle_str = std::string{texture_var_name};
-                        if(const auto finder = _shaderBufferResourceDefineCode.find(texture_handle_str); finder != std::end(_shaderBufferResourceDefineCode)) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement,Resource name \"{}\" is repeat, use it directly.", texture_handle_str);
-                              return false;
-                        } else {
-                              _shaderResourceDefine.emplace(texture_handle_str, ShaderResourceInfo {ShaderResource::READ_TEXTURE});
-                        }
-                  } else if (marco == "WTEXTURE") {
-                        auto struct_type_eat_word = EatWord(source_code);
-                        if (!struct_type_eat_word.has_value()) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement, need a RTEXTURE name after \"{}\" key word.", marco);
-                              return false;
-                        }
-
-                        auto [texture_var_name, code_after_struct_typename] = struct_type_eat_word.value(); // typename
-                        source_code = code_after_struct_typename;
-
-                        const auto texture_handle_str = std::string{texture_var_name};
-                        if(const auto finder = _shaderBufferResourceDefineCode.find(texture_handle_str); finder != std::end(_shaderBufferResourceDefineCode)) {
-                              error_message = std::format("Program::ParseMarco - Invalid statement,Resource name \"{}\" is repeat, use it directly.", texture_handle_str);
-                              return false;
-                        } else {
-                              _shaderResourceDefine.emplace(texture_handle_str, ShaderResourceInfo {ShaderResource::WRITE_TEXTURE});
-                        }
-                  }
-            }
+void Program::ConfigParseStage(std::string_view config) {
+      if (std::string err{}; !ParseConfig(config, err)) {
+            const auto message = std::format("Program::ConfigParseStage - Failed to parse config: {}.  Err:\n{}\n", _programName, err);
+            throw std::runtime_error(message);
       }
-
-      return true;
 }
 
-bool Program::ParseSetters(std::string_view codes, entt::dense_map<std::string, std::vector<std::string>>& _setters,
-std::string& output_codes, std::string& error_message, glslang_stage_t shader_type) {
+bool Program::ParseConfig(std::string_view Config, std::string& error_message) {
       std::vector<std::string_view> lines;
       std::string_view::size_type start = 0;
       std::string_view::size_type end;
 
-      while ((end = codes.find('\n', start)) != std::string_view::npos) {
-            lines.emplace_back(codes.substr(start, end - start));
+      while ((end = Config.find('\n', start)) != std::string_view::npos) {
+            lines.emplace_back(Config.substr(start, end - start));
             start = end + 1;
       }
 
@@ -986,41 +433,17 @@ std::string& output_codes, std::string& error_message, glslang_stage_t shader_ty
             }
       };
 
-      std::string entry_point_str;
-      for (auto& i : ShaderTypeMap) {
-            if (i.second == shader_type) {
-                  entry_point_str = i.first;
-                  break;
-            }
-      }
-
-
       for (int line = 0; line < lines.size(); ++line) {
             auto piece = lines[line];
 
             auto pos = piece.find("#set");
+
             if (pos == std::string_view::npos) {
-                  if (auto epos = piece.find(entry_point_str); epos != std::string_view::npos) {
-                        //replace entry_point_str to main
-                        auto endpos = epos + entry_point_str.size();
-                        std::string newLine = std::format("{}{}{}", piece.substr(0, epos), "main", piece.substr(endpos, piece.size() - endpos));
-                        output_codes += newLine;
-                        output_codes += "\n";
-                  } else {
-                        output_codes += piece;
-                        output_codes += "\n";
-                  }
                   continue;
             } else {
                   auto posCommit = piece.find("//#set");
                   if (posCommit != std::string_view::npos) {
-                        output_codes += piece;
-                        output_codes += "\n";
                         continue;
-                  } else {
-                        output_codes += "//";
-                        output_codes += piece;
-                        output_codes += "\n";
                   }
             }
 
@@ -1106,7 +529,7 @@ std::string& output_codes, std::string& error_message, glslang_stage_t shader_ty
             }
 
             std::string analyze_error_msg{};
-            if (!AnalyzeSetter(setter, analyze_error_msg, shader_type)) {
+            if (!AnalyzeConfig(setter, analyze_error_msg)) {
                   error_message = analyze_error_msg;
                   return false;
             }
@@ -1135,7 +558,7 @@ void Program::ParseVS(const std::vector<uint32_t>& spv) {
 
                   const auto& binding = comp.get_decoration(resource.id, spv::Decoration::DecorationBinding);
                   const auto& location = comp.get_decoration(resource.id, spv::Decoration::DecorationLocation);
-                  std::pair<uint32_t, uint32_t>* crruent_binding_info = nullptr;
+                  std::pair<uint32_t, uint32_t>* crruent_binding_info;
 
                   bool missing_binding = true;
                   for (auto& i : stage_input_info) {
@@ -1174,46 +597,43 @@ void Program::ParseVS(const std::vector<uint32_t>& spv) {
                   } else if (type.basetype == spirv_cross::SPIRType::Int) {
                         switch (type.vecsize) {
                               case 1: input_format = VK_FORMAT_R32_SINT;
-                              curr_size = 4;
-                              break;
+                                    curr_size = 4;
+                                    break;
                               case 2: input_format = VK_FORMAT_R32G32_SINT;
-                              curr_size = 8;
-                              break;
+                                    curr_size = 8;
+                                    break;
                               case 3: input_format = VK_FORMAT_R32G32B32_SINT;
-                              curr_size = 12;
-                              break;
+                                    curr_size = 12;
+                                    break;
                               case 4: input_format = VK_FORMAT_R32G32B32A32_SINT;
-                              curr_size = 16;
-                              break;
+                                    curr_size = 16;
+                                    break;
                               default:
                                     {
                                           const auto err = std::format("Program::ParseVS - stage inputs has invalid ivecsize: {}, at location {}, binding {}", type.vecsize, location, binding);
                                           throw std::runtime_error(err);
                                     }
                         }
-                        //curr_size = 4;
                   } else if (type.basetype == spirv_cross::SPIRType::UInt) {
                         switch (type.vecsize) {
                               case 1: input_format = VK_FORMAT_R32_UINT;
-                              curr_size = 4;
-                              break;
+                                    curr_size = 4;
+                                    break;
                               case 2: input_format = VK_FORMAT_R32G32_UINT;
-                              curr_size = 8;
-                              break;
+                                    curr_size = 8;
+                                    break;
                               case 3: input_format = VK_FORMAT_R32G32B32_UINT;
-                              curr_size = 12;
-                              break;
+                                    curr_size = 12;
+                                    break;
                               case 4: input_format = VK_FORMAT_R32G32B32A32_UINT;
-                              curr_size = 16;
-                              break;
+                                    curr_size = 16;
+                                    break;
                               default:
                                     {
                                           const auto err = std::format("Program::ParseVS - stage inputs has invalid ivecsize: {}, at location {}, binding {}", type.vecsize, location, binding);
                                           throw std::runtime_error(err);
                                     }
                         }
-                        //input_format = VK_FORMAT_R32_UINT;
-                        //curr_size = 4;
                   }
 
                   if (input_format == VK_FORMAT_UNDEFINED) {
@@ -1265,7 +685,6 @@ void Program::ParseVS(const std::vector<uint32_t>& spv) {
             uint32_t member_count = type.member_types.size();
 
             for (int i = 0; i < member_count; i++) {
-
                   uint32_t member_size = comp.get_declared_struct_member_size(type, i);
                   uint32_t offset = comp.type_struct_member_offset(type, i);
 
@@ -1303,28 +722,24 @@ void Program::ParseFS(const std::vector<uint32_t>& spv) {
             throw std::runtime_error(err);
       }
 
-      for (auto& resource : resources.push_constant_buffers) {
-            auto& type = comp.get_type(resource.base_type_id);
-            uint32_t member_count = type.member_types.size();
-
-            for (int i = 0; i < member_count; i++) {
-
-                  size_t member_size = comp.get_declared_struct_member_size(type, i);
-                  size_t offset = comp.type_struct_member_offset(type, i);
-
-                  // const std::string& member_name = comp.get_member_name(type.self, i);
-                  // auto str = std::format("PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
-                  // std::printf("%s\n", str.c_str());
-
-                  if (i == member_count - 1) {
-                        uint32_t ps_size = offset + member_size;
-                        if (ps_size != _pushConstantRange.size) {
-                              const auto err = std::format("Program::ParseFS - fs's struct not match with vs, please copy it from vs to fs, expected {}, got {}.", _pushConstantRange.size, ps_size);
-                              throw std::runtime_error(err);
-                        }
-                  }
-            }
-      }
+      // for (auto& resource : resources.push_constant_buffers) {
+      //       auto& type = comp.get_type(resource.base_type_id);
+      //       uint32_t member_count = type.member_types.size();
+      //
+      //       for (int i = 0; i < member_count; i++) {
+      //             size_t member_size = comp.get_declared_struct_member_size(type, i);
+      //             size_t offset = comp.type_struct_member_offset(type, i);
+      //
+      //             if (i == member_count - 1) {
+      //                   uint32_t ps_size = offset + member_size;
+      //                   _pushConstantRange.size = _pushConstantRange.size < ps_size ? ps_size : _pushConstantRange.size;
+      //                   // if (ps_size != _pushConstantRange.size) {
+      //                   //       const auto err = std::format("Program::ParseFS - fs's struct not match with vs, please copy it from vs to fs, expected {}, got {}.", _pushConstantRange.size, ps_size);
+      //                   //       throw std::runtime_error(err);
+      //                   // }
+      //             }
+      //       }
+      // }
 }
 
 void Program::ParseCS(const std::vector<uint32_t>& spv) {
@@ -1341,12 +756,11 @@ void Program::ParseCS(const std::vector<uint32_t>& spv) {
 
                   uint32_t member_size = comp.get_declared_struct_member_size(type, i);
                   uint32_t offset = comp.type_struct_member_offset(type, i);
+                   const std::string& member_name = comp.get_member_name(type.self, i);
+                   auto str = std::format("ParseCS - PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
+                   std::printf("%s\n", str.c_str());
 
-                  // const std::string& member_name = comp.get_member_name(type.self, i);
-                  // auto str = std::format("PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
-                  // std::printf("%s\n", str.c_str());
-
-                  _pushConstantDefine.emplace(member_type_name, PushConstantMemberInfo{offset, member_size});
+                  _pushConstantDefine.emplace(member_name, PushConstantMemberInfo{offset, member_size});
 
                   if (i == member_count - 1) {
                         _pushConstantRange.offset = 0;
@@ -1356,7 +770,7 @@ void Program::ParseCS(const std::vector<uint32_t>& spv) {
       }
 }
 
-bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string>>& setter, std::string& error_msg, glslang_stage_t shader_type) {
+bool Program::AnalyzeConfig(const std::pair<std::string, std::vector<std::string>>& setter, std::string& error_msg) {
       static std::unordered_map<std::string, std::unordered_map<std::string, uint64_t>> SetterKeyValueMapper{
             {
                   "topology", {
@@ -1415,39 +829,6 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
             }
       };
 
-      static std::unordered_map<glslang_stage_t, std::set<std::string>> SetterAvailableInShaderType{
-            {
-                  glslang_stage_t::GLSLANG_STAGE_VERTEX, {
-                        "vs_location",
-                        "vs_binding",
-                        "topology",
-                        "polygon_mode",
-                        "cull_mode",
-                        "front_face",
-
-                        "depth_write",
-                        "depth_test",
-                        "depth_bias",
-                        "depth_bounds_test",
-                        "line_width"
-                  }
-            },
-
-            {
-                  glslang_stage_t::GLSLANG_STAGE_FRAGMENT, {
-                        "rt",
-                        "ds",
-                        "color_blend",
-
-                        "depth_write",
-                        "depth_test",
-                        "depth_bias",
-                        "depth_bounds_test",
-                        "line_width"
-                  }
-            }
-      };
-
       auto CheckAndFetchValue = [&](const std::string& the_key, const std::string& the_value,
       std::string& error) -> std::optional<uint64_t> {
             if (const auto it = SetterKeyValueMapper.find(the_key); it != SetterKeyValueMapper.end()) {
@@ -1460,7 +841,6 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                               error += k;
                               error += " ";
                         }
-
                         return std::nullopt;
                   }
             } else {
@@ -1485,29 +865,12 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
       };
 
       auto ErrorArgument = [](const std::string& key, uint32_t err_target, const std::string& value, std::string& error_msg, const std::string& vaild_values) -> bool {
-            error_msg = std::format("Invalid argument {} for key \"{}\". Expected [{}], got \"{}\".", key, err_target, vaild_values, value);
-            return false;
-      };
-
-      auto ErrorSetInShaderType = [](const std::string& key, glslang_stage_t shader_type, std::string& error_msg) -> bool {
-            error_msg = std::format("Invalid setter key \"{}\" for shader type \"{}\".", key, HelperShaderStageToString(shader_type));
+            error_msg = std::format(R"(Invalid argument {} for key "{}". Expected [{}], got "{}".)", key, err_target, vaild_values, value);
             return false;
       };
 
       const auto& key = setter.first;
       const auto& values = setter.second;
-
-      auto vaild_setters = SetterAvailableInShaderType.find(shader_type);
-      if (vaild_setters == SetterAvailableInShaderType.end()) {
-            //shouldn't be here
-            return ErrorSetInShaderType(key, shader_type, error_msg);
-      }
-
-      if (!vaild_setters->second.contains(key)) {
-            error_msg = std::format("Invalid setter key \"{}\" for shader type \"{}\".", key, HelperShaderStageToString(shader_type));
-            return false;
-      }
-
 
       if (key == "topology") {
             if (!Analyze(_inputAssemblyStateCreateInfo.topology, key, values[0], error_msg)) return false;
@@ -1531,22 +894,22 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                   uint32_t offset;
                   try {
                         binding = std::stoi(values[0]);
-                  } catch (std::runtime_error&) {
-                        error_msg = std::format("Invalid argument 1 for key \"{}\". Expected integer, got \"{}\".", key, values[0]);
+                  } catch (...) {
+                        error_msg = std::format(R"(Invalid argument 1 for key "{}". Expected integer, got "{}".)", key, values[0]);
                         return false;
                   }
 
                   try {
                         location = std::stoi(values[1]);
-                  } catch (std::runtime_error&) {
-                        error_msg = std::format("Invalid argument 2 for key \"{}\". Expected integer, got \"{}\".", key, values[1]);
+                  } catch (...) {
+                        error_msg = std::format(R"(Invalid argument 2 for key "{}". Expected integer, got "{}".)", key, values[1]);
                         return false;
                   }
 
                   try {
                         offset = std::stoi(values[3]);
-                  } catch (std::runtime_error&) {
-                        error_msg = std::format("Invalid argument 4 for key \"{}\". Expected integer, got \"{}\".", key, values[3]);
+                  } catch (...) {
+                        error_msg = std::format(R"(Invalid argument 4 for key "{}". Expected integer, got "{}".)", key, values[3]);
                         return false;
                   }
 
@@ -1579,15 +942,15 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
 
                   try {
                         binding = std::stoi(values[0]);
-                  } catch (std::runtime_error&) {
-                        error_msg = std::format("Invalid argument 1 for key \"{}\". Expected integer, got \"{}\".", key, values[0]);
+                  } catch (...) {
+                        error_msg = std::format(R"(Invalid argument 1 for key "{}". Expected integer, got "{}".)", key, values[0]);
                         return false;
                   }
 
                   try {
                         stride_size = std::stoi(values[1]);
-                  } catch (std::runtime_error&) {
-                        error_msg = std::format("Invalid argument 2 for key \"{}\". Expected integer, got \"{}\".", key, values[1]);
+                  } catch (...) {
+                        error_msg = std::format(R"(Invalid argument 2 for key "{}". Expected integer, got "{}".)", key, values[1]);
                         return false;
                   }
 
@@ -1607,8 +970,7 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                   _vertexInputBindingDescription.push_back(binding_desc);
                   _vertexInputStateCreateInfo.pVertexBindingDescriptions = _vertexInputBindingDescription.data();
                   _vertexInputStateCreateInfo.vertexBindingDescriptionCount = _vertexInputBindingDescription.size();
-            }
-            else if (values.size() == 2) {
+            } else if (values.size() == 2) {
                   if (!_autoVSInputStageBind) {
                         error_msg = "Auto vertex input stage bind is disabled, please disable it by adding #set vs_binding = [binding, stride_size, binding_rate] in shader source code.";
                         return false;
@@ -1618,8 +980,8 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
 
                   try {
                         binding = std::stoi(values[0]);
-                  } catch (std::runtime_error&) {
-                        error_msg = std::format("Invalid argument 1 for key \"{}\". Expected integer, got \"{}\".", key, values[0]);
+                  } catch (...) {
+                        error_msg = std::format(R"(Invalid argument 1 for key "{}". Expected integer, got "{}".)", key, values[0]);
                         return false;
                   }
 
@@ -1642,22 +1004,22 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
 
                   try {
                         depthBiasConstantFactor = std::stof(values[0]);
-                  } catch (std::runtime_error&) {
-                        error_msg = std::format("Invalid argument 1 for key \"{}\". Expected float, got \"{}\".", key, values[0]);
+                  } catch (...) {
+                        error_msg = std::format(R"(Invalid argument 1 for key "{}". Expected float, got "{}".)", key, values[0]);
                         return false;
                   }
 
                   try {
                         depthBiasClamp = std::stof(values[1]);
-                  } catch (std::runtime_error&) {
-                        error_msg = std::format("Invalid argument 2 for key \"{}\". Expected float, got \"{}\".", key, values[1]);
+                  } catch (...) {
+                        error_msg = std::format(R"(Invalid argument 2 for key "{}". Expected float, got "{}".)", key, values[1]);
                         return false;
                   }
 
                   try {
                         depthBiasSlopeFactor = std::stof(values[2]);
-                  } catch (std::runtime_error&) {
-                        error_msg = std::format("Invalid argument 3 for key \"{}\". Expected float, got \"{}\".", key, values[2]);
+                  } catch (...) {
+                        error_msg = std::format(R"(Invalid argument 3 for key "{}". Expected float, got "{}".)", key, values[2]);
                         return false;
                   }
 
@@ -1676,15 +1038,15 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
 
                   try {
                         min_depth = std::stof(values[0]);
-                  } catch (std::runtime_error&) {
-                        error_msg = std::format("Invalid argument 1 for key \"{}\". Expected float, got \"{}\".", key, values[0]);
+                  } catch (...) {
+                        error_msg = std::format(R"(Invalid argument 1 for key "{}". Expected float, got "{}".)", key, values[0]);
                         return false;
                   }
 
                   try {
                         max_depth = std::stof(values[1]);
-                  } catch (std::runtime_error&) {
-                        error_msg = std::format("Invalid argument 2 for key \"{}\". Expected float, got \"{}\".", key, values[1]);
+                  } catch (...) {
+                        error_msg = std::format(R"(Invalid argument 2 for key "{}". Expected float, got "{}".)", key, values[1]);
                         return false;
                   }
 
@@ -1699,8 +1061,8 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
 
             try {
                   line_width = std::stof(values[0]);
-            } catch (std::runtime_error&) {
-                  error_msg = std::format("Invalid argument 1 for key \"{}\". Expected float, got \"{}\".", key, values[0]);
+            } catch (...) {
+                  error_msg = std::format(R"(Invalid argument 1 for key "{}". Expected float, got "{}".)", key, values[0]);
                   return false;
             }
             _rasterizationStateCreateInfo.lineWidth = line_width;
@@ -1744,13 +1106,24 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                         VkPipelineColorBlendAttachmentState alpha_blend = {};
                         alpha_blend.blendEnable = VK_TRUE;
                         alpha_blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-                        alpha_blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+                        alpha_blend.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
                         alpha_blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
                         alpha_blend.colorBlendOp = VK_BLEND_OP_ADD;
                         alpha_blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
                         alpha_blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
                         alpha_blend.alphaBlendOp = VK_BLEND_OP_ADD;
                         _colorBlendAttachmentState.push_back(alpha_blend);
+                  } else if (values[0] == "src_alpha") {
+                        VkPipelineColorBlendAttachmentState src_alpha = {};
+                        src_alpha.blendEnable = VK_TRUE;
+                        src_alpha.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+                        src_alpha.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+                        src_alpha.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                        src_alpha.colorBlendOp = VK_BLEND_OP_ADD;
+                        src_alpha.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+                        src_alpha.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                        src_alpha.alphaBlendOp = VK_BLEND_OP_ADD;
+                        _colorBlendAttachmentState.push_back(src_alpha);
                   } else if (values[0] == "min") {
                         VkPipelineColorBlendAttachmentState darken_blend = {};
                         darken_blend.blendEnable = VK_TRUE;
@@ -1810,7 +1183,7 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                   VkFormat vk_format = GetVkFormatFromStringSimpled(values[idx]);
 
                   if (vk_format == VK_FORMAT_UNDEFINED) {
-                        error_msg = std::format("Invalid argument {} for key \"{}\". Expected a vaild format, got \"{}\".", idx, key, values[idx]);
+                        error_msg = std::format(R"(Invalid argument {} for key "{}". Expected a vaild format, got "{}".)", idx, key, values[idx]);
                         return false;
                   }
 
@@ -1829,7 +1202,7 @@ bool Program::AnalyzeSetter(const std::pair<std::string, std::vector<std::string
                         _renderingCreateInfo.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
                   } else {
                         error_msg = std::format(
-                        "Invalid argument {} for key \"{}\". Expected a vaild format, got \"{}\", vaild format:[d16_unorm_s8_uint, d24_unorm_s8_uint, d32_sfloat_s8_uint, d16_unorm, d32_sfloat].",
+                        R"(Invalid argument {} for key "{}". Expected a vaild format, got "{}", vaild format:[d16_unorm_s8_uint, d24_unorm_s8_uint, d32_sfloat_s8_uint, d16_unorm, d32_sfloat].)",
                         0, key, values[0]);
                         return false;
                   }

@@ -32,8 +32,6 @@ namespace LoFi::Component::Gfx {
 
             [[nodiscard]] VkBufferView* GetViewPtr(uint32_t idx) { return &_views.at(idx); }
 
-            [[nodiscard]] VkDeviceSize GetSize() const { return _vaildSize; }
-
             [[nodiscard]] VkDeviceSize GetCapacity() const { return _bufferCI->size; }
 
             [[nodiscard]] bool IsHostSide() const { return _isHostSide; }
@@ -69,12 +67,14 @@ namespace LoFi::Component::Gfx {
 
             void DestroyBuffer();
 
+            void Update(VkCommandBuffer cmd);
+
+            static void UpdateAll(VkCommandBuffer cmd); // call by context
+
             friend class ::LoFi::GfxContext;
 
       private:
             entt::entity _id = entt::null;
-
-            size_t _vaildSize{};
 
             bool _isHostSide = false;
 
@@ -101,5 +101,7 @@ namespace LoFi::Component::Gfx {
             ResourceUsage _currentUsage = ResourceUsage::NONE;
 
             std::vector<uint8_t> _dataCache{};
+
+            std::function<void(VkCommandBuffer)> _updateCommand{};
       };
 }
