@@ -1,20 +1,16 @@
 #include "Swapchain.h"
-#include "Window.h"
+#include "../GfxContext.h"
 #include "../Message.h"
-#include "SDL3/SDL_vulkan.h"
+#include "LoFiGfxDefines.h"
 
 using namespace LoFi::Component::Gfx;
 using namespace LoFi::Internal;
 
-Swapchain::Swapchain(entt::entity id) : _id(id) {
+Swapchain::Swapchain(entt::entity id, const GfxParamCreateSwapchain& param) : _id(id) {
+      _resourceName = param.pResourceName ? param.pResourceName : std::string{};
 
-      auto& world = *volkGetLoadedEcsWorld();
-
-      if (!world.valid(id)) {
-            const auto err = std::format("Swapchain::Swapchain - Invalid Entity ID\n");
-            MessageManager::Log(MessageType::Warning, err);
-            throw std::runtime_error(err);
-      }
+      _onResizeCallBack = param.PtrOnSwapchainNeedResizeCallback;
+      _anyHandleForResizeCallback = param.AnyHandleForResizeCallback;
 
       auto device = volkGetLoadedDevice();
 
@@ -24,14 +20,16 @@ Swapchain::Swapchain(entt::entity id) : _id(id) {
       for (auto& _imageAvailableSemaphore : _imageAvailableSemaphores) {
             VkSemaphore semaphore{};
             if (auto res = vkCreateSemaphore(device, &semaphore_ci, nullptr, &semaphore); res != VK_SUCCESS) {
-                  std::string msg = std::format("Swapchain::Swapchain - Failed to create semaphore {}", (int64_t)res);
-                  MessageManager::Log(MessageType::Error, msg);
-                  throw std::runtime_error(msg);
+                  std::string err = std::format("[SwapchainCreate] vkCreateSemaphore Failed, return {}.", ToStringVkResult(res));
+                  if(!_resourceName.empty()) err += std::format(" - Name: \"{}\"", _resourceName);
+                  MessageManager::Log(MessageType::Error, err);
+                  throw std::runtime_error(err);
             }
             _imageAvailableSemaphore = semaphore;
       }
 
       CreateOrRecreateSwapChain();
+      AcquireNextImage();
 }
 
 void Swapchain::AcquireNextImage() {
@@ -47,77 +45,23 @@ void Swapchain::AcquireNextImage() {
             if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
                   // will recreate swapchain in next frame
             } else {
-                  auto err = std::format("Swapchain::AcquireNextImage - Failed to acquire next image {}", GetVkResultString(res));
+                  auto err = std::format("[Swapchain::AcquireNextImage] Failed to acquire next image {}.", ToStringVkResult(res));
+                  if(!_resourceName.empty())err += std::format(" - Name: \"{}\"", _resourceName);
                   MessageManager::Log(MessageType::Error, err);
             }
       }
       _preAccquireResult = res;
 }
 
-void Swapchain::SetMappedRenderTarget(entt::entity texture) {
-      auto& world = *volkGetLoadedEcsWorld();
-      if (world.valid(texture) && world.all_of<Texture>(texture)) {
-            _mappedRenderTarget = texture;
-      }
-}
-
-void Swapchain::BeginFrame(VkCommandBuffer cmd) const {
-      if (_mappedRenderTarget != entt::null) {
-            const auto render_traget = GetCurrentRenderTarget();
-            render_traget->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_DST);
-      } else {
-            const auto render_traget = GetCurrentRenderTarget();
-            render_traget->BarrierLayout(cmd, NONE, ResourceUsage::PRESENT);
-      }
-}
-
-void Swapchain::EndFrame(VkCommandBuffer cmd) const {
-      if (_mappedRenderTarget != entt::null) {
-            MapRenderTarget(cmd);
-      }
-}
-
-void Swapchain::MapRenderTarget(VkCommandBuffer cmd) const {
-      auto& world = *volkGetLoadedEcsWorld();
-      auto current_rt = GetCurrentRenderTarget();
-
-      if (world.valid(_mappedRenderTarget)) {
-            auto tex = world.try_get<Texture>(_mappedRenderTarget);
-            if (tex) {
-                  const auto src = std::bit_cast<VkOffset3D>(tex->GetExtent());
-                  const auto dst = std::bit_cast<VkOffset3D>(current_rt->GetExtent());
-                  constexpr VkOffset3D zero = {0, 0, 0};
-
-                  const VkImageBlit blit{
-                        .srcSubresource = {
-                              .aspectMask = tex->GetViewCI().subresourceRange.aspectMask,
-                              .mipLevel = 0,
-                              .baseArrayLayer = 0,
-                              .layerCount = 1
-                        },
-                        .srcOffsets = {zero, src},
-                        .dstSubresource = {
-                              .aspectMask = current_rt->GetViewCI().subresourceRange.aspectMask,
-                              .mipLevel = 0,
-                              .baseArrayLayer = 0,
-                              .layerCount = 1
-                        },
-                        .dstOffsets = {zero, dst}
-                  };
-
-                  tex->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_SRC);
-                  current_rt->BarrierLayout(cmd, NONE, ResourceUsage::TRANS_DST);
-
-                  vkCmdBlitImage(cmd, tex->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, current_rt->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
-            }
-      }
-
-      current_rt->BarrierLayout(cmd, NONE, ResourceUsage::PRESENT);
+void Swapchain::PresentBarrier(VkCommandBuffer cmd) const {
+      GetCurrentRenderTarget()->BarrierLayout(cmd, GfxEnumKernelType::OUT_OF_KERNEL, GfxEnumResourceUsage::PRESENT);
 }
 
 Swapchain::~Swapchain() {
       const auto device = volkGetLoadedDevice();
       const auto instance = volkGetLoadedInstance();
+
+      vkDeviceWaitIdle(device);
 
       for (auto semaphore : _imageAvailableSemaphores) {
             vkDestroySemaphore(device, semaphore, nullptr);
@@ -130,49 +74,37 @@ Swapchain::~Swapchain() {
 }
 
 void Swapchain::CreateOrRecreateSwapChain() {
-      entt::registry& world = *volkGetLoadedEcsWorld();
-
-      if (!world.valid(_id)) {
-            auto str = std::format("Swapchain::CreateOrRecreateSwapChain - Invalid Entity {}", (uint32_t)_id);
-            MessageManager::Log(MessageType::Error, str);
-            throw std::runtime_error(str);
+      if(_onResizeCallBack == nullptr) {
+            std::string err = "[Swapchain::CreateOrRecreateSwapChain] delegate \"OnResizeCallBack\" is null, can't resize swapchain.";
+            if(!_resourceName.empty())err += std::format(" - Name: \"{}\"", _resourceName);
+            MessageManager::Log(MessageType::Warning, err);
+            return ;
       }
-
-      auto res = world.try_get<Window>(_id);
-
-      if (!res) {
-            auto str = std::format("Swapchain::CreateOrRecreateSwapChain - Entity {} Missing Window", (uint32_t)_id);
-            MessageManager::Log(MessageType::Error, str);
-            throw std::runtime_error(str);
-      }
-
-      auto current_window_size = res->GetSize();
-
-      if (current_window_size.width == 0 || current_window_size.height == 0) {
-            return;
-      }
-
-      if (current_window_size.width == _extent.width && current_window_size.height == _extent.height) {
-            return;
-      }
-
 
       auto device = volkGetLoadedDevice();
       auto instance = volkGetLoadedInstance();
 
       vkDeviceWaitIdle(device);
 
+      if(!_images.empty()) {
+            for (auto& image : _images) {
+                  GfxContext::Get()->RemoveBindlessIndexTextureImmediately(image.get());
+            }
+      }
       _images.clear();
 
       vkDestroySwapchainKHR(device, _swapchain, nullptr);
       vkDestroySurfaceKHR(instance, _surface, nullptr);
 
-      auto win_ptr = res->GetWindowPtr();
+      //auto win_ptr = window_comp->GetWindowPtr();
 
-      if (!SDL_Vulkan_CreateSurface(win_ptr, instance, nullptr, &_surface)) {
-            std::string msg = "Swapchain::CreateOrRecreateSwapChain - Failed to create surface";
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+      _surface = (VkSurfaceKHR)_onResizeCallBack(_anyHandleForResizeCallback, (uint64_t)volkGetLoadedInstance());
+
+      if(_surface == nullptr) {
+            std::string err = "[Swapchain::CreateOrRecreateSwapChain] Invaild Surface Handle.";
+            if(!_resourceName.empty())err += std::format(" - Name: \"{}\"", _resourceName);
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       VkSurfaceCapabilitiesKHR surface_capabilities{};
@@ -183,11 +115,11 @@ void Swapchain::CreateOrRecreateSwapChain() {
       sp_ci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
       sp_ci.surface = _surface;
       sp_ci.minImageCount = 3;
-      sp_ci.imageFormat = VK_FORMAT_B8G8R8A8_UNORM;
+      sp_ci.imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
       sp_ci.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
       sp_ci.imageExtent = surface_capabilities.currentExtent;
       sp_ci.imageArrayLayers = 1;
-      sp_ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+      sp_ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
       sp_ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
       sp_ci.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
       sp_ci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -195,10 +127,11 @@ void Swapchain::CreateOrRecreateSwapChain() {
       sp_ci.clipped = VK_TRUE;
 
 
-      if (auto res = vkCreateSwapchainKHR(device, &sp_ci, nullptr, &_swapchain); res != VK_SUCCESS) {
-            std::string msg = std::format("Swapchain::CreateOrRecreateSwapChain - Failed to create swapchain {}", (int64_t)res);
-            MessageManager::Log(MessageType::Error, msg);
-            throw std::runtime_error(msg);
+      if (const auto res = vkCreateSwapchainKHR(device, &sp_ci, nullptr, &_swapchain); res != VK_SUCCESS) {
+            std::string err = std::format("[Swapchain::CreateOrRecreateSwapChain] vkCreateSwapchainKHR Failed, return {}.", ToStringVkResult(res));
+            if(!_resourceName.empty())err += std::format(" - Name: \"{}\"", _resourceName);
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
       }
 
       uint32_t image_count = 0;
@@ -209,7 +142,7 @@ void Swapchain::CreateOrRecreateSwapChain() {
       VkImageCreateInfo image_ci{};
       image_ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
       image_ci.imageType = VK_IMAGE_TYPE_2D;
-      image_ci.format = VK_FORMAT_B8G8R8A8_UNORM;
+      image_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
       image_ci.extent.width = surface_capabilities.currentExtent.width;
       image_ci.extent.height = surface_capabilities.currentExtent.height;
       image_ci.extent.depth = 1;
@@ -217,13 +150,13 @@ void Swapchain::CreateOrRecreateSwapChain() {
       image_ci.arrayLayers = 1;
       image_ci.samples = VK_SAMPLE_COUNT_1_BIT;
       image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
-      image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+      image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
       image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
       VkImageViewCreateInfo view_ci{};
       view_ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
       view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-      view_ci.format = VK_FORMAT_B8G8R8A8_UNORM;
+      view_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
       view_ci.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
       view_ci.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
       view_ci.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -235,9 +168,13 @@ void Swapchain::CreateOrRecreateSwapChain() {
       view_ci.subresourceRange.layerCount = 1;
       view_ci.image = nullptr; //auto fill
 
+      uint32_t name_idx = 0;
       for (const auto image : images) {
-            auto texture = std::make_unique<Texture>(image_ci, image, true);
+            const std::string name = std::format("{}_backbuffer_{}", _resourceName, name_idx++);
+            auto texture = std::make_unique<Texture>();
+            texture->Init(image_ci, image, true, name.c_str());
             texture->CreateView(view_ci);
+            GfxContext::Get()->MakeBindlessIndexTexture(texture.get());
             _images.push_back(std::move(texture));
       }
 

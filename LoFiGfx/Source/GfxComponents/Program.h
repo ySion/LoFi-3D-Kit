@@ -37,7 +37,9 @@ namespace LoFi::Component::Gfx {
 
             ~Program();
 
-            explicit Program(entt::entity id, std::string_view name, std::string_view config, const std::vector<std::string_view>& sources);
+            explicit Program(entt::entity id);
+
+            bool Init(const char* name, std::string_view config, const std::vector<std::string_view>& sources);
 
             // TODO: LoadFromCache
 
@@ -72,7 +74,7 @@ namespace LoFi::Component::Gfx {
 
             void ParseVS(const std::vector<uint32_t>& spv);
 
-            void ParseFS(const std::vector<uint32_t>& spv);
+            void ParseFS(const std::vector<uint32_t>& spv) const;
 
             void ParseCS(const std::vector<uint32_t>& spv);
 

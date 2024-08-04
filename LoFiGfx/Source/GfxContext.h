@@ -3,28 +3,34 @@
 //
 #pragma once
 
+#include <shared_mutex>
+
 #include "Helper.h"
 #include "PhysicalDevice.h"
-
-#include "../Third/xxHash/xxh3.h"
-#include "GfxComponents/Defines.h"
-#include "FrameGraph.h"
+#include "LoFiGfxDefines.h"
 
 namespace LoFi {
 
       namespace Component::Gfx {
             class Buffer;
+            class Buffer3F;
             class Program;
             class Texture;
             class Kernel;
+            class Swapchain;
       }
+
+      class PfxContext;
 
       class GfxContext {
             friend class Component::Gfx::Buffer;
+            friend class Component::Gfx::Buffer3F;
             friend class Component::Gfx::Program;
             friend class Component::Gfx::Texture;
             friend class Component::Gfx::Kernel;
+            friend class Component::Gfx::Swapchain;
             friend class FrameGraph;
+            friend class RenderNode;
 
             struct SamplerCIHash {
                   std::size_t operator()(const VkSamplerCreateInfo& s) const noexcept {
@@ -51,153 +57,92 @@ namespace LoFi {
 
             void Init();
 
-            entt::entity CreateWindow(const char* title, uint32_t w, uint32_t h);
+            void DestroyHandle(ResourceHandle handle);
 
-            [[nodiscard]] entt::entity CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts = 1);
+            [[nodiscard]] ResourceHandle CreateSwapChain(const GfxParamCreateSwapchain& param);
 
-            [[nodiscard]] entt::entity CreateAATexture2D(VkFormat format, uint32_t w, uint32_t h);
+            [[nodiscard]] ResourceHandle CreateTexture2D(VkFormat format, uint32_t w, uint32_t h, const GfxParamCreateTexture2D& param = {});
 
-            [[nodiscard]] entt::entity CreateTexture2D(const void* pixel_data, size_t size, VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts = 1);
+            [[nodiscard]] ResourceHandle CreateBuffer(const GfxParamCreateBuffer& param);
 
-            template <class T>
-            [[nodiscard]] entt::entity CreateTexture2D(const std::vector<T>& data, VkFormat format, uint32_t w, uint32_t h, uint32_t mipMapCounts = 1) {
-                  return CreateTexture2D((void*)data.data(), data.size() * sizeof(T), format, w, h, mipMapCounts);
-            }
+            [[nodiscard]] ResourceHandle CreateBuffer3F(const GfxParamCreateBuffer3F& param);
 
-            [[nodiscard]] entt::entity CreateBuffer(uint64_t size, bool cpu_access = false);
+            [[nodiscard]] ResourceHandle CreateProgram(const GfxParamCreateProgram& param);
 
-            [[nodiscard]] entt::entity CreateBuffer(const void* data, uint64_t size, bool cpu_access = false);
+            [[nodiscard]] ResourceHandle CreateProgramFromFile(const GfxParamCreateProgramFromFile& param);
 
-            template <class T>
-            [[nodiscard]] entt::entity CreateBuffer(const std::vector<T>& data, bool cpu_access = false) {
-                  return CreateBuffer(data.data(), data.size() * sizeof(T), cpu_access);
-            }
+            [[nodiscard]] ResourceHandle CreateKernel(ResourceHandle program, const GfxParamCreateKernel& param = {});
 
-            template <class T, size_t N>
-            [[nodiscard]] entt::entity CreateBuffer(const std::array<T, N>& data, bool cpu_access = false) {
-                  return CreateBuffer(data.data(), N * sizeof(T), cpu_access);
-            }
+            [[nodiscard]] ResourceHandle CreateRenderNode(const GfxParamCreateRenderNode& param);
 
-            [[nodiscard]] entt::entity CreateProgram(const std::vector<std::string_view>& source_codes, std::string_view config, std::string_view program_name = "default_program");
+            [[nodiscard]] Gfx2DCanvas Create2DCanvas();
 
-            [[nodiscard]] entt::entity CreateProgramFromFile(const std::vector<std::string_view>& source_files, std::string_view config, std::string_view program_name = "default_program");
+            void Destroy2DCanvas(Gfx2DCanvas canvas);
 
+            void SetRootRenderNode(ResourceHandle node) const;
 
-            [[nodiscard]] entt::entity CreateKernel(entt::entity program);
+            bool SetRenderNodeWait(ResourceHandle node, const GfxInfoRenderNodeWait& param);
 
-            [[nodiscard]] entt::entity CreateBuffer3F(uint64_t size, bool hight_dynamic = true);
+            bool SetKernelConstant(ResourceHandle kernel, const std::string& name, const void* data);
 
-            [[nodiscard]] entt::entity CreateBuffer3F(void* data, uint64_t size, bool hight_dynamic = true);
+            bool FillKernelConstant(ResourceHandle kernel, const void* data, size_t size);
 
-            void SetFrameResourceData(entt::entity frame_resource, void * data, uint64_t size, uint64_t offset = 0);
+            bool SetBuffer(ResourceHandle buffer, const void* data, uint64_t size, uint64_t offset_for_3f = 0);
 
-            bool SetKernelConstant(entt::entity kernel, const std::string& name, void* data);
+            bool ResizeBuffer(ResourceHandle buffer, uint64_t size);
 
-            template<class T>
-            bool SetKernelConstant(entt::entity kernel, const std::string& name, T data) { return SetKernelConstant(kernel, name, (void*)&data); }
+            bool SetTexture2D(ResourceHandle texture, const void* data, uint64_t size);
 
-            bool FillKernelConstant(entt::entity kernel, const void* data, size_t size);
+            bool ResizeTexture2D(ResourceHandle texture, uint32_t w, uint32_t h);
 
-            void DestroyHandle(entt::entity);
+            void SetTextureSampler(ResourceHandle texture, const VkSamplerCreateInfo& sampler_ci);
 
-            void UploadBuffer(entt::entity buffer, const void* data, uint64_t size);
+            RenderNode* GetRenderGraphNodePtr(ResourceHandle node);
 
-            void ResizeBuffer(entt::entity buffer, uint64_t size);
+            //Infos
 
-            void UploadTexture2D(entt::entity texture, const void* data, uint64_t size);
+            GfxInfoKernelLayout GetKernelLayout(ResourceHandle kernel);
 
-            void* PollEvent();
-
-            void BeginFrame();
+            [[nodiscard]] FrameGraph* BeginFrame();
 
             void EndFrame();
 
-            void DestroyWindow(uint32_t id);
+            void GenFrame();
 
-            void DestroyWindow(entt::entity window);
+            [[nodiscard]] uint32_t GetTextureBindlessIndex(ResourceHandle texture);
 
-            void MapRenderTargetToWindow(entt::entity texture, entt::entity window);
+            [[nodiscard]] uint64_t GetBufferBindlessAddress(ResourceHandle buffer);
 
-            void CmdBeginRenderPass(const std::vector<RenderPassBeginArgument>& textures) const;
+            [[nodiscard]] void* GetBufferMappedAddress(ResourceHandle buffer);
 
-            void CmdEndRenderPass() const;
+            [[nodiscard]] FrameGraph* GetFrameGraph() const;
 
-            void CmdBindKernel(entt::entity kernel) const;
+            [[nodiscard]] uint32_t GetCurrentFrameIndex() const;
 
-            void CmdBindVertexBuffer(entt::entity buffer, uint32_t first_binding = 0, uint32_t binding_count = 1, size_t offset = 0) const;
+            [[nodiscard]] bool IsValidHandle(ResourceHandle handle);
 
-            void CmdBindIndexBuffer(entt::entity buffer, size_t offset = 0) const;
+            void WaitDevice() const;
 
-            void CmdDraw(uint32_t vertex_count, uint32_t instance_count = 1, uint32_t first_vertex = 0, uint32_t first_instance = 0) const;
-
-            void CmdDrawIndex(uint32_t index_count, uint32_t instance_count = 1, uint32_t first_index = 0, int32_t vertex_offset = 0, uint32_t first_instance = 0) const;
-
-            void CmdDrawIndexedIndirect(entt::entity indirect_buffer, size_t offset, uint32_t draw_count, uint32_t stride) const;
-
-            void CmdSetViewport(float x, float y, float w, float h, float min_depth = 0.0f, float max_depth = 1.0f) const;
-
-            void CmdSetViewport(const VkViewport& viewport) const;
-
-            void CmdSetViewportAuto(bool invert_y = true) const;
-
-            void CmdSetScissor(int x, int y, uint32_t w, uint32_t h) const;
-
-            void CmdSetScissor(VkRect2D scissor) const;
-
-            void CmdSetScissorAuto() const;
-
-            void CmdPushConstant(entt::entity push_constant_buffer) const;
-
-            void BeginComputePass() const;
-
-            void EndComputePass();
-
-            void CmdComputeDispatch(uint32_t x, uint32_t y, uint32_t z) const;
-
-            void SetTextureSampler(entt::entity image, const VkSamplerCreateInfo& sampler_ci);
-
-            uint32_t GetTextureBindlessIndex(entt::entity texture);
-
-            uint64_t GetBufferBindlessAddress(entt::entity buffer);
-
-            void AsSampledTexure(entt::entity texture, KernelType which_kernel_use = GRAPHICS) const;
-
-            void AsReadTexure(entt::entity texture, KernelType which_kernel_use = COMPUTE) const;
-
-            void AsWriteTexture(entt::entity texture, KernelType which_kernel_use = COMPUTE) const;
-
-            void AsWriteBuffer(entt::entity buffer, KernelType which_kernel_use = COMPUTE) const;
-
-            void AsReadBuffer(entt::entity buffer, KernelType which_kernel_use = COMPUTE) const;
-
-            uint32_t GetCurrentFrameIndex() const;
-
-            template<class T> T* UnsafeFetch(entt::entity id) {
-                  if(!_world.valid(id)) {
-                        return nullptr;
-                  }
-                  return _world.try_get<T>(id);
+            template<class T> T* ResourceFetch(ResourceHandle handle) {
+                  std::shared_lock lock(_worldRWMutex);
+                  return (T*)_world.try_get<T>(handle.RHandle);
             }
 
       private:
+            void EnqueueBufferUpdate(ResourceHandle handle);
 
-            void Shutdown();
+            void EnqueueTextureUpdate(ResourceHandle handle);
 
+            void EnqueueBuffer3FUpdate(ResourceHandle handle);
+
+            void StageResourceUpdate();
+
+      private:
             void RecoveryContextResource(const Internal::ContextResourceRecoveryInfo& pack);
-
-            uint32_t MakeBindlessIndexTexture(entt::entity texture, uint32_t viewIndex = 0);
-
-            void PrepareWindowRenderTarget();
-
-            VkFence GetCurrentFence() const;
-
-            void GoNextFrame();
 
             void StageRecoveryContextResource();
 
             void RecoveryAllContextResourceImmediately();
-
-            void RecoveryContextResourceWindow(const Internal::ContextResourceRecoveryInfo& pack);
 
             void RecoveryContextResourceBuffer(const Internal::ContextResourceRecoveryInfo& pack) const;
 
@@ -210,6 +155,22 @@ namespace LoFi {
             void RecoveryContextResourcePipeline(const Internal::ContextResourceRecoveryInfo& pack) const;
 
             void RecoveryContextResourcePipelineLayout(const Internal::ContextResourceRecoveryInfo& pack) const;
+
+      private:
+
+            void WaitPreviewFramesDone();
+
+            void Shutdown();
+
+            uint32_t MakeBindlessIndexTexture(Component::Gfx::Texture* texture, uint32_t viewIndex = 0);
+
+            void RemoveBindlessIndexTextureImmediately(Component::Gfx::Texture* texture);
+
+            //void PrepareSwapChainRenderTarget();
+
+            VkFence GetCurrentFence() const;
+
+            void GoNextFrame();
 
       private:
             bool _bDebugMode = true;
@@ -255,9 +216,18 @@ namespace LoFi {
 
       private:
 
-            entt::dense_map<uint32_t, entt::entity> _windowIdToWindow{};
-
             entt::registry _world;
+
+            std::shared_mutex _worldRWMutex{};
+
+      private:
+            moodycamel::ConcurrentQueue<ResourceHandle> _queueTextureUpdate{};
+
+            moodycamel::ConcurrentQueue<ResourceHandle> _queueBufferUpdate{};
+
+            moodycamel::ConcurrentQueue<ResourceHandle> _queueBuffer3FUpdate{};
+
+            std::vector<ResourceHandle> _updateBuffer3FLeft{};
 
       private:
             moodycamel::ConcurrentQueue<Internal::ContextResourceRecoveryInfo> _resourceRecoveryQueue{};
@@ -265,6 +235,18 @@ namespace LoFi {
             std::vector<Internal::ContextResourceRecoveryInfo> _resoureceRecoveryList[3]{};
 
       private:
-            std::unique_ptr<FrameGraph> _frameGraphs[3]{};
+            std::unique_ptr<FrameGraph> _frameGraph{};
+
+      private: // cache
+            std::vector<VkSemaphore> semaphores_wait_for{};
+            std::vector<VkPipelineStageFlags> dst_stage_wait_for{};
+            std::vector<VkSwapchainKHR> swap_chains{};
+            std::vector<uint32_t> present_image_index{};
+
+      private:
+            entt::dense_set<PfxContext*> _2DCanvas{};
+
+      private:
+            bool _first_call = true;
       };
 }

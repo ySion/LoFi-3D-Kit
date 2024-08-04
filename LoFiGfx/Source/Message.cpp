@@ -1,7 +1,6 @@
 //
 // Created by starr on 2024/6/20.
 //
-#include <iostream>
 #include <string_view>
 
 #include "Message.h"
@@ -12,21 +11,25 @@ void MessageManager::Log(MessageType type, std::string_view content) {
       switch (type) {
             case MessageType::Normal:
                   NormalCount++;
-                  std::printf("[Normal]: %s\n", content.data());
+                  std::printf("[  Tip  ]%s\n", content.data());
                   break;
             case MessageType::Warning:
                   WarningCount++;
-                  std::printf("[Warning]: %s\n", content.data());
+                  std::printf("[Warning]%s\n", content.data());
 
                   break;
             case MessageType::Error:
                   ErrorCount++;
-                  std::printf("[Error]: %s\n", content.data());
+                  std::printf("[ Error ]%s\n", content.data());
                   break;
+            case MessageType::Fatal:
+                  ErrorCount++;
+                  std::printf("[ Fatal ]%s\n", content.data());
+            break;
             default: return;
       }
 
-      Messages.emplace_front(type, std::string(content));
+      //Messages.emplace_front(type, std::string(content));
 }
 
 void MessageManager::Clear() {

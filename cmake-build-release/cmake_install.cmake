@@ -44,6 +44,11 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
+  include("F:/MyProjects/LoFi-Kit/cmake-build-release/Third/glm/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
   include("F:/MyProjects/LoFi-Kit/cmake-build-release/LoFiGfx/cmake_install.cmake")
 endif()
 

@@ -2,15 +2,20 @@
 // Created by Arzuo on 2024/7/9.
 //
 
+#include <codecvt>
+#include <fstream>
+#include <future>
+#include <sstream>
+#include <cwctype>
+
 #include "PfxContext.h"
-#include "GfxContext.h"
+#include "RenderNode.h"
 #include "Message.h"
-#include "../Third/msdf-atlas-gen/msdf-atlas-gen.h"
+#include "../Third/msdfgen/msdfgen.h"
+#include "../Third/msdfgen/msdfgen-ext.h"
 #include "GfxComponents/Buffer.h"
-#include "taskflow/algorithm/for_each.hpp"
 
 using namespace LoFi;
-using namespace msdf_atlas;
 
 PfxContext::~PfxContext() = default;
 
@@ -28,16 +33,20 @@ PfxContext::PfxContext() {
       }
       _instance = this;
 
+      _fontDOT.insert(L',');
+      _fontDOT.insert(L'.');
+      _fontDOT.insert(L'_');
+
+
       for (int i = 0; i < 3; i++) {
-            _bufferVertex[i] = _gfx->CreateBuffer(8192, true);
-            _bufferIndex[i] = _gfx->CreateBuffer(8192, true);
+            _bufferVertex[i] = _gfx->CreateBuffer({.DataSize = 8192, .bCpuAccess = true});
+            _bufferIndex[i] = _gfx->CreateBuffer({.DataSize = 8192, .bCpuAccess = true});
 
-            _bufferInstance[i] = _gfx->CreateBuffer(8192, true);
-            _bufferIndirect[i] = _gfx->CreateBuffer(8192, true);
+            _bufferInstance[i] = _gfx->CreateBuffer({.DataSize = 8192, .bCpuAccess = true});
+            _bufferIndirect[i] = _gfx->CreateBuffer({.DataSize = 8192, .bCpuAccess = true});
 
-            _bufferGradient[i] = _gfx->CreateBuffer(8192, true);
+            _bufferGradient[i] = _gfx->CreateBuffer({.DataSize = 8192, .bCpuAccess = true});
       }
-
 
       const auto draw_config = R"(
             #set rt = r8g8b8a8_unorm
@@ -63,313 +72,297 @@ PfxContext::PfxContext() {
             #set vs_binding = 1 72 instance
       )";
 
-      const auto vs = R"(
-#extension GL_EXT_nonuniform_qualifier : enable
-#extension GL_EXT_buffer_reference : enable
-#extension GL_EXT_scalar_block_layout : enable
-#extension GL_EXT_buffer_reference2 : enable
 
-layout(location = 0) in vec2 in_Pos;
-layout(location = 1) in vec2 UV;
+      const char* path[2] = {"D://DDraw.fs", "D://DDraw.vs"};
 
-layout(location = 2) in uvec2 Scissor;
-layout(location = 3) in uint CanvasSize;
-layout(location = 4) in uint Size;
-layout(location = 5) in vec2 Center;
-layout(location = 6) in float CenterRotate;
-layout(location = 7) in uint Color;
-layout(location = 8) in uint TextureBindlessIndex_or_GradientDataOffset;
-layout(location = 9) in uint StrockType_PrimitiveType;
-layout(location = 10) in vec4 Parameter1;
-layout(location = 11) in vec4 Parameter2;
+      _programDraw = _gfx->CreateProgramFromFile({
+            .pResourceName = "PfxContext-Draw-Program",
+            .pConfig = draw_config,
+            .pSourceCodeFileNames = path,
+            .countSourceCodeFileName = 2
+      });
 
-
-layout(location = 0)  out vec2          out_NDCPos;
-layout(location = 1)  out vec2          out_OriginPos;
-layout(location = 2)  out vec2          out_UV;
-layout(location = 3)  out vec2          out_GlobalUV;
-
-layout(location = 4)  out flat vec2     out_CanvasSize;
-layout(location = 5)  out flat vec2     out_ScissorStart;
-layout(location = 6)  out flat vec2     out_ScissorSize;
-
-layout(location = 7)  out flat vec2     out_Size;
-layout(location = 8)  out flat vec2     out_Center;
-layout(location = 9)  out flat uint     out_Color;
-
-layout(location = 11) out flat uint     out_TextureBindlessIndex_or_GradientDataOffset;
-layout(location = 12) out flat uint     out_StrockType_PrimitiveType;
-layout(location = 13) out flat vec4     out_Parameter1;
-layout(location = 14) out flat vec4     out_Parameter2;
-
-vec2 UnpackUintToVec2(uint packed) {
-        float x = float(packed & 0xFFFF);
-        float y = float((packed >> 16) & 0xFFFF);
-        return vec2(x, y);
-}
-
-vec4 UnpackUintToColor(uint packed){
-        return vec4(
-                (packed & 0xFF) / 255.0f,
-                ((packed >> 8) & 0xFF) / 255.0f,
-                ((packed >> 16) & 0xFF) / 255.0f,
-                ((packed >> 24) & 0xFF) / 255.0f
-        );
-}
-
-void UnpackUintTo16(uint packed, out uint A, out uint B) {
-        A  = (packed & 0xFFFF);
-        B  = ((packed >> 16) & 0xFFFF);
-}
-
-void VSMain() {
-
-        vec2 OriginPos = in_Pos;
-        vec2 canvasSize = UnpackUintToVec2(CanvasSize);
-
-        //Canvas Size to -1.0 ~ 1.0
-        out_OriginPos = OriginPos;
-        out_UV = UV;
-        out_GlobalUV = OriginPos / canvasSize;
-
-        float rotate_rad = radians(CenterRotate);
-        mat2 rotateMat = mat2(cos(rotate_rad), -sin(rotate_rad), sin(rotate_rad), cos(rotate_rad));
-        vec2 pos_center_rotated = rotateMat * (OriginPos - Center) + Center;
-
-        out_NDCPos = (pos_center_rotated / canvasSize) * 2.0f - 1.0f;
-
-        //rotate at center
-
-        gl_Position = vec4(out_NDCPos, 0.0f, 1.0f);
-
-        out_CanvasSize = canvasSize;
-        vec2 scissorStart = UnpackUintToVec2(Scissor.x);
-        vec2 scissorSize =  UnpackUintToVec2(Scissor.y);
-        out_ScissorStart = scissorStart;
-        out_ScissorSize = scissorSize;
-
-        out_Size = UnpackUintToVec2(Size);
-        out_Center = Center;
-        out_Color = Color;
-
-        out_TextureBindlessIndex_or_GradientDataOffset = TextureBindlessIndex_or_GradientDataOffset;
-        out_StrockType_PrimitiveType = StrockType_PrimitiveType;
-        out_Parameter1 = Parameter1;
-        out_Parameter2 = Parameter2;
-}
-)";
-
-      const auto fs = R"(
-#extension GL_EXT_nonuniform_qualifier : enable
-#extension GL_EXT_buffer_reference : enable
-#extension GL_EXT_scalar_block_layout : enable
-#extension GL_EXT_buffer_reference2 : enable
-
-layout(location = 0)  in vec2          in_NDCPos;
-layout(location = 1)  in vec2          in_OriginPos;
-layout(location = 2)  in vec2          in_UV;
-layout(location = 3)  in vec2          in_GlobalUV;
-
-layout(location = 4)  in flat vec2     in_CanvasSize;
-layout(location = 5)  in flat vec2     in_ScissorStart;
-layout(location = 6)  in flat vec2     in_ScissorSize;
-layout(location = 7)  in flat vec2     in_Size;
-layout(location = 8)  in flat vec2     in_Center;
-layout(location = 9)  in flat uint     in_Color;
-layout(location = 11) in flat uint     in_TextureBindlessIndex_or_GradientDataOffset;
-layout(location = 12) in flat uint     in_StrockType_PrimitiveType;
-layout(location = 13) in flat vec4     in_Parameter1;
-layout(location = 14) in flat vec4     in_Parameter2;
-
-
-layout(location = 0) out vec4 outColor;
-
-vec4 UnpackUintToColor(uint packed){
-        return vec4(
-                (packed & 0xFF) / 255.0f,
-                ((packed >> 8) & 0xFF) / 255.0f,
-                ((packed >> 16) & 0xFF) / 255.0f,
-                ((packed >> 24) & 0xFF) / 255.0f
-        );
-}
-
-void UnpackUintTo16(uint packed, out uint A, out uint B) {
-        A  = (packed & 0xFFFF);
-        B  = ((packed >> 16) & 0xFFFF);
-}
-
-
-vec2 UnpackUintToVec2(uint packed) {
-        float x = float(packed & 0xFFFF);
-        float y = float((packed >> 16) & 0xFFFF);
-        return vec2(x, y);
-}
-
-
-#define PI 3.14159265358
-
-float sdBox(in vec2 p, in vec2 b ) {
-    vec2 d = abs(p)-b;
-    return length(max(d,0.0)) + min(max(d.x,d.y),0.0);
-}
-
-float sdRoundBox( in vec2 p, in vec2 b, in vec4 r )
-{
-    r.xy = (p.x>0.0)?r.xy : r.zw;
-    r.x  = (p.y>0.0)?r.x  : r.y;
-    vec2 q = abs(p)-b+r.x;
-    return min(max(q.x,q.y),0.0) + length(max(q,0.0)) - r.x;
-}
-
-float sdNGon( in vec2 p, float r, float sides, float roundness) {
-    // these 2 lines can be precomputed
-    float an = 6.2831853/float(sides);
-    float he = r*tan(0.5*an);
-    p*= 1.0 + roundness/r;
-    // rotate to first sector
-    p = -p.yx; // if you want the corner to be up
-    float bn = an*floor((atan(p.y,p.x)+0.5*an)/an);
-    vec2  cs = vec2(cos(bn),sin(bn));
-    p = mat2(cs.x,-cs.y,cs.y,cs.x)*p;
-    // side of polygon
-    return (length(p-vec2(r,clamp(p.y,-he,he)))*sign(p.x-r) - roundness) / (1.0 + roundness/r);
-}
-
-float sdCircle( vec2 p, float r )
-{
-    return length(p) - r;
-}
-
-void FSMain() {
-    if(in_OriginPos.x < in_ScissorStart.x || in_OriginPos.x > in_ScissorStart.x + in_ScissorSize.x || in_OriginPos.y < in_ScissorStart.y || in_OriginPos.y > in_ScissorStart.y + in_ScissorSize.y) {
-        discard;
-    }
-
-    uint StrockType;
-    uint PrimitiveType;
-    UnpackUintTo16(in_StrockType_PrimitiveType, StrockType, PrimitiveType);
-
-    vec2 fragCoord = (in_OriginPos - in_Center);
-
-    float aspect = in_Size.x / in_Size.y;
-
-    float d = 0.0f;
-    //fragCoord *= 1.05f;
-
-    if(PrimitiveType == 0) { // Box
-        vec2 boxc_size = in_Parameter1.xy;
-        d = sdBox(fragCoord,  boxc_size / 2);
-
-    } else if(PrimitiveType == 1) { // RoundBox
-        vec2 boxc_size = in_Parameter1.xy;
-        vec4 roundness = vec4(in_Parameter1.zw, in_Parameter2.xy);
-        d = sdRoundBox(fragCoord,  boxc_size / 2, roundness * min(boxc_size.x, boxc_size.y) / 2);
-
-    } else if(PrimitiveType == 2) { // RoundNGon
-        float r = in_Parameter1.x;
-        float sides = in_Parameter1.y;
-        float roundness = in_Parameter1.z;
-        d = sdNGon(fragCoord, r, sides, roundness * r);
-
-    } else if(PrimitiveType == 3) { // Circle
-        float r = in_Parameter1.x;
-        d = sdCircle(fragCoord, r);
-
-    } else {
-
-    }
-
-    vec4 finalColor;
-    if(StrockType == 0){
-        vec4 soild_color = UnpackUintToColor(in_Color);
-        finalColor = soild_color;
-    } else {
-        vec3 col = (d>0.0) ? vec3(0.9,0.6,0.3) : vec3(0.65,0.85,1.0);
-        //col *= 1.0 - exp(-0.02*abs(d)); //shadow
-        col *= 0.8 + 0.3*cos(0.25*d);
-        col = mix( col, vec3(1.0), 1.0-smoothstep(0.0,5,abs(d)) );
-        finalColor = vec4(col, 1.0);
-    }
-
-    float d2 = d;
-    //d2 = clamp(d2, 0, 1);
-    d2 = smoothstep(5, 0.0, d);
-
-
-    outColor = finalColor * vec4(1.0f, 1.0f, 1.0f, d2);
-}
-
-)";
-
-      //_programDraw = _gfx->CreateProgramFromFile({"D://DDraw.fs", "D://DDraw.vs"}, draw_config);
-
-      _programDraw = _gfx->CreateProgram({vs, fs}, draw_config);
-      _kernelDraw = _gfx->CreateKernel(_programDraw);
-
+      _kernelDraw = _gfx->CreateKernel(_programDraw, {.pResourceName = "PfxContext-Draw-Kernel"});
+      if(_kernelDraw.Type != GfxEnumResourceType::Kernel) {
+            const auto err = "[PfxContext::PfxContext] Can't Create Draw Kernel";
+            MessageManager::Log(MessageType::Error, err);
+            throw std::runtime_error(err);
+      }
       Reset();
 }
 
-bool PfxContext::LoadFont(const char* path) {
+static uint8_t PixelFloatToByte(float x) {
+      return static_cast<uint8_t>(~static_cast<int>(255.5f - 255.f * glm::clamp(x, 0.0f, 1.0f)));
+}
+
+static float PixelByteToFloat(uint8_t x) {
+      return 1.f/255.f*static_cast<float>(x);
+}
+
+bool PfxContext::GenAndLoadFont(const char* path) {
+
       if (msdfgen::FreetypeHandle* ft = msdfgen::initializeFreetype()) {
-            if (msdfgen::FontHandle* font = msdfgen::loadFont(ft, path)) {
-                  std::vector<GlyphGeometry> glyphs{};
-                  FontGeometry fontGeometry(&glyphs);
-                  Charset charset{};
+            if (msdfgen::FontHandle* font = msdfgen::loadFont(ft, path); font) {
 
-                  if (!charset.load("f.txt")) {
-                        MessageManager::Log(MessageType::Error, "load charset failed");
-                        return false;
+                  const auto font_dataset_path = "f.txt";
+                  std::locale locale(std::locale::classic(), new std::codecvt_utf8<wchar_t>);
+                  std::wifstream file(font_dataset_path);
+
+                  if(file.is_open()) {
+
+                        file.imbue(locale);
+                        std::wstringstream fs{};
+                        while(fs << file.rdbuf()) {}
+                        file.close();
+
+                        std::wstring font_table = fs.str();
+
+                        msdfgen::Bitmap<float, 3> bitmap(3200, 3200);
+
+                        constexpr auto split = 250;
+                        uint32_t threads = font_table.size() / split;
+
+                        std::vector<std::future<void>> handles{};
+                        printf("Star Gen %d th", threads);
+
+                        std::vector<msdfgen::Shape> shapes{};
+
+                        double global_size = 99999.0f;
+                        double total_bottom_offset = 99999.0f;
+                        for(int32_t i = 0; i < font_table.size(); i++) {
+
+                              msdfgen::Shape shape{};
+                              msdfgen::loadGlyph(shape, font, font_table[i], msdfgen::FONT_SCALING_LEGACY);
+                              msdfgen::edgeColoringSimple(shape, 3.0);
+                              shape.normalize();
+                              auto bounds = shape.getBounds();
+
+                              uint32_t x = i % 100;
+                              uint32_t y = i / 100;
+
+                              uint32_t start_pixel_x = x * 32;
+                              uint32_t start_pixel_y = y * 32;
+
+                              //printf("Bound %f %f %f %f\n", bounds.l, bounds.b, bounds.r, bounds.t);
+
+                              float pixel_uvx = (float)start_pixel_x / 3200.0f;
+                              float pixel_uvy = (float)start_pixel_y / 3200.0f;
+                              float pixel_uvw = 32.0f  / 3200.0f;
+                              float pixel_uvh = 32.0f / 3200.0f;
+                              if(_fontDOT.contains(font_table[i])) {
+                                    pixel_uvw = 16.0f / 3200.0f;
+                                    pixel_uvh = 16.0f / 3200.0f;
+                              } else if(std::isalpha(font_table[i]) || std::isdigit(font_table[i]) || std::isspace(font_table[i]) || std::ispunct(font_table[i])) {
+                                    pixel_uvw = 16.0f / 3200.0f;
+                              }
+
+                              _fontUVs[font_table[i]] = {pixel_uvx, pixel_uvy, pixel_uvw, pixel_uvh};
+
+
+                              msdfgen::Vector2 frame(32, 32);
+
+                              msdfgen::Range pxRange(4);
+                              frame += 2 * pxRange.lower;
+                              msdfgen::Vector2 dims(bounds.r - bounds.l, bounds.t - bounds.b);
+                              if (bounds.l >= bounds.r || bounds.b >= bounds.t)
+                                    bounds.l = 0, bounds.b = 0, bounds.r = 1, bounds.t = 1;
+
+                              total_bottom_offset = glm::min(total_bottom_offset, bounds.b);
+
+                              if (dims.x*frame.y < dims.y*frame.x) {
+                                    if(frame.y/dims.y >= 0.0001) {
+                                          global_size = glm::min(global_size, frame.y/dims.y);
+                                          printf("Global %lf, Bound %lf %lf %lf %lf, size %lf ;\n", global_size, bounds.l, bounds.b, bounds.r, bounds.t, frame.y/dims.y);
+                                    }
+
+                              } else {
+                                    if(frame.x/dims.x >= 0.0001) {
+                                          global_size = glm::min(global_size, frame.x/dims.x);
+                                          printf("Global %lf, Bound %lf %lf %lf %lf, size %lf ;\n", global_size, bounds.l, bounds.b, bounds.r, bounds.t, frame.x/dims.x);
+                                    }
+                              }
+                              shapes.emplace_back(std::move(shape));
+                        }
+
+                        for(int32_t th = 0; th < threads; th++) {
+
+                              uint32_t g_start_i = th * split;
+                              uint32_t g_end_i = (th + 1) * split;
+                              handles.emplace_back(std::async([&](uint32_t start_i, uint32_t end_i) {
+
+                                    msdfgen::Bitmap<float, 3> MTSDF(32, 32);
+                                    msdfgen::Bitmap<float, 3> MTSDF_ASCII(16, 32);
+                                    msdfgen::Bitmap<float, 3> MTSDF_Dot(16, 16);
+                                    for (uint32_t i = start_i; i < end_i; i++) {
+                                          uint32_t x = i % 100;
+                                          uint32_t y = i / 100;
+
+                                          uint32_t start_pixel_x = x * 32;
+                                          uint32_t start_pixel_y = y * 32;
+
+                                          msdfgen::Vector2 frame(0, 0);
+                                          if(_fontDOT.contains(font_table[i])) {
+                                                frame = msdfgen::Vector2(10, 10);
+                                          } else if(std::isalpha(font_table[i]) || std::isdigit(font_table[i]) || std::isspace(font_table[i]) || std::ispunct(font_table[i])) {
+                                                frame = msdfgen::Vector2(16, 32);
+                                          }  else {
+                                                frame = msdfgen::Vector2(32, 32);
+                                          }
+
+                                          msdfgen::Shape& shape = shapes[i];
+                                          auto bounds = shape.getBounds();
+                                          msdfgen::Range pxRange(4);
+                                          frame += 2 * pxRange.lower;
+                                          msdfgen::Vector2 translate;
+                                          msdfgen::Vector2 scale;
+                                          msdfgen::Vector2 dims(bounds.r - bounds.l, bounds.t - bounds.b);
+                                          if (bounds.l >= bounds.r || bounds.b >= bounds.t)
+                                                bounds.l = 0, bounds.b = 0, bounds.r = 1, bounds.t = 1;
+
+                                          if (dims.x*frame.y < dims.y*frame.x) {
+                                               translate.set(.5*(frame.x/frame.y*dims.y-dims.x)-bounds.l, -total_bottom_offset); // -bounds.b
+                                                scale = global_size;
+                                           } else {
+                                               translate.set(-bounds.l, -total_bottom_offset); //5*(frame.y/frame.x*dims.x-dims.y)-bounds.b
+                                                scale = global_size;
+                                           }
+                                          translate -= pxRange.lower/scale;
+                                          msdfgen::Range range = pxRange/glm::min(scale.x, scale.y);
+                                          msdfgen::SDFTransformation ts(msdfgen::Projection(scale, translate), range);
+
+                                          if(_fontDOT.contains(font_table[i])) {
+                                                msdfgen::generateMSDF(MTSDF_Dot, shape, ts);
+                                                for (int j = 0; j < 16; j++) {
+                                                      for (int k = 0; k < 16; k++) {
+                                                            bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[0] = MTSDF_Dot(j, k)[0];
+                                                            bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[1] = MTSDF_Dot(j, k)[1];
+                                                            bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[2] = MTSDF_Dot(j, k)[2];
+                                                      }
+                                                }
+                                          }
+                                          else if(std::isalpha(font_table[i]) || std::isdigit(font_table[i]) || std::isspace(font_table[i]) || std::ispunct(font_table[i])) {
+                                                msdfgen::generateMSDF(MTSDF_ASCII, shape, ts);
+                                                for (int j = 0; j < 16; j++) {
+                                                      for (int k = 0; k < 32; k++) {
+                                                            bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[0] = MTSDF_ASCII(j, k)[0];
+                                                            bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[1] = MTSDF_ASCII(j, k)[1];
+                                                            bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[2] = MTSDF_ASCII(j, k)[2];
+                                                      }
+                                                }
+                                          }  else {
+                                                msdfgen::generateMSDF(MTSDF, shape, ts);
+                                                for (int j = 0; j < 32; j++) {
+                                                      for (int k = 0; k < 32; k++) {
+                                                            bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[0] = MTSDF(j, k)[0];
+                                                           bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[1] = MTSDF(j, k)[1];
+                                                           bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[2] = MTSDF(j, k)[2];
+                                                      }
+                                                }
+                                          }
+                                    }
+                              }, g_start_i, g_end_i));
+                        }
+
+                        {
+                              uint32_t left = font_table.size() % split;
+
+                              msdfgen::Bitmap<float, 3> MTSDF(32, 32);
+                              msdfgen::Bitmap<float, 3> MTSDF_ASCII(16, 32);
+                              msdfgen::Bitmap<float, 3> MTSDF_Dot(16, 16);
+
+                              for (uint32_t i = threads * split; i < threads * split + left; i++) {
+                                    uint32_t x = i % 100;
+                                    uint32_t y = i / 100;
+
+                                    uint32_t start_pixel_x = x * 32;
+                                    uint32_t start_pixel_y = y * 32;
+
+                                    msdfgen::Vector2 frame;
+                                    if(_fontDOT.contains(font_table[i])) {
+                                          frame = msdfgen::Vector2(10, 10);
+                                    } else if(std::isalpha(font_table[i]) || std::isdigit(font_table[i]) || std::isspace(font_table[i]) || std::ispunct(font_table[i])) {
+                                          frame = msdfgen::Vector2(16, 32);
+                                    }  else {
+                                          frame = msdfgen::Vector2(32, 32);
+                                    }
+
+                                    msdfgen::Shape& shape = shapes[i];
+                                    auto bounds = shape.getBounds();
+                                    msdfgen::Range pxRange(4);
+                                    frame += 2 * pxRange.lower;
+                                    msdfgen::Vector2 translate;
+                                    msdfgen::Vector2 scale;
+                                    msdfgen::Vector2 dims(bounds.r - bounds.l, bounds.t - bounds.b);
+
+                                    if (dims.x*frame.y < dims.y*frame.x) {
+                                         translate.set(.5*(frame.x/frame.y*dims.y-dims.x)-bounds.l, -bounds.b);
+                                         scale = global_size;//frame.y/dims.y;
+                                    } else {
+                                        translate.set(-bounds.l, .5*(frame.y/frame.x*dims.x-dims.y)-bounds.b);
+                                        scale  = global_size;//frame.x/dims.x;
+                                    }
+
+                                    translate -= pxRange.lower/scale;
+                                    msdfgen::Range range = pxRange/glm::min(scale.x, scale.y);
+                                    msdfgen::SDFTransformation ts(msdfgen::Projection(scale, translate), range);
+
+                                    if(_fontDOT.contains(font_table[i])) {
+                                          msdfgen::generateMSDF(MTSDF_Dot, shape, ts);
+                                          for (int j = 0; j < 16; j++) {
+                                                for (int k = 0; k < 16; k++) {
+                                                      bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[0] = MTSDF_Dot(j, k)[0];
+                                                      bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[1] = MTSDF_Dot(j, k)[1];
+                                                      bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[2] = MTSDF_Dot(j, k)[2];
+                                                }
+                                          }
+                                    }
+                                    else if(std::isalpha(font_table[i]) || std::isdigit(font_table[i]) || std::isspace(font_table[i]) || std::ispunct(font_table[i])) {
+                                          msdfgen::generateMSDF(MTSDF_ASCII, shape, ts);
+                                          for (int j = 0; j < 16; j++) {
+                                                for (int k = 0; k < 32; k++) {
+                                                      bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[0] = MTSDF_ASCII(j, k)[0];
+                                                      bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[1] = MTSDF_ASCII(j, k)[1];
+                                                      bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[2] = MTSDF_ASCII(j, k)[2];
+                                                }
+                                          }
+                                    }  else {
+                                          msdfgen::generateMSDF(MTSDF, shape, ts);
+                                          for (int j = 0; j < 32; j++) {
+                                                for (int k = 0; k < 32; k++) {
+                                                      bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[0] = MTSDF(j, k)[0];
+                                                     bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[1] = MTSDF(j, k)[1];
+                                                     bitmap((int)(start_pixel_x + j), (int)(start_pixel_y + k))[2] = MTSDF(j, k)[2];
+                                                }
+                                          }
+                                    }
+
+                              }
+                        }
+
+                        for(auto& handle : handles) {
+                              handle.wait();
+                        }
+
+                        printf("Generate Done");
+                        msdfgen::BitmapConstRef<float, 3> ref = bitmap;
+                        stbi_write_hdr("D:\\out.hdr", ref.width, ref.height, 3, ref.pixels);
+
+                        printf("Start Uploading Font Altas %d Bytes\n", ref.width * ref.height * 3 * 4);
+                        _fontAtlas = _gfx->CreateTexture2D(VK_FORMAT_R32G32B32_SFLOAT, ref.width, ref.height);
+                        if(!_gfx->SetTexture2D(_fontAtlas, ref.pixels, ref.width * ref.height * 4 * 3)) {
+                              const auto str = std::format("PfxContext::LoadFont - Can't Upload Font {}", path);
+                              MessageManager::Log(MessageType::Error, str);
+                              throw std::runtime_error(str);
+                        }
+                        _fontAtlasTextureBindlessIndex = _gfx->GetTextureBindlessIndex(_fontAtlas);
+
+                        _fontAtlasSize = VkExtent2D{(uint32_t)ref.width, (uint32_t)ref.height};
                   }
-
-                  // for(wchar_t i : charset) {
-                  //     wprintf(L"%wc - %X\n", i, i);
-                  // }
-
-                  fontGeometry.loadCharset(font, 1.0, charset);
-
-                  const double maxCornerAngle = 3.0;
-                  for (GlyphGeometry& glyph : glyphs)
-                        glyph.edgeColoring(&msdfgen::edgeColoringInkTrap, maxCornerAngle, 0);
-
-                  GridAtlasPacker packer{};
-                  packer.setCellDimensions(32, 32);
-                  packer.setDimensions(3200, 3200);
-                  packer.setMinimumScale(16.0);
-                  packer.setPixelRange(2.0);
-                  packer.setMiterLimit(1.0);
-                  packer.pack(glyphs.data(), glyphs.size());
-
-                  int width = 0, height = 0;
-                  packer.getDimensions(width, height);
-
-                  ImmediateAtlasGenerator<
-                        float,
-                        4,
-                        mtsdfGenerator,
-                        BitmapAtlasStorage<byte, 4>
-                  > generator(width, height);
-
-                  GeneratorAttributes attributes;
-                  generator.setAttributes(attributes);
-                  generator.setThreadCount(32);
-
-                  generator.generate(glyphs.data(), glyphs.size());
-
-                  for (const auto& glyph : glyphs) {
-                        auto const rect = glyph.getBoxRect();
-                        //printf("0x%X - x %d y %d w %d h %d\n", glyph.getCodepoint(), rect.x, rect.y, rect.w, rect.h);
-                        _fontUVs[glyph.getCodepoint()] = {(uint32_t)rect.x, (uint32_t)rect.y, (uint32_t)rect.w, (uint32_t)rect.h};
-                  }
-                  const msdfgen::BitmapConstRef<byte, 4> bitmap = (msdfgen::BitmapConstRef<byte, 4>)generator.atlasStorage();
-
-                  printf("%u x %u\n", bitmap.width, bitmap.height);
-                  stbi_write_png("D://test2.png", bitmap.width, bitmap.height, 4, bitmap.pixels, 0);
-
-                  _fontAtlasSize = VkExtent2D{(uint32_t)bitmap.width, (uint32_t)bitmap.height};
-                  _fontAtlas = _gfx->CreateTexture2D(VK_FORMAT_R8G8B8A8_UNORM, bitmap.width, bitmap.height);
-                  _gfx->UploadTexture2D(_fontAtlas, bitmap.pixels, bitmap.width * bitmap.height * 4);
-
                   msdfgen::destroyFont(font);
+            } else {
+                  const auto str = std::format("PfxContext::LoadFont - Can't Load Font {}", path);
+                  MessageManager::Log(MessageType::Error, str);
+                  return false;
             }
             msdfgen::deinitializeFreetype(ft);
       }
@@ -592,21 +585,93 @@ void PfxContext::DrawCircle(glm::vec2 center, PParamCircle param, float rotation
       ref.PrimitiveParameter.Circle = param;
 }
 
-auto PfxContext::EmitDrawCommand() -> void {
-      if (_vertexData.empty()) return;
-      auto current_index = _gfx->GetCurrentFrameIndex();
+void PfxContext::DrawText(glm::vec2 start, const wchar_t* text, PParamText param, glm::u8vec4 color) {
+      std::wstring_view wstr(text);
+      if(wstr.empty()) return;
 
-      for (auto i : _sampledImageReference[current_index]) {
-            _gfx->AsSampledTexure(i, GRAPHICS);
+      uint32_t voffset = _vertexData.size();
+      uint32_t ioffset = _indexData.size();
+      uint32_t indirect_offset = _indirectData.size();
+
+      _vertexData.reserve(voffset + 4 * wstr.size());
+      _indexData.reserve(ioffset + 6 * wstr.size());
+
+      float size = param.Size;
+
+      uint32_t dy_voffset = voffset;
+
+      glm::vec2 start_offset = start;
+      for(wchar_t i : wstr) {
+            FontUV fuv{};
+            if(_fontUVs.find(i) == _fontUVs.end()) {
+                  fuv = _fontUVs[L'#'];
+            } else {
+                  fuv = _fontUVs[i];
+            }
+
+            if(_fontDOT.contains(i)) {
+                  float half_size = size / 2.0f;
+                  _vertexData.emplace_back(start_offset + glm::vec2(0, half_size), glm::vec2(fuv.x, fuv.y + fuv.h));
+                  _vertexData.emplace_back(start_offset + glm::vec2(half_size, half_size), glm::vec2(fuv.x + fuv.w, fuv.y + fuv.h));
+                  _vertexData.emplace_back(start_offset, glm::vec2(fuv.x, fuv.y));
+                  _vertexData.emplace_back(start_offset + glm::vec2(half_size, 0), glm::vec2(fuv.x + fuv.w, fuv.y));
+                  start_offset.x += half_size + param.Space;
+            } else if(std::isalpha(i) || std::isdigit(i) || std::isspace(i) || std::ispunct(i)) {
+                  float half_size = size / 2.0f;
+                  _vertexData.emplace_back(start_offset + glm::vec2(0, size), glm::vec2(fuv.x, fuv.y + fuv.h));
+                  _vertexData.emplace_back(start_offset + glm::vec2(half_size, size), glm::vec2(fuv.x + fuv.w, fuv.y + fuv.h));
+                  _vertexData.emplace_back(start_offset, glm::vec2(fuv.x, fuv.y));
+                  _vertexData.emplace_back(start_offset + glm::vec2(half_size, 0), glm::vec2(fuv.x + fuv.w, fuv.y));
+                  start_offset.x += half_size + param.Space;
+            } else {
+                  _vertexData.emplace_back(start_offset + glm::vec2(0, size), glm::vec2(fuv.x, fuv.y + fuv.h));
+                  _vertexData.emplace_back(start_offset + size, glm::vec2(fuv.x + fuv.w, fuv.y + fuv.h));
+                  _vertexData.emplace_back(start_offset, glm::vec2(fuv.x, fuv.y));
+                  _vertexData.emplace_back(start_offset + glm::vec2(size, 0), glm::vec2(fuv.x + fuv.w, fuv.y));
+                  start_offset.x += size + param.Space;
+            }
+            _indexData.emplace_back(dy_voffset + 0);
+            _indexData.emplace_back(dy_voffset + 1);
+            _indexData.emplace_back(dy_voffset + 2);
+            _indexData.emplace_back(dy_voffset + 2);
+            _indexData.emplace_back(dy_voffset + 1);
+            _indexData.emplace_back(dy_voffset + 3);
+
+
+            dy_voffset += 4;
       }
 
-      _gfx->CmdBindKernel(_kernelDraw);
+      _indirectData.emplace_back(
+             6 * wstr.size(),
+             1,
+             ioffset,
+             0,
+             indirect_offset);
 
-      _gfx->CmdBindVertexBuffer(_bufferVertex[current_index], 0);
-      _gfx->CmdBindVertexBuffer(_bufferInstance[current_index], 1);
-      _gfx->CmdBindIndexBuffer(_bufferIndex[current_index], 0);
+      auto total_size = glm::vec2(start_offset.x, size);
+      auto& ref = NewDrawInstanceData();
+      ref.Color = color;
+      ref.CenterRotate = 0;
+      ref.Size = total_size;
+      ref.Center = start + total_size / 2.0f;
+      ref.PrimitiveType = DrawPrimitveType::Text;
+      ref.PrimitiveParameter.Text = param;
+      ref.TextureBindlessIndex_or_GradientDataOffset = _fontAtlasTextureBindlessIndex;
+}
 
-      _gfx->CmdDrawIndexedIndirect(_bufferIndirect[current_index], 0, _indirectData.size(), sizeof(VkDrawIndexedIndirectCommand));
+void PfxContext::EmitDrawCommand(RenderNode* node) {
+      if (_vertexData.empty()) return;
+
+      auto current_index = _gfx->GetCurrentFrameIndex();
+      for (auto i : _sampledImageReference[current_index]) {
+            node->CmdAsSampledTexure(i, GfxEnumKernelType::GRAPHICS);
+      }
+
+      node->CmdBindKernel(_kernelDraw);
+      node->CmdBindVertexBuffer(_bufferVertex[current_index], 0);
+      node->CmdBindVertexBuffer(_bufferInstance[current_index], 1);
+      node->CmdBindIndexBuffer(_bufferIndex[current_index], 0);
+      node->CmdDrawIndexedIndirect(_bufferIndirect[current_index], 0, _indirectData.size(), sizeof(VkDrawIndexedIndirectCommand));
 }
 
 void PfxContext::Reset() {
@@ -652,35 +717,39 @@ GenInstanceData& PfxContext::NewDrawInstanceData() {
                   current_instance_data.Color = _currentStrock.Solid.SoildColor;
                   break;
             case StrockFillType::Texture:
-                  current_instance_data.TextureBindlessIndex_or_GradientDataOffset = _gfx->GetTextureBindlessIndex(_currentStrock.Texture.ImageHandle);
-                  _sampledImageReference[_gfx->GetCurrentFrameIndex()].insert(_currentStrock.Texture.ImageHandle);
+                  current_instance_data.TextureBindlessIndex_or_GradientDataOffset = _gfx->GetTextureBindlessIndex(std::bit_cast<ResourceHandle>(_currentStrock.Texture.ImageHandle));
+                  _sampledImageReference[_gfx->GetCurrentFrameIndex()].insert(std::bit_cast<ResourceHandle>(_currentStrock.Texture.ImageHandle));
                   break;
-            case StrockFillType::Linear1:
             case StrockFillType::Linear2:
             case StrockFillType::Linear3:
             case StrockFillType::Linear4:
             case StrockFillType::Linear5:
+            case StrockFillType::Linear6:
+            case StrockFillType::Linear7:
                   current_instance_data.TextureBindlessIndex_or_GradientDataOffset = _gradientData.size();
                   _gradientData.emplace_back(
                          glm::vec2(0, 0),
-                        _currentStrock.Linear.GradientDirection,
+                        _currentStrock.Linear.DirectionAngle,
                         _currentStrock.Linear.Pos1,
                         _currentStrock.Linear.Pos2,
                         _currentStrock.Linear.Pos3,
                         _currentStrock.Linear.Pos4,
                         _currentStrock.Linear.Pos5,
+                        _currentStrock.Linear.Pos6,
                         _currentStrock.Linear.Color1,
                         _currentStrock.Linear.Color2,
                         _currentStrock.Linear.Color3,
                         _currentStrock.Linear.Color4,
-                        _currentStrock.Linear.Color5
+                        _currentStrock.Linear.Color5,
+                        _currentStrock.Linear.Color6
                   );
                   break;
-            case StrockFillType::Radial1:
             case StrockFillType::Radial2:
             case StrockFillType::Radial3:
             case StrockFillType::Radial4:
             case StrockFillType::Radial5:
+            case StrockFillType::Radial6:
+            case StrockFillType::Radial7:
                   current_instance_data.TextureBindlessIndex_or_GradientDataOffset = _gradientData.size();
                   _gradientData.emplace_back(
                   glm::vec2(0, 0),
@@ -690,11 +759,13 @@ GenInstanceData& PfxContext::NewDrawInstanceData() {
                   _currentStrock.Radial.Pos3,
                   _currentStrock.Radial.Pos4,
                   _currentStrock.Radial.Pos5,
+                  _currentStrock.Radial.Pos6,
                   _currentStrock.Radial.Color1,
                   _currentStrock.Radial.Color2,
                   _currentStrock.Radial.Color3,
                   _currentStrock.Radial.Color4,
-                  _currentStrock.Radial.Color5
+                  _currentStrock.Radial.Color5,
+                  _currentStrock.Radial.Color6
                   );
                   break;
       }
@@ -702,19 +773,15 @@ GenInstanceData& PfxContext::NewDrawInstanceData() {
       return current_instance_data;
 }
 
-void PfxContext::DispatchGenerateCommands() {
+void PfxContext::DispatchGenerateCommands() const {
       if (_vertexData.empty()) return;
-      //_taskFlowDispatch.clear();
 
-      auto ptr_vbuf = _gfx->UnsafeFetch<Component::Gfx::Buffer>(_bufferVertex[_gfx->GetCurrentFrameIndex()]);
-      auto ptr_ibuf = _gfx->UnsafeFetch<Component::Gfx::Buffer>(_bufferIndex[_gfx->GetCurrentFrameIndex()]);
-      auto ptr_instancebuf = _gfx->UnsafeFetch<Component::Gfx::Buffer>(_bufferInstance[_gfx->GetCurrentFrameIndex()]);
-      auto ptr_indirectbuf = _gfx->UnsafeFetch<Component::Gfx::Buffer>(_bufferIndirect[_gfx->GetCurrentFrameIndex()]);
+      auto ptr_vbuf = _gfx->ResourceFetch<Component::Gfx::Buffer>(_bufferVertex[_gfx->GetCurrentFrameIndex()]);
+      auto ptr_ibuf = _gfx->ResourceFetch<Component::Gfx::Buffer>(_bufferIndex[_gfx->GetCurrentFrameIndex()]);
+      auto ptr_instancebuf = _gfx->ResourceFetch<Component::Gfx::Buffer>(_bufferInstance[_gfx->GetCurrentFrameIndex()]);
+      auto ptr_indirectbuf = _gfx->ResourceFetch<Component::Gfx::Buffer>(_bufferIndirect[_gfx->GetCurrentFrameIndex()]);
 
-      auto ptr_gradientbuf = _gfx->UnsafeFetch<Component::Gfx::Buffer>(_bufferGradient[_gfx->GetCurrentFrameIndex()]);
-
-      // auto task_CmdDrawFanFilled = _taskFlowDispatch.for_each(_cmdFanFilled.begin(), _cmdFanFilled.end(), [ptr_vertex_arr, ptr_index_arr](const CmdDrawFanFilled& item) {
-      // });
+      auto ptr_gradientbuf = _gfx->ResourceFetch<Component::Gfx::Buffer>(_bufferGradient[_gfx->GetCurrentFrameIndex()]);
 
       ptr_vbuf->SetData(_vertexData.data(), _vertexData.size() * sizeof(GenDrawVertexData));
       ptr_ibuf->SetData(_indexData.data(), _indexData.size() * sizeof(uint32_t));
@@ -724,6 +791,7 @@ void PfxContext::DispatchGenerateCommands() {
 
       if(!_gradientData.empty()) {
             ptr_gradientbuf->SetData(_gradientData.data(), _gradientData.size() * sizeof(GradientData));
+            uint64_t address = ptr_gradientbuf->GetBDAAddress();
+            _gfx->FillKernelConstant(_kernelDraw, &address, sizeof(address));
       }
-     // _taskExecutor.run(_taskFlowDispatch).wait();
 }

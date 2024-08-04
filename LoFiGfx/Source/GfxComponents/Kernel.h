@@ -15,13 +15,19 @@ namespace LoFi::Component::Gfx {
 
             ~Kernel();
 
-            explicit Kernel(entt::entity id, entt::entity program);
+            explicit Kernel(entt::entity id);
+
+            bool Init(const Program* program, const GfxParamCreateKernel& param);
+
+            [[nodiscard]] const std::string& GetResourceName() const { return _resourceName; }
 
             [[nodiscard]] VkPipeline GetPipeline() const { return _pipeline; }
 
             [[nodiscard]] VkPipelineLayout GetPipelineLayout() const { return _pipelineLayout; }
 
             [[nodiscard]] VkPipelineLayout* GetPipelineLayoutPtr() { return &_pipelineLayout; }
+
+            [[nodiscard]] ResourceHandle Handle() const { return {GfxEnumResourceType::Kernel, _id}; }
 
             [[nodiscard]] bool IsComputeKernel() const { return _isComputeKernel; }
 
@@ -30,6 +36,8 @@ namespace LoFi::Component::Gfx {
             [[nodiscard]] auto& GetPushConstantRange() const { return  _pushConstantRange;}
 
             [[nodiscard]] auto& GetPushConstantDefine() const { return _pushConstantDefine;  }
+
+            [[nodiscard]] GfxInfoKernelLayout GetLayout() const { return GfxInfoKernelLayout {std::bit_cast<uint64_t>(_pipelineLayout), _pushConstantRange.offset, _pushConstantRange.size}; }
 
             void UseDefaultPushConstant(bool use) { _useDefaultPushConstant = use; }
 
@@ -40,9 +48,9 @@ namespace LoFi::Component::Gfx {
             void CmdPushConstants(VkCommandBuffer cmd) const;
 
       private:
-            void CreateAsGraphics(const Program* program);
+            bool CreateAsGraphics(const Program* program);
 
-            void CreateAsCompute(const Program* program);
+            bool CreateAsCompute(const Program* program);
 
       private:
             entt::entity _id = entt::null;
@@ -61,10 +69,10 @@ namespace LoFi::Component::Gfx {
 
             std::vector<uint8_t> _pushConstantBuffer{};
 
-            entt::entity buffer{};
+            bool UsingBindless = false;
 
-
-
+      private:
+            std::string _resourceName{};
       };
 }
 

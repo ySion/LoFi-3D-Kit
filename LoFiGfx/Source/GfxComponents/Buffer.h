@@ -16,9 +16,15 @@ namespace LoFi::Component::Gfx {
 
             ~Buffer();
 
-            explicit Buffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci);
+            explicit Buffer();
 
-            explicit Buffer(entt::entity id, const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci);
+            explicit Buffer(entt::entity id);
+
+            bool Init(const GfxParamCreateBuffer& param);
+
+            bool Init(const char* name, const VkBufferCreateInfo& ci, const VmaAllocationCreateInfo& mem_ci);
+
+            std::string& GetResourceName() { return _resourceName; }
 
             [[nodiscard]] VkBuffer GetBuffer() const { return _buffer; }
 
@@ -36,9 +42,9 @@ namespace LoFi::Component::Gfx {
 
             [[nodiscard]] bool IsHostSide() const { return _isHostSide; }
 
-            [[nodiscard]] VkDeviceAddress GetAddress() const;
+            [[nodiscard]] VkDeviceAddress GetBDAAddress() const;
 
-            [[nodiscard]] entt::entity GetID() const { return _id; }
+            [[nodiscard]] ResourceHandle GetHandle() const { return {GfxEnumResourceType::Buffer, _id}; }
 
             VkBufferView CreateView(VkBufferViewCreateInfo view_ci);
 
@@ -48,14 +54,16 @@ namespace LoFi::Component::Gfx {
 
             void Unmap();
 
-            void SetData(const void* p, uint64_t size);
+            bool SetData(const void* p, uint64_t size, uint8_t recursive_depth = 0);
 
-            void Recreate(uint64_t size);
+            bool Recreate(uint64_t size);
 
-            void BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, ResourceUsage new_usage);
+            void BarrierLayout(VkCommandBuffer cmd, GfxEnumKernelType new_kernel_type, GfxEnumResourceUsage new_usage);
+
+            void SetLayout(GfxEnumKernelType new_kernel_type, GfxEnumResourceUsage new_usage);
 
       private:
-            void CreateBuffer(const VkBufferCreateInfo& buffer_ci, const VmaAllocationCreateInfo& alloc_ci);
+            bool CreateBuffer();
 
             void ReleaseAllViews() const;
 
@@ -68,8 +76,6 @@ namespace LoFi::Component::Gfx {
             void DestroyBuffer();
 
             void Update(VkCommandBuffer cmd);
-
-            static void UpdateAll(VkCommandBuffer cmd); // call by context
 
             friend class ::LoFi::GfxContext;
 
@@ -96,12 +102,17 @@ namespace LoFi::Component::Gfx {
 
             std::vector<VkBufferViewCreateInfo> _viewCIs{};
 
-            KernelType _currentKernelType = KernelType::NONE;
+            GfxEnumKernelType _currentKernelType = GfxEnumKernelType::OUT_OF_KERNEL;
 
-            ResourceUsage _currentUsage = ResourceUsage::NONE;
+            GfxEnumResourceUsage _currentUsage = GfxEnumResourceUsage::UNKNOWN_RESOURCE_USAGE;
 
             std::vector<uint8_t> _dataCache{};
 
             std::function<void(VkCommandBuffer)> _updateCommand{};
+
+      private:
+            std::string _resourceName{};
+
+            bool _bNeedUpdate {};
       };
 }

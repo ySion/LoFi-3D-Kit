@@ -5,6 +5,10 @@
 #ifndef MARCOS_H
 #define MARCOS_H
 
+#ifndef GFX_SAFE_LEVEL
+#define GFX_SAFE_LEVEL 0
+#endif
+
 #define NO_COPY_MOVE_CONS(Class) \
 Class(const Class&) = delete; \
 Class(Class&&) = delete; \
@@ -25,6 +29,8 @@ Class& operator=(Class&&) = delete
 #include "VmaLoader.h"
 #include "entt/entt.hpp"
 #include "Concurrent/concurrentqueue.h"
+#include "../Third/xxHash/xxh3.h"
+#include "LoFiGfxDefines.h"
 
 //enable sse
 #define GLM_FORCE_SWIZZLE
@@ -36,45 +42,13 @@ Class& operator=(Class&&) = delete
 
 namespace LoFi {
 
+      struct ResourceHandle {
+            GfxEnumResourceType Type = GfxEnumResourceType::INVALID_RESOURCE_TYPE;
+            entt::entity RHandle = entt::null;
+      };
+
       struct ContextSetupParam {
             bool Debug = false;
-      };
-
-      struct LayoutVariableBindInfo {
-            std::string Name;
-            entt::entity Buffer;
-      };
-
-      struct RenderPassBeginArgument {
-            entt::entity TextureHandle = entt::null;
-            bool ClearBeforeRendering = true;
-            glm::vec4 ClearColor = glm::uvec4(0, 0, 0, 1.0f);
-            uint32_t ViewIndex = 0;
-      };
-
-      enum class ResourceUsage {
-            NONE,
-            TRANS_SRC,
-            TRANS_DST,
-            SAMPLED,
-            READ_TEXTURE,
-            WRITE_TEXTURE,
-            READ_WRITE_TEXTURE,
-            READ_BUFFER,
-            WRITE_BUFFER,
-            READ_WRITE_BUFFER,
-            RENDER_TARGET,
-            DEPTH_STENCIL,
-            PRESENT,
-            VERTEX_BUFFER,
-            INDEX_BUFFER,
-            INDIRECT_BUFFER,
-      };
-
-      enum KernelType {
-            NONE,
-            GRAPHICS,
-            COMPUTE,
       };
 }
 
@@ -91,15 +65,17 @@ namespace LoFi::Internal {
 
       void volkLoadPhysicalDevice(VkPhysicalDevice device);
 
-      const char* GetVkResultString(VkResult res);
+      const char* ToStringVkResult(VkResult res);
 
-      const char* GetVkFormatString(VkFormat format);
+      const char* ToStringVkFormat(VkFormat format);
 
-      const char* GetVkFormatStringSimpled(VkFormat format);
+      const char* ToStringVkFormatMini(VkFormat format);
 
-      VkFormat GetVkFormatFromString(const std::string& str);
+      const char* ToStringResourceType(GfxEnumResourceType type);
 
-      VkFormat GetVkFormatFromStringSimpled(const std::string& str);
+      VkFormat FromStringVkFormat(const std::string& str);
+
+      VkFormat FromStringVkFormatMini(const std::string& str);
 
       bool IsDepthOnlyFormat(VkFormat format);
 
@@ -109,11 +85,11 @@ namespace LoFi::Internal {
 
       const char* GetImageLayoutString(VkImageLayout layout);
 
-      const char* GetResourceUsageString(ResourceUsage stage);
+      const char* ToStringResourceUsage(GfxEnumResourceUsage stage);
 
       enum class ContextResourceType {
             UNKONWN,
-            WINDOW,
+            SWAPCHAIN,
             IMAGE,
             BUFFER,
             IMAGE_VIEW,
@@ -133,27 +109,33 @@ namespace LoFi::Internal {
       class FreeList {
       public:
             uint32_t Gen() {
-                  if (_free.empty()) {
-                        return _top++;
+                  if(uint32_t value; !_free.try_dequeue(value)) {
+                        _top += 1;
+                        return _top;
                   } else {
-                        uint32_t id = _free.back();
-                        _free.pop_back();
-                        return id;
+                        return value;
                   }
             }
 
             void Free(uint32_t id) {
-                  _free.push_back(id);
-            }
-
-            void Clear() {
-                  _top = 0;
-                  _free.clear();
+                  _free.enqueue(id);
             }
 
       private:
-            uint32_t _top{};
-            std::vector<uint32_t> _free{};
+            moodycamel::ConcurrentQueue<uint32_t> _free{};
+            std::atomic<uint32_t> _top {0};
+      };
+
+      struct HashResourceHandle {
+            std::size_t operator()(const LoFi::ResourceHandle& s) const noexcept {
+                  return XXH64(&s, sizeof(VkSamplerCreateInfo), 0);
+            }
+      };
+
+      struct EqualResourceHandle {
+            std::size_t operator()(const LoFi::ResourceHandle& a, const LoFi::ResourceHandle& b) const noexcept {
+                  return a.Type == b.Type && a.RHandle == b.RHandle;
+            }
       };
 }
 

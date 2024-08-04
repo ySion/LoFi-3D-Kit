@@ -8,7 +8,7 @@ namespace LoFi::Component::Gfx {
       public:
             NO_COPY_MOVE_CONS(Swapchain);
 
-            Swapchain(entt::entity id);
+            explicit Swapchain(entt::entity id, const GfxParamCreateSwapchain& param);
 
             ~Swapchain();
 
@@ -22,20 +22,17 @@ namespace LoFi::Component::Gfx {
 
             [[nodiscard]] VkSemaphore GetCurrentSemaphore() const { return _imageAvailableSemaphores[_currentFrameIndex]; }
 
+            [[nodiscard]] uint32_t GetCurrentSemaphoreIndex() const { return _currentFrameIndex; }
+
             [[nodiscard]] Texture* GetCurrentRenderTarget() const { return _images.at(_currentImageIndex).get(); }
 
             [[nodiscard]] uint32_t GetCurrentRenderTargetIndex() const { return _currentImageIndex; }
 
             void AcquireNextImage();
 
-            void SetMappedRenderTarget(entt::entity texture);
-
-            void BeginFrame(VkCommandBuffer cmd) const;
-
-            void EndFrame(VkCommandBuffer cmd) const;
+            void PresentBarrier(VkCommandBuffer cmd) const;
 
       private:
-            void MapRenderTarget(VkCommandBuffer cmd) const;
 
             void CreateOrRecreateSwapChain();
 
@@ -62,6 +59,10 @@ namespace LoFi::Component::Gfx {
 
             VkResult _preAccquireResult = VK_SUCCESS;
 
-            entt::entity _mappedRenderTarget = entt::null;
+            uint64_t _anyHandleForResizeCallback {};
+
+            uint64_t(*_onResizeCallBack)(uint64_t, uint64_t) = nullptr;
+
+            std::string _resourceName{};
       };
 }

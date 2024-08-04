@@ -2,91 +2,105 @@
 #include "Buffer.h"
 
 #include "../GfxContext.h"
+#include "../Message.h"
 
 using namespace LoFi::Component::Gfx;
 using namespace LoFi::Internal;
 
+Buffer3F::Buffer3F(entt::entity id) : _id(id) {}
+
 Buffer3F::~Buffer3F() {
       for(auto& buffer : _buffers) {
-            GfxContext::Get()->DestroyHandle(buffer);
+            buffer.reset();
       }
 }
 
-Buffer3F::Buffer3F(entt::entity id, uint64_t size, bool high_dynamic) : _id(id) {
-      auto& world = *volkGetLoadedEcsWorld();
+bool Buffer3F::Init(const GfxParamCreateBuffer3F& param) {
+      _resourceName = param.pResourceName ? param.pResourceName : std::string{};
+      _dataCache.resize(param.DataSize);
 
-      if (!world.valid(id)) {
-            const auto err = "FrameResource::FrameResource: id is invalid";
-            throw std::runtime_error(err);
-      }
-
-      _dataCache.resize(size);
-
-      _buffers = {
-            GfxContext::Get()->CreateBuffer(size, high_dynamic),
-            GfxContext::Get()->CreateBuffer(size, high_dynamic),
-            GfxContext::Get()->CreateBuffer(size, high_dynamic)
+      const GfxParamCreateBuffer arg {
+            .pResourceName = "",
+            .pData = param.pData,
+            .DataSize = param.DataSize,
+            .bSingleUpload = false,
+            .bCpuAccess = param.bCpuAccess
       };
+
+      _buffers[0] = std::make_unique<Buffer>();
+      if(!_buffers[0]->Init(arg)) {
+            std::string err = "[Buffer3FCreate] Create Buffer Failed at SubBuffer 0.";
+            if(!_resourceName.empty()) err += std::format(" - Name: \"{}\"", _resourceName);
+            MessageManager::Log(MessageType::Error, err);
+            return false;
+      }
+      _buffers[1] = std::make_unique<Buffer>();
+      if(!_buffers[1]->Init(arg)) {
+            std::string err = "[Buffer3FCreate] Create Buffer Failed at SubBuffer 1.";
+            if(!_resourceName.empty()) err += std::format(" - Name: \"{}\"", _resourceName);
+            MessageManager::Log(MessageType::Error, err);
+            return false;
+      }
+
+      _buffers[2] = std::make_unique<Buffer>();
+      if(!_buffers[2]->Init(arg)) {
+            std::string err = "[Buffer3FCreate] Create Buffer Failed at SubBuffer 2.";
+            if(!_resourceName.empty()) err += std::format(" - Name: \"{}\"", _resourceName);
+            MessageManager::Log(MessageType::Error, err);
+            return false;
+      }
+
+      return true;
 }
 
-entt::entity Buffer3F::GetBuffer() const {
+VkBuffer Buffer3F::GetBuffer() const {
       uint32_t current_frame_index = GfxContext::Get()->GetCurrentFrameIndex();
-      return GetBuffer(current_frame_index);
+      return _buffers[current_frame_index]->GetBuffer();
+}
+
+LoFi::Component::Gfx::Buffer* Buffer3F::GetBufferObject() const {
+      uint32_t current_frame_index = GfxContext::Get()->GetCurrentFrameIndex();
+      return _buffers[current_frame_index].get();
+}
+
+VkBuffer* Buffer3F::GetBufferPtr() const {
+      uint32_t current_frame_index = GfxContext::Get()->GetCurrentFrameIndex();
+      return _buffers[current_frame_index]->GetBufferPtr();
 }
 
 VkDeviceAddress Buffer3F::GetBufferAddress(uint32_t idx) const {
-      auto& world = *volkGetLoadedEcsWorld();
-      auto& buffer = world.get<Buffer>(_buffers.at(idx));
-      return buffer.GetAddress();
+      return _buffers[idx]->GetBDAAddress();
 }
 
-void Buffer3F::BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, ResourceUsage new_usage) const {
-      auto& world = *volkGetLoadedEcsWorld();
+VkDeviceAddress LoFi::Component::Gfx::Buffer3F::GetCurrentBufferBDAAddress() const {
+      return GetBufferAddress(GfxContext::Get()->GetCurrentFrameIndex());
+}
+
+void Buffer3F::BarrierLayout(VkCommandBuffer cmd, GfxEnumKernelType new_kernel_type, GfxEnumResourceUsage new_usage) const {
       uint32_t current_frame_index = GfxContext::Get()->GetCurrentFrameIndex();
-      world.get<Buffer>(_buffers.at(current_frame_index)).BarrierLayout(cmd, new_kernel_type, new_usage);
+      _buffers[current_frame_index]->BarrierLayout(cmd, new_kernel_type, new_usage);
 }
 
-void Buffer3F::SetData(void* p, uint64_t size, uint64_t offset) {
-
+void Buffer3F::SetData(const void* p, uint64_t size, uint64_t offset) {
       const uint64_t copy_size =  _dataCache.size() - offset < size ? _dataCache.size() - offset : size;
       memcpy(&_dataCache.at(offset), p, copy_size);
-
       _dirty = 3;
-
-      auto& world = *volkGetLoadedEcsWorld();
-
-      if(!world.any_of<TagDataChanged>(_id)) {
-            world.emplace<TagDataChanged>(_id);
-      }
-
-      if(world.any_of<TagDataUpdateCompleted>(_id)) {
-            world.remove<TagDataUpdateCompleted>(_id);
+      if(!_bNeedUpdate) {
+            LoFi::GfxContext::Get()->EnqueueBuffer3FUpdate(GetHandle());
+            _bNeedUpdate = true;
       }
 }
 
-void Buffer3F::UpdateAll() {
-      auto& world = *Internal::volkGetLoadedEcsWorld();
-      world.view<Buffer3F, TagDataChanged>().each([](auto entity, Buffer3F& instance) {
-            instance.UpdateFrameResource();
-      });
-
-      const auto p = world.view<Buffer3F, TagDataChanged, TagDataUpdateCompleted>();
-      world.remove<TagDataChanged, TagDataUpdateCompleted>(p.begin(), p.end());
-}
-
-void Buffer3F::UpdateFrameResource() {
-      if(_dirty == 0) return;
+bool Buffer3F::Update() {
+      if(_dirty == 0) return false;
 
       const auto frame_index = GfxContext::Get()->GetCurrentFrameIndex();
-
       _dirty--;
-
-      auto& world = *volkGetLoadedEcsWorld();
-
-      auto& buffer = world.get<Buffer>(_buffers[frame_index]);
-      buffer.SetData(_dataCache.data(), _dataCache.size());
-
+      _buffers[frame_index]->SetData(_dataCache.data(), _dataCache.size());
       if(_dirty == 0) {
-            world.emplace<TagDataUpdateCompleted>(_id);
+            _bNeedUpdate = false;
+            return false;
+      } else {
+            return true;
       }
 }

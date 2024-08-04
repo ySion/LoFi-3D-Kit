@@ -11,7 +11,8 @@ namespace LoFi {
       enum class MessageType : uint8_t {
             Normal,
             Warning,
-            Error
+            Error,
+            Fatal
       };
 
       struct Message {

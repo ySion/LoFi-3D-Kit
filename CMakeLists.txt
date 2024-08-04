@@ -25,6 +25,8 @@ set(SDL_LIBC OFF)
 set(SDL_WASAPI OFF)
 add_subdirectory(Third/SDL)
 add_subdirectory(Third/entt)
+add_subdirectory(Third/glm)
+
 
 
 add_subdirectory(LoFiGfx)

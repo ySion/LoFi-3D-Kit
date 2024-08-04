@@ -14,36 +14,46 @@ namespace LoFi::Component::Gfx {
 
             ~Buffer3F();
 
-            explicit Buffer3F(entt::entity id, uint64_t size, bool high_dynamic = true);
+            explicit Buffer3F(entt::entity id);
 
-            [[nodiscard]] entt::entity GetHandle() const { return _id; }
+            bool Init(const GfxParamCreateBuffer3F& param);
 
-            [[nodiscard]] entt::entity GetBuffer() const;
+            [[nodiscard]] std::string& GetResourceName() { return _resourceName; }
 
-            [[nodiscard]] entt::entity GetBuffer(uint32_t idx) const { return _buffers.at(idx); }
+            [[nodiscard]] ResourceHandle GetHandle() const { return {GfxEnumResourceType::Buffer3F, _id}; }
+
+            [[nodiscard]] VkBuffer GetBuffer() const;
+
+            [[nodiscard]] Buffer* GetBufferObject() const;
+            
+            [[nodiscard]] VkBuffer* GetBufferPtr() const;
 
             [[nodiscard]] uint32_t GetSize() const { return _dataCache.size(); }
 
             [[nodiscard]] VkDeviceAddress GetBufferAddress(uint32_t idx) const;
 
-            void BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, ResourceUsage new_usage) const;
+            [[nodiscard]] VkDeviceAddress GetCurrentBufferBDAAddress() const;
 
-            void SetData(void* p, uint64_t size, uint64_t offset);
+            void BarrierLayout(VkCommandBuffer cmd, GfxEnumKernelType new_kernel_type, GfxEnumResourceUsage new_usage) const;
 
-            static void UpdateAll();
+            void SetData(const void* p, uint64_t size, uint64_t offset);
+
+            bool Update(); // 如果依然有数据需要更新，返回true, 如果全更新完毕, 返回false
 
       private:
-
-            void UpdateFrameResource();
 
             entt::entity _id;
 
             std::vector<uint8_t> _dataCache{};
 
-            std::array<entt::entity, 3> _buffers{};
+            std::unique_ptr<Buffer> _buffers[3];
 
             uint32_t _dirty = 0;
 
+      private:
+            std::string _resourceName{};
+
+            bool _bNeedUpdate{};
       };
 }
 

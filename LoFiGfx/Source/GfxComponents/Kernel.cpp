@@ -24,41 +24,43 @@ Kernel::~Kernel() {
       }
 }
 
-Kernel::Kernel(entt::entity id, entt::entity program) {
-      auto& world = *volkGetLoadedEcsWorld();
-
-      if (!world.valid(id)) {
-            const auto err = "Kernel::Kernel: id is invalid";
-            throw std::runtime_error(err);
+bool Kernel::Init(const Program* program, const GfxParamCreateKernel& param) {
+      _resourceName = param.pResourceName ? param.pResourceName : std::string{};
+      if (!program->IsCompiled()) {
+            std::string err = "[KernelCreate] Program is not compiled.";
+            if(!_resourceName.empty()) err += std::format(" - Name: \"{}\"", _resourceName);
+            MessageManager::Log(MessageType::Error, err);
+            return false;
       }
 
-      if (!world.valid(program)) {
-            const auto err = "Kernel::Kernel: handle is invalid";
-            throw std::runtime_error(err);
-      }
-
-      const auto* program_ptr = world.try_get<Program>(program);
-      if (!program_ptr) {
-            const auto err = "Kernel::Kernel: not a program handle";
-            throw std::runtime_error(err);
-      }
-
-      if (!program_ptr->IsCompiled()) {
-            const auto err = "Kernel::Kernel: program is not compiled";
-            throw std::runtime_error(err);
-      }
-
-      if (program_ptr->IsGraphicsShader()) {
-            CreateAsGraphics(program_ptr);
-      } else if (program_ptr->IsComputeShader()) {
-            CreateAsCompute(program_ptr);
+      if (program->IsGraphicsShader()) {
+            if(CreateAsGraphics(program)) {
+                  std::string str = std::format("[KernelCreate] Graphics Kernel Created.", _resourceName);
+                  if(!_resourceName.empty()) str += std::format(" - Name: \"{}\"", _resourceName);
+                  MessageManager::Log(MessageType::Normal, str);
+                  return true;
+            }
+            return false;
+      } else if (program->IsComputeShader()) {
+            if(CreateAsCompute(program)) {
+                  std::string str = std::format("[KernelCreate] Compute Kernel Created.", _resourceName);
+                  if(!_resourceName.empty()) str += std::format(" - Name: \"{}\"", _resourceName);
+                  MessageManager::Log(MessageType::Normal, str);
+                  return true;
+            } else {
+                  return false;
+            }
       } else {
-            const auto err = "Kernel::Kernel: program is not a graphics or compute shader";
-            throw std::runtime_error(err);
+            std::string err = "[KernelCreate] Program is not a graphics or compute shader.";
+            if(!_resourceName.empty()) err += std::format(" - Name: \"{}\"", _resourceName);
+            MessageManager::Log(MessageType::Error, err);
+            return false;
       }
 }
 
-void Kernel::CreateAsGraphics(const Program* program) {
+Kernel::Kernel(entt::entity id) : _id(id) {}
+
+bool Kernel::CreateAsGraphics(const Program* program) {
       _pushConstantRange = program->GetPushConstantRange();
       _pushConstantDefine = program->GetPushConstantDefine();
 
@@ -71,8 +73,10 @@ void Kernel::CreateAsGraphics(const Program* program) {
       };
 
       if (const auto result = vkCreatePipelineLayout(volkGetLoadedDevice(), &pipeline_layout_ci, nullptr, &_pipelineLayout); result != VK_SUCCESS) {
-            const auto err = std::format("Kernel::CreateAsGraphics - vkCreatePipelineLayout Failed, return {}\n", GetVkResultString(result));
-            throw std::runtime_error(err);
+            auto err = std::format("[Kernel::CreateAsGraphics] vkCreatePipelineLayout Failed, return {}.", ToStringVkResult(result));
+            if(!_resourceName.empty()) err += std::format(" - Name: \"{}\"", _resourceName);
+            MessageManager::Log(MessageType::Error, err);
+            return false;
       }
 
       std::vector<VkPipelineShaderStageCreateInfo> stages{
@@ -128,16 +132,19 @@ void Kernel::CreateAsGraphics(const Program* program) {
       };
 
       if (const auto result = vkCreateGraphicsPipelines(volkGetLoadedDevice(), nullptr, 1, &pipeline_ci, nullptr, &_pipeline); result != VK_SUCCESS) {
-            const auto err = std::format("Kernel::CreateAsGraphics - vkCreateGraphicsPipelines Failed, return {}\n", GetVkResultString(result));
-            throw std::runtime_error(err);
+            auto err = std::format("[Kernel::CreateAsGraphics] vkCreateGraphicsPipelines Failed, return {}.", ToStringVkResult(result));
+            if(!_resourceName.empty()) err += std::format(" - Name: \"{}\"", _resourceName);
+            MessageManager::Log(MessageType::Error, err);
+            return false;
       }
 
       _isComputeKernel = false;
-
       _pushConstantBuffer.resize(_pushConstantRange.size);
+
+      return true;
 }
 
-void Kernel::CreateAsCompute(const Program* program) {
+bool Kernel::CreateAsCompute(const Program* program) {
       _pushConstantRange = program->GetPushConstantRange();
       _pushConstantDefine = program->GetPushConstantDefine();
 
@@ -150,8 +157,10 @@ void Kernel::CreateAsCompute(const Program* program) {
       };
 
       if (const auto result = vkCreatePipelineLayout(volkGetLoadedDevice(), &pipeline_layout_ci, nullptr, &_pipelineLayout); result != VK_SUCCESS) {
-            const auto err = std::format("Kernel::CreateAsCompute - vkCreatePipelineLayout Failed, return {}\n", GetVkResultString(result));
-            throw std::runtime_error(err);
+            auto err = std::format("[Kernel::CreateAsCompute] vkCreatePipelineLayout Failed, return {}.", ToStringVkResult(result));
+            if(!_resourceName.empty()) err += std::format(" - Name: \"{}\"", _resourceName);
+            MessageManager::Log(MessageType::Error, err);
+            return false;
       }
 
       VkPipelineShaderStageCreateInfo cs_ci = {
@@ -168,12 +177,16 @@ void Kernel::CreateAsCompute(const Program* program) {
       };
 
       if (const auto result = vkCreateComputePipelines(volkGetLoadedDevice(), nullptr, 1, &pipelineInfo, nullptr, &_pipeline); result != VK_SUCCESS) {
-            const auto err = std::format("Kernel::CreateAsCompute - vkCreateComputePipelines Failed, return {}\n", GetVkResultString(result));
-            throw std::runtime_error(err);
+            auto err = std::format("[Kernel::CreateAsCompute] vkCreateComputePipelines Failed, return {}.", ToStringVkResult(result));
+            if(!_resourceName.empty()) err += std::format(" - Name: \"{}\"", _resourceName);
+            MessageManager::Log(MessageType::Error, err);
+            return false;
       }
 
       _isComputeKernel = true;
       _pushConstantBuffer.resize(_pushConstantRange.size);
+
+      return true;
 }
 
 bool Kernel::SetConstantValue(const std::string& name, const void* data) {

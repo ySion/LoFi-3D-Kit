@@ -16,9 +16,15 @@ namespace LoFi::Component::Gfx {
 
             ~Texture();
 
-            explicit Texture(const VkImageCreateInfo& image_ci, VkImage Image, bool isBorrow);
+            explicit Texture();
 
-            explicit Texture(entt::entity id, const VkImageCreateInfo& image_ci, const VmaAllocationCreateInfo& alloc_ci);
+            explicit Texture(entt::entity id);
+
+            bool Init(const VkImageCreateInfo& image_ci, VkImage Image, bool isBorrow, const char* name = nullptr);
+
+            bool Init(const VkImageCreateInfo& image_ci, const VmaAllocationCreateInfo& alloc_ci, const GfxParamCreateTexture2D& param);
+
+            std::string& GetResourceName() { return _resourceName; }
 
             [[nodiscard]] VkImage GetImage() const { return _image; }
 
@@ -34,7 +40,7 @@ namespace LoFi::Component::Gfx {
 
             [[nodiscard]] bool IsBorrowed() const { return _isBorrow; }
 
-            [[nodiscard]] entt::entity GetID() const { return _id; }
+            [[nodiscard]] ResourceHandle GetHandle() const { return {GfxEnumResourceType::Texture2D, _id}; }
 
             [[nodiscard]] VkExtent3D GetExtent() const { return _imageCI->extent; }
 
@@ -48,7 +54,7 @@ namespace LoFi::Component::Gfx {
 
             [[nodiscard]] bool IsTextureFormatDepthStencil() const { return Internal::IsDepthStencilFormat(_imageCI->format); }
 
-            [[nodiscard]] ResourceUsage GetCurrentUsage() const { return _currentUsage; }
+            [[nodiscard]] GfxEnumResourceUsage GetCurrentUsage() const { return _currentUsage; }
 
             [[nodiscard]] VkSampler GetSampler() const { return _sampler; }
 
@@ -62,13 +68,13 @@ namespace LoFi::Component::Gfx {
 
             void ClearViews();
 
-            void Resize(uint32_t w, uint32_t h);
+            bool Resize(uint32_t w, uint32_t h);
 
             void SetData(const void* data, size_t size);
 
-            void BarrierLayout(VkCommandBuffer cmd, KernelType new_kernel_type, ResourceUsage new_usage);
+            void BarrierLayout(VkCommandBuffer cmd, GfxEnumKernelType new_kernel_type, GfxEnumResourceUsage new_usage);
 
-            entt::entity CreateAATexture();
+            void SetLayout(GfxEnumKernelType new_kernel_type, GfxEnumResourceUsage new_usage);
 
       private:
 
@@ -80,20 +86,16 @@ namespace LoFi::Component::Gfx {
 
             void SetBindlessIndex(std::optional<uint32_t> index);
 
-            void SetBindlessIndexForStorage(std::optional<uint32_t> index);
-
             void DestroyTexture();
 
             void Update(VkCommandBuffer cmd);
-
-            static void UpdateAll(VkCommandBuffer cmd); // call by context
 
             friend class Swapchain;
 
             friend class ::LoFi::GfxContext;
 
       private:
-            entt::entity _id;
+            entt::entity _id = entt::null;
 
             bool _isBorrow{};
 
@@ -113,14 +115,19 @@ namespace LoFi::Component::Gfx {
 
             VkSampler _sampler{};
 
-            KernelType _currentKernelType = KernelType::NONE;
+            GfxEnumKernelType _currentKernelType = GfxEnumKernelType::OUT_OF_KERNEL;
 
-            ResourceUsage _currentUsage = ResourceUsage::NONE;
+            GfxEnumResourceUsage _currentUsage = GfxEnumResourceUsage::UNKNOWN_RESOURCE_USAGE;
 
             std::unique_ptr<Buffer> _intermediateBuffer{};
 
             std::vector<uint8_t> _dataCache{};
 
             std::function<void(VkCommandBuffer)> _updateCommand{};
+
+      private:
+            std::string _resourceName{};
+
+            bool _bNeedUpdate{};
       };
 }

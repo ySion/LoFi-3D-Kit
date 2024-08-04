@@ -5,13 +5,12 @@ LoFiGfx\CMakeFiles\LoFiGfx.dir\Source\GfxContext.cpp.obj
 LoFiGfx\CMakeFiles\LoFiGfx.dir\Source\Message.cpp.obj
 LoFiGfx\CMakeFiles\LoFiGfx.dir\Source\PhysicalDevice.cpp.obj
 LoFiGfx\CMakeFiles\LoFiGfx.dir\Source\Helper.cpp.obj
-LoFiGfx\CMakeFiles\LoFiGfx.dir\Source\GfxComponents\Window.cpp.obj
 LoFiGfx\CMakeFiles\LoFiGfx.dir\Source\GfxComponents\Swapchain.cpp.obj
 LoFiGfx\CMakeFiles\LoFiGfx.dir\Source\GfxComponents\Texture.cpp.obj
 LoFiGfx\CMakeFiles\LoFiGfx.dir\Source\GfxComponents\Program.cpp.obj
 LoFiGfx\CMakeFiles\LoFiGfx.dir\Source\GfxComponents\Buffer.cpp.obj
-LoFiGfx\CMakeFiles\LoFiGfx.dir\Source\GfxComponents\PushConstantBuffer.cpp.obj
 LoFiGfx\CMakeFiles\LoFiGfx.dir\Source\GfxComponents\Kernel.cpp.obj
 LoFiGfx\CMakeFiles\LoFiGfx.dir\Source\FrameGraph.cpp.obj
 LoFiGfx\CMakeFiles\LoFiGfx.dir\Source\GfxComponents\Buffer3F.cpp.obj
 LoFiGfx\CMakeFiles\LoFiGfx.dir\Source\PfxContext.cpp.obj
+LoFiGfx\CMakeFiles\LoFiGfx.dir\Source\RenderNode.cpp.obj

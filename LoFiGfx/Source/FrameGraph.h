@@ -3,7 +3,10 @@
 //
 
 #pragma once
+#include <stack>
+
 #include "Helper.h"
+#include "RenderNode.h"
 
 namespace LoFi {
 
@@ -14,86 +17,64 @@ namespace LoFi {
 
         ~FrameGraph();
 
-        explicit FrameGraph(VkCommandBuffer cmd_buf);
+        explicit FrameGraph(const std::array<VkCommandBuffer, 3>& cmdbuffers);
 
     public:
 
-        void BeginFrame();
+        bool AddNode(RenderNode *node);
 
-        void EndFrame() const;
+        void RemoveNode(RenderNode* node);
 
-        void BeginComputePass();
+        void SetNeedUpdate();
 
-        void EndComputePass();
 
-        void ComputeDispatch(uint32_t x, uint32_t y, uint32_t z) const;
+        bool CheckNodeExist(const std::string& name) const;
 
-        void BeginRenderPass(const std::vector<RenderPassBeginArgument>& textures);
+        void SetRootNode(ResourceHandle node);
 
-        void EndRenderPass();
+        void GenFrameGraph(uint32_t frame_index);
 
-        void BindKernel(entt::entity kernel);
-
-        void BindVertexBuffer(entt::entity buffer, uint32_t first_binding, uint32_t binding_count, size_t offset);
-
-        void BindIndexBuffer(entt::entity index_buffer, size_t offset) const;
-
-        void DrawIndexedIndirect(entt::entity indirect_bufer, size_t offset, uint32_t draw_count, uint32_t stride) const;
-
-        void DrawIndex(uint32_t index_count, uint32_t instance_count = 1, uint32_t first_index = 0, int32_t vertex_offset = 0, uint32_t first_instance = 0) const;
-
-        void Draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) const;
-
-        void SetViewport(const VkViewport& viewport) const;
-
-        void SetScissor(VkRect2D scissor) const;
-
-        void SetViewportAuto(bool invert_y = true) const;
-
-        void SetScissorAuto() const;
-
-        void PushConstant(entt::entity push_constant_buffer) const;
-
-        void AsSampledTexure(entt::entity texture, KernelType which_kernel_use = GRAPHICS) const;
-
-        void AsReadTexure(entt::entity texture, KernelType which_kernel_use = COMPUTE) const;
-
-        void AsWriteTexture(entt::entity texture, KernelType which_kernel_use = COMPUTE) const;
-
-        void AsWriteBuffer(entt::entity buffer, KernelType which_kernel_use = COMPUTE) const;
-
-        void AsReadBuffer(entt::entity buffer, KernelType which_kernel_use = COMPUTE) const;
+        void PrepareNextFrame() const;
 
     public:
-        [[nodiscard]] VkCommandBuffer GetCommandBuffer() const { return _cmdBuffer; }
+
+        bool IsGraphCycle(RenderNode* node);
+
+        void GraphSort(RenderNode* node);
 
     private:
 
-        void BeginSecondaryCommandBuffer();
+        ResourceHandle _rootNode = {};
 
-        void EndSecondaryCommandBuffer();
+        RenderNode* _ptrRootNode = nullptr;
 
-        void ExpandSecondaryCommandBuffer();
+        std::vector<RenderNode*> _nodeList{};
 
-        VkCommandBuffer _cmdBuffer;
+        entt::dense_map<std::string, RenderNode*> _nodeMap{};
 
-        VkCommandPool _secondaryCmdPool {};
+        entt::dense_set<RenderNode*> _nodeMapCycleCheckCache{};
 
-        std::vector<VkCommandBuffer> _secondaryCmdBufsFree{};
+        std::stack<RenderNode*> _nodeCheckStack{};
 
-        std::vector<VkCommandBuffer> _secondaryCmdBufsUsed{};
+        std::string _nodeCheckRepeat{};
 
-        VkCommandBuffer _prev {};
+        entt::dense_map<Component::Gfx::Texture*, std::pair<GfxEnumKernelType, GfxEnumResourceUsage>> _resourceFinalBarrierTexture{};
 
-        VkCommandBuffer _current {};
+        entt::dense_map<Component::Gfx::Buffer*, std::pair<GfxEnumKernelType, GfxEnumResourceUsage>> _resourceFinalBarrierBuffer{};
+
+    private:
+
+        std::array<VkCommandBuffer, 3> _cmdBuffer{};
 
         entt::registry& _world;
 
-        VkRect2D _frameRenderingRenderArea{};
+        friend class GfxContext;
     private:
-        entt::entity _currentKernel = entt::null;
 
-        KernelType _passType = NONE;
+        bool _isGraphChanged = true; // 依赖关系改变, 以及节点变多, 比如调用After, 以及插入新节点的时候, 需要重新排序 // TODO
+
+
+        uint32_t _frameIndex = 0;
     };
 
 }

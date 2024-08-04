@@ -34,7 +34,7 @@ namespace LoFi::Internal {
             loadedPhysicalDevice = device;
       }
 
-      const char* GetVkResultString(VkResult res) {
+      const char* ToStringVkResult(VkResult res) {
             switch (res) {
                   case VK_SUCCESS: return "VK_SUCCESS";
                   case VK_NOT_READY: return "VK_NOT_READY";
@@ -86,14 +86,13 @@ namespace LoFi::Internal {
                   case VK_OPERATION_DEFERRED_KHR: return "VK_OPERATION_DEFERRED_KHR";
                   case VK_OPERATION_NOT_DEFERRED_KHR: return "VK_OPERATION_NOT_DEFERRED_KHR";
                   case VK_ERROR_COMPRESSION_EXHAUSTED_EXT: return "VK_ERROR_COMPRESSION_EXHAUSTED_EXT";
-                  case VK_ERROR_INCOMPATIBLE_SHADER_BINARY_EXT: return "VK_ERROR_COMPRESSION_EXHAUSTED_EXT";
-                  defualt :
+                  default:
                         return "UNKNOWN";
             }
             return "UNKNOWN";
       }
 
-      const char* GetVkFormatString(VkFormat format) {
+      const char* ToStringVkFormat(VkFormat format) {
             switch (format) {
                   default: return "VK_FORMAT_UNDEFINED";
                   case VK_FORMAT_R4G4_UNORM_PACK8: return "VK_FORMAT_R4G4_UNORM_PACK8";
@@ -364,7 +363,7 @@ namespace LoFi::Internal {
             }
       }
 
-      const char* GetVkFormatStringSimpled(VkFormat format) {
+      const char* ToStringVkFormatMini(VkFormat format) {
             switch (format) {
                   default: return "VK_FORMAT_UNDEFINED";
                   case VK_FORMAT_R4G4_UNORM_PACK8: return "r4g4_unorm_pack8";
@@ -631,7 +630,21 @@ namespace LoFi::Internal {
             }
       }
 
-      VkFormat GetVkFormatFromString(const std::string& str) {
+      const char* ToStringResourceType(GfxEnumResourceType type) {
+            switch(type) {
+                  case GfxEnumResourceType::INVALID_RESOURCE_TYPE: return "None";
+                  case GfxEnumResourceType::SwapChain: return "Window";
+                  case GfxEnumResourceType::Texture2D: return "Texture2D";
+                  case GfxEnumResourceType::Buffer: return "Buffer";
+                  case GfxEnumResourceType::Program: return "Program";
+                  case GfxEnumResourceType::Kernel: return "Kernel";
+                  case GfxEnumResourceType::Sampler: return "Sampler";
+                  case GfxEnumResourceType::Buffer3F: return "Buffer3F";
+                  default: return "ERR?";
+            }
+      }
+
+      VkFormat FromStringVkFormat(const std::string& str) {
             static std::unordered_map<std::string, VkFormat> FormatDic = {
                   {"VK_FORMAT_UNDEFINED", VK_FORMAT_UNDEFINED},
                   {"VK_FORMAT_R4G4_UNORM_PACK8", VK_FORMAT_R4G4_UNORM_PACK8},
@@ -892,7 +905,7 @@ namespace LoFi::Internal {
             }
       }
 
-      VkFormat GetVkFormatFromStringSimpled(const std::string& str) {
+      VkFormat FromStringVkFormatMini(const std::string& str) {
             static std::unordered_map<std::string, VkFormat> FormatDic = {
                   {"undefined", VK_FORMAT_UNDEFINED},
                   {"r4g4_unorm_pack8", VK_FORMAT_R4G4_UNORM_PACK8},
@@ -1198,24 +1211,24 @@ namespace LoFi::Internal {
             }
       }
 
-      const char* GetResourceUsageString(ResourceUsage stage) {
+      const char* ToStringResourceUsage(GfxEnumResourceUsage stage) {
             switch(stage) {
-                  case ResourceUsage::NONE: return "NONE";
-                  case ResourceUsage::TRANS_SRC: return "TRANS_SRC";
-                  case ResourceUsage::TRANS_DST: return "TRANS_DST";
-                  case ResourceUsage::SAMPLED: return "SAMPLED";
-                  case ResourceUsage::READ_TEXTURE: return "READ_TEXTURE";
-                  case ResourceUsage::WRITE_TEXTURE: return "WRITE_TEXTURE";
-                  case ResourceUsage::READ_WRITE_TEXTURE: return "READ_WRITE_TEXTURE";
-                  case ResourceUsage::READ_BUFFER: return "READ_BUFFER";
-                  case ResourceUsage::WRITE_BUFFER: return "WRITE_BUFFER";
-                  case ResourceUsage::READ_WRITE_BUFFER: return "READ_WRITE_BUFFER";
-                  case ResourceUsage::RENDER_TARGET: return "RENDER_TARGET";
-                  case ResourceUsage::DEPTH_STENCIL: return "DEPTH_STENCIL";
-                  case ResourceUsage::PRESENT: return "PRESENT";
-                  case ResourceUsage::VERTEX_BUFFER: return "VERTEX_BUFFER";
-                  case ResourceUsage::INDEX_BUFFER: return "INDEX_BUFFER";
-                  case ResourceUsage::INDIRECT_BUFFER: return "INDIRECT_BUFFER";
+                  case GfxEnumResourceUsage::UNKNOWN_RESOURCE_USAGE: return "NONE";
+                  case GfxEnumResourceUsage::TRANS_SRC: return "TRANS_SRC";
+                  case GfxEnumResourceUsage::TRANS_DST: return "TRANS_DST";
+                  case GfxEnumResourceUsage::SAMPLED: return "SAMPLED";
+                  case GfxEnumResourceUsage::READ_TEXTURE: return "READ_TEXTURE";
+                  case GfxEnumResourceUsage::WRITE_TEXTURE: return "WRITE_TEXTURE";
+                  case GfxEnumResourceUsage::READ_WRITE_TEXTURE: return "READ_WRITE_TEXTURE";
+                  case GfxEnumResourceUsage::READ_BUFFER: return "READ_BUFFER";
+                  case GfxEnumResourceUsage::WRITE_BUFFER: return "WRITE_BUFFER";
+                  case GfxEnumResourceUsage::READ_WRITE_BUFFER: return "READ_WRITE_BUFFER";
+                  case GfxEnumResourceUsage::RENDER_TARGET: return "RENDER_TARGET";
+                  case GfxEnumResourceUsage::DEPTH_STENCIL: return "DEPTH_STENCIL";
+                  case GfxEnumResourceUsage::PRESENT: return "PRESENT";
+                  case GfxEnumResourceUsage::VERTEX_BUFFER: return "VERTEX_BUFFER";
+                  case GfxEnumResourceUsage::INDEX_BUFFER: return "INDEX_BUFFER";
+                  case GfxEnumResourceUsage::INDIRECT_BUFFER: return "INDIRECT_BUFFER";
             }
             return "err";
       }

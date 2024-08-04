@@ -56,29 +56,21 @@ Program::~Program() {
       _shaderModules.clear();
 }
 
-Program::Program(entt::entity id, std::string_view name, std::string_view config, const std::vector<std::string_view>& sources) : _id(id) {
-      auto& world = *volkGetLoadedEcsWorld();
-
-      if (!world.valid(id)) {
-            const auto err = "Program::Program: id is invalid";
-            throw std::runtime_error(err);
-      }
-
+bool Program::Init(const char* name, std::string_view config, const std::vector<std::string_view>& sources) {
       _config = config;
+      _programName = name ? name : "Unname Program";
 
       ProgramCompilerGroup::TryInit();
-
-      _programName = name;
-
       std::vector<std::pair<std::string_view, glslang_stage_t>> graphics_sources{};
-
       entt::dense_map<glslang_stage_t, std::string_view> source_types{};
       for (auto source : sources) {
             auto shader_type = RecognitionShaderTypeFromSource(source);
             if (shader_type.has_value()) {
                   if (source_types.contains(shader_type.value())) {
-                        const auto err = std::format("Program::Program - Shader Type {} is repeat.", HelperShaderStageToString(shader_type.value()));
-                        throw std::runtime_error(err);
+                        auto err = std::format("[ProgramCreate] Shader Type {} is repeat.", HelperShaderStageToString(shader_type.value()));
+                        if (!_programName.empty()) err += std::format(" - Name: \"{}\"", _programName);
+                        MessageManager::Log(MessageType::Error, err);
+                        return false;
                   } else {
                         source_types.insert({shader_type.value(), source});
                   }
@@ -89,18 +81,37 @@ Program::Program(entt::entity id, std::string_view name, std::string_view config
       if (source_types.contains(glslang_stage_t::GLSLANG_STAGE_VERTEX) && source_types.contains(glslang_stage_t::GLSLANG_STAGE_FRAGMENT)) {
             graphics_sources.emplace_back(source_types.at(glslang_stage_t::GLSLANG_STAGE_VERTEX), glslang_stage_t::GLSLANG_STAGE_VERTEX);
             graphics_sources.emplace_back(source_types.at(glslang_stage_t::GLSLANG_STAGE_FRAGMENT), glslang_stage_t::GLSLANG_STAGE_FRAGMENT);
-            CompileGraphics(graphics_sources);
+            try {
+                  CompileGraphics(graphics_sources);
+            } catch (std::exception& e) {
+                  auto err = std::format("[ProgramCreate] CompileGraphics failed, Because:\n {}", e.what());
+                  if (!_programName.empty()) err += std::format(" - Name: \"{}\"", _programName);
+                  MessageManager::Log(MessageType::Error, err);
+                  return false;
+            }
             _programType = ProgramType::GRAPHICS;
       } else if (source_types.contains(glslang_stage_t::GLSLANG_STAGE_COMPUTE)) {
-            CompileCompute(source_types.at(glslang_stage_t::GLSLANG_STAGE_COMPUTE));
+            try {
+                  CompileCompute(source_types.at(glslang_stage_t::GLSLANG_STAGE_COMPUTE));
+            } catch (std::exception& e) {
+                  auto err = std::format("[ProgramCreate] CompileCompute failed, Because:\n {}", e.what());
+                  if (!_programName.empty()) err += std::format(" - Name: \"{}\"", _programName);
+                  MessageManager::Log(MessageType::Error, err);
+                  return false;
+            }
             _programType = ProgramType::COMPUTE;
       } else {
-            const auto err = std::format("Program::Program - Failed to find shader type for shader program \"{}\", unknown shader type.", _programName);
-            throw std::runtime_error(err);
+            auto err = std::format("[ProgramCreate] Failed to find shader type for shader program \"{}\", unknown shader type.", _programName);
+            if (!_programName.empty()) err += std::format(" - Name: \"{}\"", _programName);
+            MessageManager::Log(MessageType::Error, err);
+            return false;
       }
 
       _isCompiled = true;
+      return true;
 }
+
+Program::Program(entt::entity id) : _id(id) {}
 
 
 void Program::CompileCompute(std::string_view source) {
@@ -132,14 +143,16 @@ void Program::CompileCompute(std::string_view source) {
 
       std::string source_code_replace_entry = std::string{source};
 
-      for (auto& i : ShaderTypeMap) {
-            if (auto entry_pos = source.find(i.first); entry_pos != std::string::npos) {
+      for (const auto& key : ShaderTypeMap | std::views::keys) {
+            if (auto entry_pos = source.find(key); entry_pos != std::string::npos) {
                   source_code_replace_entry.replace(entry_pos, 6, "  main");
             }
       }
 
       if (!CompileFromCode(source_code_replace_entry.data(), GLSLANG_STAGE_COMPUTE, spv, compile_err)) {
-            const auto err = std::format(R"(Program::CompileCompute - Failed to create Compute Program: "{}" -- {}.)", _programName, compile_err);
+            auto err = std::format(R"([Program::CompileCompute] Failed to create Compute Program: "{}" -- {}.)", _programName, compile_err);
+            if (!_programName.empty()) err += std::format(" - Name: \"{}\"", _programName);
+            MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
@@ -149,14 +162,15 @@ void Program::CompileCompute(std::string_view source) {
       shader_ci.pCode = spv.data();
 
       if (auto res = vkCreateShaderModule(volkGetLoadedDevice(), &shader_ci, nullptr, &shader_module); res != VK_SUCCESS) {
-            const auto err = std::format(R"(Program::CompileCompute - Failed to create Compute Program: "{}".)",
-            _programName);
+            auto err = std::format(R"([Program::CompileCompute] Failed to create Compute Program: "{}".)", _programName);
+           if (!_programName.empty()) err += std::format(" - Name: \"{}\"", _programName);
+            MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
       _shaderModules[GLSLANG_STAGE_COMPUTE] = std::make_pair(std::move(spv), shader_module);
 
-      const auto success = std::format(R"(Program::CompileCompute - Successfully compiled Compute program "{}".)", _programName);
+      const auto success = std::format(R"([Program::CompileCompute] Successfully compiled Compute program "{}".)", _programName);
       MessageManager::Log(MessageType::Normal, success);
 }
 
@@ -276,15 +290,17 @@ void Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
             VkShaderModule shader_module{};
             std::string source_code_replace_entry = std::string{source};
 
-            for (auto& i : ShaderTypeMap) {
-                  if (auto entry_pos = source.find(i.first); entry_pos != std::string::npos) {
+            for (const auto& key : ShaderTypeMap | std::views::keys) {
+                  if (auto entry_pos = source.find(key); entry_pos != std::string::npos) {
                         source_code_replace_entry.replace(entry_pos, 6, "  main");
                   }
             }
 
             if (!CompileFromCode(source_code_replace_entry.data(), shader_type, spv, setter_parse_err_msg)) {
-                  const auto err = std::format("Program::CompileGraphics - Failed to create Graphic Program \"{}\", Err in Shader:\"{}\".\nShaderCompiler:\n{}",
+                  auto err = std::format("[Program::CompileGraphics] Failed to create Graphic Program \"{}\", Err in Shader:\"{}\".\nShaderCompiler:\n{}",
                   _programName, shader_type_str, setter_parse_err_msg);
+                  if (!_programName.empty()) err += std::format(" - Name: \"{}\"", _programName);
+                  MessageManager::Log(MessageType::Error, err);
                   throw std::runtime_error(err);
             }
 
@@ -295,7 +311,9 @@ void Program::CompileGraphics(const std::vector<std::pair<std::string_view, glsl
                         break;
                   default:
                         {
-                              const auto err = std::format(R"(Program::CompileGraphics - Failed to create Graphic Program "{}", Err in Shader:"{}".)", _programName, shader_type_str);
+                              auto err = std::format(R"([Program::CompileGraphics] Failed to create Graphic Program "{}", Err in Shader:"{}".)", _programName, shader_type_str);
+                              if (!_programName.empty()) err += std::format(" - Name: \"{}\"", _programName);
+                              MessageManager::Log(MessageType::Error, err);
                               throw std::runtime_error(err);
                         }
             }
@@ -451,12 +469,12 @@ bool Program::ParseConfig(std::string_view Config, std::string& error_message) {
 
             if (auto res = EatWord(piece); res.has_value()) {
                   if (res->first == "#set") { piece = res->second; } else {
-                        error_message = std::format("Program::ParseSetters - at line {} : Invalid #set statement.",
+                        error_message = std::format("[Program::ParseSetters] at line {} : Invalid #set statement.",
                         line);
                         return false;
                   }
             } else {
-                  error_message = std::format("Program::ParseSetters - at line {} : Invalid #set statement.", line);
+                  error_message = std::format("[Program::ParseSetters] at line {} : Invalid #set statement.", line);
                   return false;
             }
 
@@ -470,12 +488,12 @@ bool Program::ParseConfig(std::string_view Config, std::string& error_message) {
                         piece = res->second;
                   } else {
                         error_message = std::format(
-                        "Program::ParseSetters - at line {} : Invalid #set statement, key is empty.", line);
+                        "[Program::ParseSetters] at line {} : Invalid #set statement, key is empty.", line);
                         return false;
                   }
             } else {
                   error_message = std::format(
-                  "Program::ParseSetters - at line {} : Invalid #set statement, key is empty.", line);
+                  "[Program::ParseSetters] at line {} : Invalid #set statement, key is empty.", line);
                   return false;
             }
 
@@ -484,13 +502,13 @@ bool Program::ParseConfig(std::string_view Config, std::string& error_message) {
             if (auto res = EatWord(piece); res.has_value()) {
                   if (res->first == "=") { piece = res->second; } else {
                         error_message = std::format(
-                        "Program::ParseSetters - at line {} : Invalid #set statement, missing value after key \"{}\".",
+                        "[Program::ParseSetters] at line {} : Invalid #set statement, missing value after key \"{}\".",
                         line, setter.first);
                         return false;
                   }
             } else {
                   error_message = std::format(
-                  "Program::ParseSetters - at line {} : Invalid #set statement, missing value after key \"{}\".",
+                  "[Program::ParseSetters] at line {} : Invalid #set statement, missing value after key \"{}\".",
                   line, setter.first);
                   return false;
             }
@@ -503,12 +521,12 @@ bool Program::ParseConfig(std::string_view Config, std::string& error_message) {
                         piece = res->second;
                   } else {
                         error_message = std::format(
-                        "Program::ParseSetters - at line {} : Invalid #set statement, value is empty.", line);
+                        "[Program::ParseSetters] at line {} : Invalid #set statement, value is empty.", line);
                         return false;
                   }
             } else {
                   error_message = std::format(
-                  "Program::ParseSetters - at line {} : Invalid #set statement, value is empty.", line);
+                  "[Program::ParseSetters] at line {} : Invalid #set statement, value is empty.", line);
                   return false;
             }
 
@@ -590,7 +608,9 @@ void Program::ParseVS(const std::vector<uint32_t>& spv) {
                                     break;
                               default:
                                     {
-                                          const auto err = std::format("Program::ParseVS - stage inputs has invalid vecsize: {}, at location {}, binding {}", type.vecsize, location, binding);
+                                          auto err = std::format("[Program::ParseVS] stage inputs has invalid vecsize: {}, at location {}, binding {}", type.vecsize, location, binding);
+                                          if (!_programName.empty()) err += std::format(" - Name: \"{}\"", _programName);
+                                          MessageManager::Log(MessageType::Error, err);
                                           throw std::runtime_error(err);
                                     }
                         }
@@ -610,7 +630,9 @@ void Program::ParseVS(const std::vector<uint32_t>& spv) {
                                     break;
                               default:
                                     {
-                                          const auto err = std::format("Program::ParseVS - stage inputs has invalid ivecsize: {}, at location {}, binding {}", type.vecsize, location, binding);
+                                          auto err = std::format("[Program::ParseVS] stage inputs has invalid ivecsize: {}, at location {}, binding {}", type.vecsize, location, binding);
+                                          if (!_programName.empty()) err += std::format(" - Name: \"{}\"", _programName);
+                                          MessageManager::Log(MessageType::Error, err);
                                           throw std::runtime_error(err);
                                     }
                         }
@@ -630,14 +652,18 @@ void Program::ParseVS(const std::vector<uint32_t>& spv) {
                                     break;
                               default:
                                     {
-                                          const auto err = std::format("Program::ParseVS - stage inputs has invalid ivecsize: {}, at location {}, binding {}", type.vecsize, location, binding);
+                                          auto err = std::format("[Program::ParseVS] stage inputs has invalid ivecsize: {}, at location {}, binding {}", type.vecsize, location, binding);
+                                          if (!_programName.empty()) err += std::format(" - Name: \"{}\"", _programName);
+                                          MessageManager::Log(MessageType::Error, err);
                                           throw std::runtime_error(err);
                                     }
                         }
                   }
 
                   if (input_format == VK_FORMAT_UNDEFINED) {
-                        const auto err = std::format("Program::ParseVS - stage inputs has invalid type at location {}, binding {}", location, binding);
+                        auto err = std::format("[Program::ParseVS] stage inputs has invalid type at location {}, binding {}", location, binding);
+                        if (!_programName.empty()) err += std::format(" - Name: \"{}\"", _programName);
+                        MessageManager::Log(MessageType::Error, err);
                         throw std::runtime_error(err);
                   }
 
@@ -702,7 +728,7 @@ void Program::ParseVS(const std::vector<uint32_t>& spv) {
       }
 }
 
-void Program::ParseFS(const std::vector<uint32_t>& spv) {
+void Program::ParseFS(const std::vector<uint32_t>& spv) const {
       spirv_cross::Compiler comp(spv);
       spirv_cross::ShaderResources resources = comp.get_shader_resources();
 
@@ -717,8 +743,10 @@ void Program::ParseFS(const std::vector<uint32_t>& spv) {
       }
 
       if (_colorBlendAttachmentState.size() != output_target_count) {
-            const auto err = std::format("Program::ParseFS - Output target count mismatch, expected {}, got {}, please add or move #set color_blend in shader source code.", output_target_count,
+            auto err = std::format("[Program::ParseFS] Output target count mismatch, expected {}, got {}, please add or move #set color_blend in shader source code.", output_target_count,
             _colorBlendAttachmentState.size());
+           if (!_programName.empty()) err += std::format(" - Name: \"{}\"", _programName);
+            MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
 
@@ -751,14 +779,14 @@ void Program::ParseCS(const std::vector<uint32_t>& spv) {
             uint32_t member_count = type.member_types.size();
 
             for (int i = 0; i < member_count; i++) {
-                  auto& member_type = comp.get_type(type.member_types[i]);
-                  const std::string& member_type_name = comp.get_name(member_type.self);
+                  //auto& member_type = comp.get_type(type.member_types[i]);
+                  //const std::string& member_type_name = comp.get_name(member_type.self);
 
                   uint32_t member_size = comp.get_declared_struct_member_size(type, i);
                   uint32_t offset = comp.type_struct_member_offset(type, i);
-                   const std::string& member_name = comp.get_member_name(type.self, i);
-                   auto str = std::format("ParseCS - PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
-                   std::printf("%s\n", str.c_str());
+                  const std::string& member_name = comp.get_member_name(type.self, i);
+                  auto str = std::format("ParseCS - PushConstants: {}, offset {}, size {}", member_name, offset, member_size);
+                  std::printf("%s\n", str.c_str());
 
                   _pushConstantDefine.emplace(member_name, PushConstantMemberInfo{offset, member_size});
 
@@ -913,7 +941,7 @@ bool Program::AnalyzeConfig(const std::pair<std::string, std::vector<std::string
                         return false;
                   }
 
-                  VkFormat format = GetVkFormatFromStringSimpled(values[2]);
+                  VkFormat format = FromStringVkFormatMini(values[2]);
 
                   if (format == VK_FORMAT_UNDEFINED) {
                         return ErrorArgument(key, 3, values[2], error_msg, "(format)");
@@ -1180,7 +1208,7 @@ bool Program::AnalyzeConfig(const std::pair<std::string, std::vector<std::string
             }
       } else if (key == "rt") {
             for (int idx = 0; idx < values.size(); idx++) {
-                  VkFormat vk_format = GetVkFormatFromStringSimpled(values[idx]);
+                  VkFormat vk_format = FromStringVkFormatMini(values[idx]);
 
                   if (vk_format == VK_FORMAT_UNDEFINED) {
                         error_msg = std::format(R"(Invalid argument {} for key "{}". Expected a vaild format, got "{}".)", idx, key, values[idx]);
@@ -1193,7 +1221,7 @@ bool Program::AnalyzeConfig(const std::pair<std::string, std::vector<std::string
             _renderingCreateInfo.pColorAttachmentFormats = _renderTargetFormat.data();
       } else if (key == "ds") {
             if (values.size() == 1) {
-                  VkFormat vk_format = GetVkFormatFromStringSimpled(values[0]);
+                  VkFormat vk_format = FromStringVkFormatMini(values[0]);
                   if (IsDepthStencilOnlyFormat(vk_format)) {
                         _renderingCreateInfo.depthAttachmentFormat = vk_format;
                         _renderingCreateInfo.stencilAttachmentFormat = vk_format;

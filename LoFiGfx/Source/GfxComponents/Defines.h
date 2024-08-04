@@ -7,11 +7,7 @@
 #include "../Helper.h"
 
 namespace LoFi::Component::Gfx {
-
-      struct TagDataChanged {};
-
-      struct TagDataUpdateCompleted {};
-
+      
       struct KernelParamResource {
             uint32_t Modified = 0;
             std::vector<uint8_t> CachedBufferData{};
@@ -46,5 +42,9 @@ namespace LoFi::Component::Gfx {
             uint32_t Size;
             uint32_t Offset;
             uint32_t Index;
+      };
+
+      struct ComponentResourceName {
+            std::string ResourceName;
       };
 };

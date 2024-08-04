@@ -1,11 +1,9 @@
 #pragma once
-
 #include "GfxContext.h"
-#include "taskflow/taskflow.hpp"
 
 namespace LoFi {
       struct FontUV {
-            uint32_t x, y, w, h;
+            float x, y, w, h;
       };
 
       struct GenDrawVertexData {
@@ -16,31 +14,38 @@ namespace LoFi {
       enum class StrockFillType : uint16_t {
             Soild = 0,
             Texture = 1,
-            Linear1 = 2,
-            Linear2,
-            Linear3,
-            Linear4,
-            Linear5,
-            Radial1,
-            Radial2,
-            Radial3,
-            Radial4,
-            Radial5,
+
+            Linear2 = 10,
+            Linear3 = 11,
+            Linear4 = 12,
+            Linear5 = 13,
+            Linear6 = 14,
+            Linear7 = 15,
+
+
+            Radial2 = 20,
+            Radial3 = 21,
+            Radial4 = 22,
+            Radial5 = 23,
+            Radial6 = 24,
+            Radial7 = 25,
       };
 
       struct GradientData {
             glm::vec2 Offset;
-            uint16_t Direction;
-            uint16_t Pos1;
-            uint16_t Pos2;
-            uint16_t Pos3;
-            uint16_t Pos4;
-            uint16_t Pos5;
+            float DirectionAngle;
+            float Pos1;
+            float Pos2;
+            float Pos3;
+            float Pos4;
+            float Pos5;
+            float Pos6;
             glm::u8vec4 Color1;
             glm::u8vec4 Color2;
             glm::u8vec4 Color3;
             glm::u8vec4 Color4;
             glm::u8vec4 Color5;
+            glm::u8vec4 Color6;
       };
 
       enum class DrawPrimitveType : uint16_t {
@@ -48,7 +53,16 @@ namespace LoFi {
             RoundBox = 1,
             RoundNGon = 2,
             Circle = 3,
+
+            Text = 50,
       };
+
+      struct PParamText {
+            float Size;
+            float Space;
+            float PxRange;
+      };
+
 
       struct PParamBox {
             glm::vec2 Size;
@@ -82,17 +96,70 @@ namespace LoFi {
 
 
       struct PrimitiveParameterAglier {
-            glm::vec4 A;
-            glm::vec4 B;
+            float padd[8];
       };
 
       union PrimitiveParameter {
+            PParamText Text;
             PParamBox Box;
             PParamRoundBox RoundRect;
             PParamRoundNGon RoundNGon;
             PParamCircle Circle;
             PrimitiveParameterAglier Aglier;
       };
+
+      struct ShadowParameter {
+            uint16_t Distance;
+            uint16_t Hardness;
+            glm::u8vec4 color;
+      };
+
+      struct StrockTypeParameter {
+            StrockFillType Type;
+            union {
+                  struct {
+                        uint16_t GradientDirection;
+                        glm::u8vec4 SoildColor;
+                        ResourceHandle ImageHandle;
+                  } Solid;
+
+                  struct {
+                        float DirectionAngle;
+                        float Pos1;
+                        float Pos2;
+                        float Pos3;
+                        float Pos4;
+                        float Pos5;
+                        float Pos6;
+                        glm::u8vec4 Color1;
+                        glm::u8vec4 Color2;
+                        glm::u8vec4 Color3;
+                        glm::u8vec4 Color4;
+                        glm::u8vec4 Color5;
+                        glm::u8vec4 Color6;
+                  } Linear;
+
+                  struct {
+                        float Pos1;
+                        float Pos2;
+                        float Pos3;
+                        float Pos4;
+                        float Pos5;
+                        float Pos6;
+                        glm::u8vec4 Color1;
+                        glm::u8vec4 Color2;
+                        glm::u8vec4 Color3;
+                        glm::u8vec4 Color4;
+                        glm::u8vec4 Color5;
+                        glm::u8vec4 Color6;
+                  } Radial;
+
+                  struct {
+                        ResourceHandle ImageHandle;
+                  } Texture;
+            };
+      };
+
 
       struct GenInstanceData {
             glm::u16vec4 Scissor;
@@ -107,64 +174,18 @@ namespace LoFi {
             PrimitiveParameter PrimitiveParameter;
       };
 
-      struct ShadowParameter {
-            uint16_t Distance;
-            uint16_t Hardness;
-            glm::u8vec4 color;
-      };
-
-      struct StrockTypeParameter {
-            StrockFillType Type;
-
-            union {
-                  struct {
-                        uint16_t GradientDirection;
-                        glm::u8vec4 SoildColor;
-                        entt::entity ImageHandle;
-                  } Solid;
-
-                  struct {
-                        uint16_t GradientDirection;
-
-                        uint16_t Pos1;
-                        uint16_t Pos2;
-                        uint16_t Pos3;
-                        uint16_t Pos4;
-                        uint16_t Pos5;
-                        glm::u8vec4 Color1;
-                        glm::u8vec4 Color2;
-                        glm::u8vec4 Color3;
-                        glm::u8vec4 Color4;
-                        glm::u8vec4 Color5;
-                  } Linear;
-
-                  struct {
-                        uint16_t Pos1;
-                        uint16_t Pos2;
-                        uint16_t Pos3;
-                        uint16_t Pos4;
-                        uint16_t Pos5;
-                        glm::u8vec4 Color1;
-                        glm::u8vec4 Color2;
-                        glm::u8vec4 Color3;
-                        glm::u8vec4 Color4;
-                        glm::u8vec4 Color5;
-                  } Radial;
-
-                  struct {
-                        entt::entity ImageHandle;
-                  } Texture;
-            };
-      };
-
-
       //painter library
+
+      class PfxFontLibrary {
+      public:
+            entt::dense_map<wchar_t, FontUV> _fontUVs{};
+
+      };
 
       class PfxContext {
             static inline PfxContext* _instance;
 
       public:
-            static PfxContext* Get() { return _instance; }
 
             NO_COPY_MOVE_CONS(PfxContext);
 
@@ -172,9 +193,9 @@ namespace LoFi {
 
             explicit PfxContext();
 
-            bool LoadFont(const char* path);
+            bool GenAndLoadFont(const char* path);
 
-            [[nodiscard]] entt::entity GetAtlas() const { return _fontAtlas; }
+            [[nodiscard]] ResourceHandle GetAtlas() const { return _fontAtlas; }
 
             void PushCanvasSize(glm::u16vec2 size);
 
@@ -203,43 +224,29 @@ namespace LoFi {
 
             void DrawCircle(glm::vec2 center, PParamCircle param,float rotation = 0, glm::u8vec4 color = {255, 255, 255, 255});
 
-            void DrawRoundRect();
-
-            void DrawCircle();
-
-            void DrawPie();
-
-            //规则 Filled
-
-            void FillRect(); // GPU
-
-            void FillRoundRect(); // GPU
-
-            void FillCircle(); // GPU
-
-            void FillPolygon(); // GPU
+            void DrawText(glm::vec2 start, const wchar_t* text, PParamText param, glm::u8vec4 color); //CPU
 
             //特殊 规则
 
             //void DrawPoints(); // CS  CPoint
 
-            //void DrawText(const wchar_t* text, float x, float y, float size, glm::vec4 color); //CPU
 
             void Reset();
 
-            void EmitDrawCommand();
+            void EmitDrawCommand(RenderNode* node);
 
-            void DispatchGenerateCommands();
+            void DispatchGenerateCommands() const;
 
+            ResourceHandle _fontAtlas {};
+
+            uint32_t _fontAtlasTextureBindlessIndex {};
       private:
             GenInstanceData& NewDrawInstanceData();
 
       private:
-            GfxContext* _gfx;
+            GfxContext* _gfx {};
 
-            entt::entity _fontAtlas;
-
-            VkExtent2D _fontAtlasSize;
+            VkExtent2D _fontAtlasSize {};
 
             entt::dense_map<wchar_t, FontUV> _fontUVs{};
 
@@ -262,22 +269,26 @@ namespace LoFi {
             std::vector<GenInstanceData> _instanceData{};
             std::vector<VkDrawIndexedIndirectCommand> _indirectData{};
 
-            entt::entity _bufferVertex[3];
-            entt::entity _bufferIndex[3];
-            entt::entity _bufferInstance[3];
-            entt::entity _bufferIndirect[3];
-            entt::entity _bufferGradient[3];
+            ResourceHandle _bufferVertex[3] {};
+            ResourceHandle _bufferIndex[3] {};
+            ResourceHandle _bufferInstance[3] {};
+            ResourceHandle _bufferIndirect[3] {};
+            ResourceHandle _bufferGradient[3] {};
 
-            entt::dense_set<entt::entity> _sampledImageReference[3]{};
-
-      private:
-            entt::entity _programDraw;
-            entt::entity _kernelDraw;
+            entt::dense_set<ResourceHandle, Internal::HashResourceHandle, Internal::EqualResourceHandle> _sampledImageReference[3]{};
 
       private:
-            tf::Executor _taskExecutor{};
-            tf::Taskflow _taskFlowDispatch{};
+            ResourceHandle _programDraw {};
+            ResourceHandle _kernelDraw {};
+
+            ResourceHandle _renderNodeResource {};
+
+      private:
+            //tf::Executor _taskExecutor{};
+            //tf::Taskflow _taskFlowDispatch{};
 
             const float _pixelExpand = 20;
+
+            entt::dense_set<wchar_t> _fontDOT{};
       };
 };
