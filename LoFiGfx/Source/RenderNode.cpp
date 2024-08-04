@@ -180,8 +180,6 @@ void RenderNode::CmdBeginRenderPass(const GfxParamBeginRenderPass& param) {
             MessageManager::Log(MessageType::Error, err);
             return;
       }
-      _currentPassType = GfxEnumKernelType::GRAPHICS;
-      BeginSecondaryCommandBuffer();
 
       if (param.countAttachments == 0 || param.pAttachments == nullptr) {
             std::string err = "[RenderNode::CmdBeginRenderPass] GfxParamBeginRenderPass has empty arguments, Create render pass failed.";
@@ -210,6 +208,10 @@ void RenderNode::CmdBeginRenderPass(const GfxParamBeginRenderPass& param) {
       VkRenderingAttachmentInfo _frameRenderingDepthAttachment{};
 
       _frameRenderingRenderArea = {};
+
+      _currentPassType = GfxEnumKernelType::GRAPHICS;
+      BeginSecondaryCommandBuffer();
+
       for(size_t i = 0; i < param.countAttachments; i++){
             const GfxInfoRenderPassaAttachment& info = param.pAttachments[i];
 
@@ -1208,7 +1210,3 @@ void RenderNode::EndSecondaryCommandBuffer() {
       _current = nullptr;
       GetCurrentFrameCommand()->EndSecondaryCommandBuffer();
 }
-
-
-
-

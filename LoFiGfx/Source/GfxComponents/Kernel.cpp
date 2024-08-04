@@ -10,7 +10,9 @@ Kernel::~Kernel() {
       if (_pipeline) {
             const ContextResourceRecoveryInfo info{
                   .Type = ContextResourceType::PIPELINE,
-                  .Resource1 = (size_t)_pipeline
+                  .Resource1 = (size_t)_pipeline,
+                  .ResourceName = _resourceName
+
             };
             GfxContext::Get()->RecoveryContextResource(info);
       }
@@ -18,7 +20,8 @@ Kernel::~Kernel() {
       if (_pipelineLayout) {
             const ContextResourceRecoveryInfo info{
                   .Type = ContextResourceType::PIPELINE_LAYOUT,
-                  .Resource1 = (size_t)_pipelineLayout
+                  .Resource1 = (size_t)_pipelineLayout,
+                  .ResourceName = _resourceName
             };
             GfxContext::Get()->RecoveryContextResource(info);
       }

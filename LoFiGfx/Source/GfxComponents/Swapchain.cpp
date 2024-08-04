@@ -73,18 +73,28 @@ Swapchain::~Swapchain() {
       vkDestroySurfaceKHR(instance, _surface, nullptr);
 }
 
-void Swapchain::CreateOrRecreateSwapChain() {
+bool Swapchain::CreateOrRecreateSwapChain() {
       if(_onResizeCallBack == nullptr) {
             std::string err = "[Swapchain::CreateOrRecreateSwapChain] delegate \"OnResizeCallBack\" is null, can't resize swapchain.";
             if(!_resourceName.empty())err += std::format(" - Name: \"{}\"", _resourceName);
             MessageManager::Log(MessageType::Warning, err);
-            return ;
+            return false;
       }
 
       auto device = volkGetLoadedDevice();
       auto instance = volkGetLoadedInstance();
 
       vkDeviceWaitIdle(device);
+
+      auto new_surface = (VkSurfaceKHR)_onResizeCallBack(_anyHandleForResizeCallback, (uint64_t)volkGetLoadedInstance());
+      VkSurfaceCapabilitiesKHR surface_capabilities{};
+      vkGetPhysicalDeviceSurfaceCapabilitiesKHR(volkGetLoadedPhysicalDevice(), new_surface, &surface_capabilities);
+
+      if(surface_capabilities.currentExtent.width <= 0 || surface_capabilities.currentExtent.height <= 0) {
+            _preAccquireResult = VK_SUCCESS;
+            return true;
+      }
+
 
       if(!_images.empty()) {
             for (auto& image : _images) {
@@ -98,7 +108,7 @@ void Swapchain::CreateOrRecreateSwapChain() {
 
       //auto win_ptr = window_comp->GetWindowPtr();
 
-      _surface = (VkSurfaceKHR)_onResizeCallBack(_anyHandleForResizeCallback, (uint64_t)volkGetLoadedInstance());
+      _surface = new_surface;
 
       if(_surface == nullptr) {
             std::string err = "[Swapchain::CreateOrRecreateSwapChain] Invaild Surface Handle.";
@@ -106,10 +116,6 @@ void Swapchain::CreateOrRecreateSwapChain() {
             MessageManager::Log(MessageType::Error, err);
             throw std::runtime_error(err);
       }
-
-      VkSurfaceCapabilitiesKHR surface_capabilities{};
-
-      vkGetPhysicalDeviceSurfaceCapabilitiesKHR(volkGetLoadedPhysicalDevice(), _surface, &surface_capabilities);
 
       VkSwapchainCreateInfoKHR sp_ci{};
       sp_ci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -125,7 +131,6 @@ void Swapchain::CreateOrRecreateSwapChain() {
       sp_ci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
       sp_ci.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
       sp_ci.clipped = VK_TRUE;
-
 
       if (const auto res = vkCreateSwapchainKHR(device, &sp_ci, nullptr, &_swapchain); res != VK_SUCCESS) {
             std::string err = std::format("[Swapchain::CreateOrRecreateSwapChain] vkCreateSwapchainKHR Failed, return {}.", ToStringVkResult(res));
@@ -181,4 +186,5 @@ void Swapchain::CreateOrRecreateSwapChain() {
       _extent = surface_capabilities.currentExtent;
 
       _preAccquireResult = VK_SUCCESS;
+      return true;
 }

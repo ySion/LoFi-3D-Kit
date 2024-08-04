@@ -33,8 +33,12 @@
 
 #dirs
 build
+cmake-build-relwithdebinfo/
+cmake-build-debug/
+cmake-build-release/
 cmake-build-relwithdebinfo
 cmake-build-debug
+cmake-build-*
 .vs/
 .vscode/
 .idea/

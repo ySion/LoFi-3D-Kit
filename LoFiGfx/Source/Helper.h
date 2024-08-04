@@ -104,6 +104,7 @@ namespace LoFi::Internal {
             std::optional<size_t> Resource2{};
             std::optional<size_t> Resource3{};
             std::optional<size_t> Resource4{};
+            std::string ResourceName{};
       };
 
       class FreeList {

@@ -150,7 +150,8 @@ bool Buffer::SetData(const void* p, uint64_t size, uint8_t recursive_depth) {
                         MessageManager::Log(MessageType::Normal, str);
                         _intermediateBuffer = std::make_unique<Buffer>();
 
-                        if(!_intermediateBuffer->Init("IntermediateBuffer", VkBufferCreateInfo{
+                        std::string buffer_name = std::format("Buffer[{}]Upload Intermediate Buffer", _resourceName);
+                        if(!_intermediateBuffer->Init(buffer_name.c_str(), VkBufferCreateInfo{
                               .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
                               .pNext = nullptr,
                               .flags = 0,
@@ -201,7 +202,8 @@ bool Buffer::Recreate(uint64_t size) {
       _bufferCI->size = size;
 
       VkBuffer new_buffer{};
-      if (const auto res = vmaCreateBuffer(volkGetLoadedVmaAllocator(), _bufferCI.get(), _memoryCI.get(), &new_buffer, &_memory, nullptr); res != VK_SUCCESS) {
+      VmaAllocation new_mem{};
+      if (const auto res = vmaCreateBuffer(volkGetLoadedVmaAllocator(), _bufferCI.get(), _memoryCI.get(), &new_buffer, &new_mem, nullptr); res != VK_SUCCESS) {
             auto err = std::format("[Buffer::Recreate] Failed To Recreate Buffer (from {} Bytes to {} Bytes) , vmaCreateBuffer return {}.", back_up_size, size, ToStringVkResult(res));
             if (!_resourceName.empty()) err += std::format(" - Name: \"{}\"", _resourceName);
             MessageManager::Log(MessageType::Error, err);
@@ -212,6 +214,7 @@ bool Buffer::Recreate(uint64_t size) {
       Unmap();
       DestroyBuffer();
       _buffer = new_buffer;
+      _memory = new_mem;
 
       if (IsHostSide()) Map();
 
@@ -495,11 +498,15 @@ void Buffer::Clean() {
 }
 
 void Buffer::DestroyBuffer() {
-      if(_buffer) {
+      std::string str = std::format("[Buffer::DestroyBuffer] Destroy Buffer at {} side, Buffer: {}.", _isHostSide ? "Host" : "Device", _resourceName);
+      MessageManager::Log(MessageType::Normal, str);
+      Unmap();
+      if(_buffer && _memory) {
             ContextResourceRecoveryInfo info{
                   .Type = ContextResourceType::BUFFER,
                   .Resource1 = (size_t)_buffer,
                   .Resource2 = (size_t)_memory,
+                  .ResourceName = _resourceName
             };
             GfxContext::Get()->RecoveryContextResource(info);
       }

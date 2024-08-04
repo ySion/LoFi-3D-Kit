@@ -5,8 +5,6 @@
 #include "Message.h"
 #include "GfxContext.h"
 #include "GfxComponents/Texture.h"
-#include "GfxComponents/Kernel.h"
-#include "GfxComponents/Buffer3F.h"
 
 using namespace LoFi::Internal;
 using namespace LoFi;

@@ -128,6 +128,8 @@ namespace LoFi {
                   return (T*)_world.try_get<T>(handle.RHandle);
             }
 
+            void Shutdown();
+
       private:
             void EnqueueBufferUpdate(ResourceHandle handle);
 
@@ -159,8 +161,6 @@ namespace LoFi {
       private:
 
             void WaitPreviewFramesDone();
-
-            void Shutdown();
 
             uint32_t MakeBindlessIndexTexture(Component::Gfx::Texture* texture, uint32_t viewIndex = 0);
 

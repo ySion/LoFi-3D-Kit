@@ -37,8 +37,10 @@ GfxContext::GfxContext() {
 }
 
 GfxContext::~GfxContext() {
-      Shutdown();
-      GlobalContext = nullptr;
+      if(GlobalContext) {
+            Shutdown();
+            GlobalContext = nullptr;
+      }
 }
 
 void GfxContext::Init() {
@@ -614,6 +616,7 @@ void GfxContext::Shutdown() {
       vmaDestroyAllocator(_allocator);
       vkDestroyDevice(_device, nullptr);
       vkDestroyInstance(_instance, nullptr);
+      GlobalContext = nullptr;
 }
 
 
@@ -1736,7 +1739,7 @@ void GfxContext::RecoveryContextResourceBuffer(const ContextResourceRecoveryInfo
             auto alloc = (VmaAllocation)pack.Resource2.value();
             vmaDestroyBuffer(_allocator, buffer, alloc);
 
-            MessageManager::Log(MessageType::Normal, "Recovery Resource Buffer");
+            MessageManager::Log(MessageType::Normal, std::format("Recovery Resource Buffer. ResourceName {}.", pack.ResourceName));
       } else {
             auto str = std::format("Context::RecoveryContextResourceBuffer - Invalid Buffer resource");
             MessageManager::Log(MessageType::Warning, str);
@@ -1763,7 +1766,7 @@ void GfxContext::RecoveryContextResourceImage(const ContextResourceRecoveryInfo&
 
             if (pack.Resource3.has_value()) _textureBindlessIndexFreeList.Free(pack.Resource3.value());
 
-            MessageManager::Log(MessageType::Normal, "Recovery Resource Image");
+            MessageManager::Log(MessageType::Normal, std::format("Recovery Resource Image. ResourceName {}.", pack.ResourceName));
       } else {
             auto str = std::format("Context::RecoveryContextResourceImage - Invalid Image resource, {}, {}, {}, {}",
             pack.Resource1.has_value(), pack.Resource2.has_value(), pack.Resource3.has_value(), pack.Resource4.has_value());
@@ -1787,7 +1790,7 @@ void GfxContext::RecoveryContextResourcePipeline(const Internal::ContextResource
       if (pack.Resource1.has_value()) {
             auto pipeline = (VkPipeline)pack.Resource1.value();
             vkDestroyPipeline(_device, pipeline, nullptr);
-            MessageManager::Log(MessageType::Normal, "Recovery Resource Pipeline");
+            MessageManager::Log(MessageType::Normal, std::format("Recovery Resource Pipeline. ResourceName {}.", pack.ResourceName));
       } else {
             auto str = std::format("Context::RecoveryContextResourcePipeline - Invalid Pipeline resource");
             MessageManager::Log(MessageType::Warning, str);
@@ -1798,7 +1801,7 @@ void GfxContext::RecoveryContextResourcePipelineLayout(const Internal::ContextRe
       if (pack.Resource1.has_value()) {
             auto pipeline_layout = (VkPipelineLayout)pack.Resource1.value();
             vkDestroyPipelineLayout(_device, pipeline_layout, nullptr);
-            MessageManager::Log(MessageType::Normal, "Recovery Resource PipelineLayout");
+            MessageManager::Log(MessageType::Normal, std::format("Recovery Resource PipelineLayout. ResourceName {}.", pack.ResourceName));
       } else {
             auto str = std::format("Context::RecoveryContextResourcePipelineLayout - Invalid PipelineLayout resource");
             MessageManager::Log(MessageType::Warning, str);

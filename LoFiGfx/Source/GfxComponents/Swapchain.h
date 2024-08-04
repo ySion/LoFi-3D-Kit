@@ -33,8 +33,7 @@ namespace LoFi::Component::Gfx {
             void PresentBarrier(VkCommandBuffer cmd) const;
 
       private:
-
-            void CreateOrRecreateSwapChain();
+            bool CreateOrRecreateSwapChain();
 
             //friend class Window;
 

@@ -25,6 +25,7 @@ void GfxInit() {
 }
 
 void GfxClose() {
+      global_gfx->Shutdown();
       delete global_gfx;
       global_gfx = nullptr;
 }

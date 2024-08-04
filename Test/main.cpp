@@ -103,11 +103,14 @@ int main() {
       const auto square_vert = GfxCreateBuffer(square_vt, "square_vert");
       const auto square_index = GfxCreateBuffer(square_id, "square_index");
 
+      GfxDestroy(square_vert);
+      GfxDestroy(square_index);
+
       auto win = SDL_CreateWindow("hello", 512, 512, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
-      auto win2 = SDL_CreateWindow("hello", 512, 512, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+      //auto win2 = SDL_CreateWindow("hello", 512, 512, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
       const auto swapchain = GfxCreateSwapChain({.pResourceName = "hello", .AnyHandleForResizeCallback = (uint64_t)win, .PtrOnSwapchainNeedResizeCallback = CreateCurfaceCallBack});
-      const auto swapchain2 = GfxCreateSwapChain({.pResourceName = "hello2", .AnyHandleForResizeCallback = (uint64_t)win2, .PtrOnSwapchainNeedResizeCallback = CreateCurfaceCallBack});
+      //const auto swapchain2 = GfxCreateSwapChain({.pResourceName = "hello2", .AnyHandleForResizeCallback = (uint64_t)win2, .PtrOnSwapchainNeedResizeCallback = CreateCurfaceCallBack});
 
 
       const auto rt1 = GfxCreateTexture2D(FORMAT_R8G8B8A8_UNORM, 960, 540);
@@ -205,27 +208,27 @@ int main() {
             std::array<GfxInfoRenderPassaAttachment, 1> param{
                   GfxInfoRenderPassaAttachment{swapchain}
             };
-            GfxCmdBeginRenderPass(nodec, {.pAttachments = param.data(), .countAttachments = param.size()});
-            GfxCmdAsSampledTexure(nodec, noise);
-            GfxSetKernelConstant(kernel, "tex", GfxGetTextureBindlessIndex(noise));
-            GfxCmdBindKernel(nodec, kernel);
-            GfxCmdBindVertexBuffer(nodec, square_vert);
-            GfxCmdBindIndexBuffer(nodec, square_index);
-            GfxCmdDrawIndex(nodec, square_id.size());
-            GfxCmdEndRenderPass(nodec);
+            // GfxCmdBeginRenderPass(nodec, {.pAttachments = param.data(), .countAttachments = param.size()});
+            // GfxCmdAsSampledTexure(nodec, noise);
+            // GfxSetKernelConstant(kernel, "tex", GfxGetTextureBindlessIndex(noise));
+            // GfxCmdBindKernel(nodec, kernel);
+            // GfxCmdBindVertexBuffer(nodec, square_vert);
+            // GfxCmdBindIndexBuffer(nodec, square_index);
+            // GfxCmdDrawIndex(nodec, square_id.size());
+            // GfxCmdEndRenderPass(nodec);
 
 
-            GfxCmdBeginComputePass(nodec3);
-
-            GfxCmdAsReadTexure(nodec3, swapchain);
-            GfxCmdAsWriteTexture(nodec3, med_rt);
-
-            GfxSetKernelConstant(cs_kernel, "inTexture", GfxGetTextureBindlessIndex(swapchain));
-            GfxSetKernelConstant(cs_kernel, "outTexture", GfxGetTextureBindlessIndex(med_rt));
-
-            GfxCmdBindKernel(nodec3, cs_kernel);
-            GfxCmdComputeDispatch(nodec3, 512 / 4, 512 / 4, 1);
-            GfxCmdEndComputePass(nodec3);
+            // GfxCmdBeginComputePass(nodec3);
+            //
+            // GfxCmdAsReadTexure(nodec3, swapchain);
+            // GfxCmdAsWriteTexture(nodec3, med_rt);
+            //
+            // GfxSetKernelConstant(cs_kernel, "inTexture", GfxGetTextureBindlessIndex(swapchain));
+            // GfxSetKernelConstant(cs_kernel, "outTexture", GfxGetTextureBindlessIndex(med_rt));
+            //
+            // GfxCmdBindKernel(nodec3, cs_kernel);
+            // GfxCmdComputeDispatch(nodec3, 512 / 4, 512 / 4, 1);
+            // GfxCmdEndComputePass(nodec3);
 
 
             Gfx2DReset(canvas);
@@ -284,12 +287,12 @@ int main() {
                   .Size = {400, 400},
             }, 0);
 
-            Gfx2DCmdDrawText(canvas, {100, 80}, L"Tai Tai You Are TRUE MOE.", {
+            Gfx2DCmdDrawText(canvas, {100, 80}, L"Hello World,你好.", {
                   .Size = 90,
                   .Space = 0,
                   .PxRange = 8 * multi2
             }, {120, 100, 255, 255});
-            Gfx2DCmdDrawText(canvas, {100, 170}, L"太太你好, 太太真萌.", {
+            Gfx2DCmdDrawText(canvas, {100, 170}, L"abcdefghijklmnnopqrstuvwxyz.", {
                   .Size = 90,
                   .Space = 0,
                   .PxRange = 8 * multi2
@@ -305,72 +308,20 @@ int main() {
             Gfx2DDispatchGenerateCommands(canvas);
 
             std::array<GfxInfoRenderPassaAttachment, 1> param2{
-                  GfxInfoRenderPassaAttachment{swapchain2}
+                  GfxInfoRenderPassaAttachment{
+                        .TextureHandle = swapchain,
+                        .ClearColorR = 240,
+                        .ClearColorG = 240,
+                        .ClearColorB= 240,
+                        .ClearColorA = 240,
+                  }
             };
-            GfxCmdBeginRenderPass(nodec2, {.pAttachments = param2.data(), .countAttachments = param2.size()});
-            Gfx2DEmitDrawCommand(canvas, nodec2);
-            GfxCmdEndRenderPass(nodec2);
+            GfxCmdBeginRenderPass(nodec, {.pAttachments = param2.data(), .countAttachments = param2.size()});
+            Gfx2DEmitDrawCommand(canvas, nodec);
+            GfxCmdEndRenderPass(nodec);
 
             GfxGenFrame();
-
-
-            // //Pass 2D
-            //
-            // fg->CmdBeginRenderPass({LoFi::RenderPassBeginArgument{.TextureHandle = rt2, .ClearColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)}});
-            // pfx->EmitDrawCommand();
-            // fg->CmdEndRenderPass();
-            //
-            // //Pass 1
-            // fg->CmdBeginRenderPass({{rt1}});
-            //
-            // fg->CmdAsSampledTexure(noise);
-            // ctx->SetKernelConstant(kernel, "tex", ctx->GetTextureBindlessIndex(noise));
-            //
-            // fg->CmdBindKernel(kernel);
-            // fg->CmdBindVertexBuffer(triangle_vert);
-            // fg->CmdBindIndexBuffer(triangle_index);
-            // fg->CmdDrawIndex(triangle_id.size());
-            //
-            // fg->CmdEndRenderPass();
-            //
-            // //CS Stage
-            // fg->CmdBeginComputePass();
-            //
-            // fg->CmdAsReadTexure(rt1);
-            // fg->CmdAsWriteTexture(med_rt);
-            //
-            // ctx->SetKernelConstant(cs_kernel, "inTexture", ctx->GetTextureBindlessIndex(rt1));
-            // ctx->SetKernelConstant(cs_kernel, "outTexture", ctx->GetTextureBindlessIndex(med_rt));
-            //
-            // fg->CmdBindKernel(cs_kernel);
-            // fg->CmdComputeDispatch(960 / 4, 540 / 4, 1);
-            //
-            // fg->CmdEndComputePass();
-            //
-            // //Pass 2
-            // fg->CmdBeginRenderPass({{rt3}, {ds}});
-            //
-            // fg->CmdAsSampledTexure(rt1);
-            // ctx->SetKernelConstant(kernel, "tex", ctx->GetTextureBindlessIndex(rt1));
-            //
-            // fg->CmdBindKernel(kernel);
-            // fg->CmdBindVertexBuffer(square_vert);
-            // fg->CmdBindIndexBuffer(square_index);
-            // fg->CmdDrawIndex(square_id.size());
-            //
-            // fg->CmdBindVertexBuffer(triangle_vert);
-            // fg->CmdBindIndexBuffer(triangle_index);
-            // fg->CmdDrawIndex(triangle_id.size());
-            //
-            // fg->CmdEndRenderPass();
-            //
-            // ctx->EndFrame();
       }
-      //});
-
-      //while (ctx->PollEvent()) {}
-      //should_close = true;
-      //func.wait();
 
       GfxClose();
       printf("Over");

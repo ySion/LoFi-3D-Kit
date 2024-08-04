@@ -86,7 +86,8 @@ bool Texture::Resize(uint32_t w, uint32_t h) {
       _imageCI->extent.width = h;
 
       VkImage new_image{};
-      if (const auto res = vmaCreateImage(allocator, _imageCI.get(), _memoryCI.get(), &new_image, &_memory, nullptr); res != VK_SUCCESS) {
+      VmaAllocation new_mem{};
+      if (const auto res = vmaCreateImage(allocator, _imageCI.get(), _memoryCI.get(), &new_image, &new_mem, nullptr); res != VK_SUCCESS) {
             std::string err = std::format("[Texture::Resize] Failed to (Resize from {}x{} to {}x{})Recreate New Texture! Vulkan return {}, Fallbacked.", back_up_w, back_up_h, w, h,
             ToStringVkResult(res));
             if (!_resourceName.empty()) err += std::format(" - Name: \"{}\"", _resourceName);
@@ -102,6 +103,7 @@ bool Texture::Resize(uint32_t w, uint32_t h) {
       DestroyTexture();
 
       _image = new_image;
+      _memory = new_mem;
 
       for (auto& view_ci : _viewCIs) {
             view_ci.image = _image;
@@ -137,7 +139,8 @@ void Texture::SetData(const void* data, size_t size) {
 
             _intermediateBuffer = std::make_unique<Buffer>();
 
-            bool success = _intermediateBuffer->Init("Texture Upload Intermediate", VkBufferCreateInfo{
+            std::string buffer_name = std::format("Texture[{}]Upload Intermediate Buffer", _resourceName);
+            bool success = _intermediateBuffer->Init(buffer_name.c_str(), VkBufferCreateInfo{
                   .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
                   .pNext = nullptr,
                   .flags = 0,
@@ -449,7 +452,8 @@ void Texture::DestroyTexture() {
             .Type = ContextResourceType::IMAGE,
             .Resource1 = (size_t)_image,
             .Resource2 = (size_t)_memory,
-            .Resource3 = _bindlessIndex
+            .Resource3 = _bindlessIndex,
+            .ResourceName = _resourceName
       };
       GfxContext::Get()->RecoveryContextResource(info);
 }

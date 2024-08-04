@@ -33,14 +33,13 @@ target_include_directories(LoFiGfx PUBLIC Include)
 target_include_directories(LoFiGfx PRIVATE Third)
 target_link_directories(LoFiGfx PRIVATE ThirdBin)
 
-target_link_libraries(LoFiGfx PRIVATE Vulkan::Vulkan EnTT::EnTT mimalloc-secure
+target_link_libraries(LoFiGfx PRIVATE Vulkan::Vulkan EnTT::EnTT mimalloc-static-secure mimalloc-redirect
         spirv-cross-core glslang glslang-default-resource-limits SPIRV SPIRV-Tools-opt SPIRV-Tools GenericCodeGen MachineIndependent
         msdfgen-core msdfgen-ext freetype)
 
 target_compile_options(LoFiGfx PRIVATE /source-charset:utf-8)
 
 file(COPY ThirdBin/mimalloc-redirect.dll DESTINATION ${CMAKE_SOURCE_DIR}/Binary/${CMAKE_BUILD_TYPE})
-file(COPY ThirdBin/mimalloc-secure.dll DESTINATION ${CMAKE_SOURCE_DIR}/Binary/${CMAKE_BUILD_TYPE})
 
 
 
