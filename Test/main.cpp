@@ -247,13 +247,22 @@ int main() {
             }
 
             Gfx2DCmdPushStrock(canvas, {
-                  .Type = Gfx2DStrockFillType::Linear2,
-                  .Linear = {
-                        .DirectionAngle = 60.0f * multi2,
-                        .Pos1 = 0.6,
-                        .Pos2 = 0.9f,
-                        .Color1 = {250, 180, 0, 255},
-                        .Color2 = {0, 180, 250, 255}
+                  .Type = Gfx2DStrockFillType::Radial6,
+                  .Radial = {
+                        .OffsetX = 0.0f,
+                        .OffsetY = 0.0f + multi,
+                        .Pos1 = 0.05,
+                        .Pos2 = 0.25,
+                        .Pos3 = 0.45f,
+                        .Pos4 = 0.6f,
+                        .Pos5 = 0.75f,
+                        .Pos6 = 0.9f,
+                        .Color1 = {128, 200, 55, 255},
+                        .Color2 = {255, 0, 255, 20},
+                        .Color3 = {0, 255, 100, 255},
+                        .Color4 = {55, 55, 200, 20},
+                        .Color5 = {240, 129, 129, 255},
+                        .Color6 = {0, 0, 255, 255},
                   }
             });
 
@@ -288,12 +297,12 @@ int main() {
             }, 0);
 
             Gfx2DCmdDrawText(canvas, {100, 80}, L"Hello World,你好.", {
-                  .Size = 90,
+                  .Size = 45,
                   .Space = 0,
                   .PxRange = 8 * multi2
             }, {120, 100, 255, 255});
             Gfx2DCmdDrawText(canvas, {100, 170}, L"abcdefghijklmnnopqrstuvwxyz.", {
-                  .Size = 90,
+                  .Size = 45,
                   .Space = 0,
                   .PxRange = 8 * multi2
             }, {120, 100, 255, 255});

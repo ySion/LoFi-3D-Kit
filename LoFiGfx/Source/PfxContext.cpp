@@ -80,14 +80,562 @@ PfxContext::PfxContext() {
             #set vs_binding = 1 72 instance
       )";
 
+      const char* fs = R"(
+            #extension GL_EXT_nonuniform_qualifier : enable
+            #extension GL_EXT_buffer_reference : enable
+            #extension GL_EXT_scalar_block_layout : enable
+            #extension GL_EXT_buffer_reference2 : enable
 
-      const char* path[2] = {"D://DDraw.fs", "D://DDraw.vs"};
 
-      _programDraw = _gfx->CreateProgramFromFile({
+            layout(location = 0)  in vec2          in_PosAfterTransform;
+            layout(location = 1)  in vec2          in_NDCPos;
+            layout(location = 2)  in vec2          in_OriginPos;
+            layout(location = 3)  in vec2          in_UV;
+            layout(location = 4)  in vec2          in_GlobalUV;
+
+            layout(location = 5)  in flat vec2     in_CanvasSize;
+            layout(location = 6)  in flat vec2     in_ScissorStart;
+            layout(location = 7)  in flat vec2     in_ScissorSize;
+            layout(location = 8)  in flat vec2     in_Size;
+            layout(location = 9)  in flat vec2     in_Center;
+            layout(location = 10) in flat uint     in_Color;
+            layout(location = 11) in flat uint     in_TextureBindlessIndex_or_GradientDataOffset;
+            layout(location = 12) in flat uint     in_StrockType_PrimitiveType;
+            layout(location = 13) in flat vec4     in_Parameter1;
+            layout(location = 14) in flat vec4     in_Parameter2;
+
+            layout(location = 0) out vec4 outColor;
+
+            layout(binding = 0) uniform sampler2D TextureArray[];
+
+            struct GradientParameter {
+                vec2 Offset;
+                float Angle;
+                float Pos1;
+                float Pos2;
+                float Pos3;
+                float Pos4;
+                float Pos5;
+                float Pos6;
+                uint Color1;
+                uint Color2;
+                uint Color3;
+                uint Color4;
+                uint Color5;
+                uint Color6;
+            };
+
+            layout(buffer_reference, scalar) buffer PtrGradientBufferArray {
+                GradientParameter GradientData[];
+            };
+
+            layout(push_constant) uniform InfosType {
+                PtrGradientBufferArray gradientArray;
+            } Infos;
+
+            vec4 UnpackUintToColor(uint packed){
+                    return vec4(
+                            (packed & 0xFF) / 255.0f,
+                            ((packed >> 8) & 0xFF) / 255.0f,
+                            ((packed >> 16) & 0xFF) / 255.0f,
+                            ((packed >> 24) & 0xFF) / 255.0f
+                    );
+            }
+
+            vec2 UnpackUintToVec2(uint packed) {
+                    float x = float(packed & 0xFFFF);
+                    float y = float((packed >> 16) & 0xFFFF);
+                    return vec2(x, y);
+            }
+
+            void UnpackUintTo16(uint packed, out uint A, out uint B) {
+                A  = (packed & 0xFFFF);
+                B  = ((packed >> 16) & 0xFFFF);
+            }
+
+            #define PI 3.14159265358
+
+            float sdBox(in vec2 p, in vec2 b ) {
+                vec2 d = abs(p)-b;
+                return length(max(d,0.0)) + min(max(d.x,d.y),0.0);
+            }
+
+            float sdRoundBox( in vec2 p, in vec2 b, in vec4 r )
+            {
+                r.xy = (p.x>0.0)?r.xy : r.zw;
+                r.x  = (p.y>0.0)?r.x  : r.y;
+                vec2 q = abs(p)-b+r.x;
+                return min(max(q.x,q.y),0.0) + length(max(q,0.0)) - r.x;
+            }
+
+            float sdNGon( in vec2 p, float r, float sides, float roundness) {
+                // these 2 lines can be precomputed
+                float an = 6.2831853/float(sides);
+                float he = r*tan(0.5*an);
+                p*= 1.0 + roundness/r;
+                // rotate to first sector
+                p = -p.yx; // if you want the corner to be up
+                float bn = an*floor((atan(p.y,p.x)+0.5*an)/an);
+                vec2  cs = vec2(cos(bn),sin(bn));
+                p = mat2(cs.x,-cs.y,cs.y,cs.x)*p;
+                // side of polygon
+                return (length(p-vec2(r,clamp(p.y,-he,he)))*sign(p.x-r) - roundness) / (1.0 + roundness/r);
+            }
+
+            float sdCircle( vec2 p, float r )
+            {
+                return length(p) - r;
+            }
+
+            vec2 rot2(vec2 v, vec2 origin, float theta)
+            {
+                vec2 v2 = v - origin;
+                return vec2(v2.x * cos(theta) - v2.y * sin(theta), v2.y * cos(theta) + v2.x * sin(theta)) + origin;
+            }
+
+
+            float median(float r, float g, float b) {
+                return max(min(r, g), min(max(r, g), b));
+            }
+
+
+            float screenPxRange(float pxRange) {
+                vec2 unitRange = vec2(pxRange)/vec2(800, 800);
+                vec2 screenTexSize = vec2(1.0)/fwidth(in_UV);
+                return max(0.5*dot(unitRange, screenTexSize), 1.0);
+            }
+
+            vec4 renderFont(vec3 msdf, vec4 bgColor, vec4 fgColor, float pxRange) {
+                float sd = median(msdf.r, msdf.g, msdf.b);
+                float screenPxDistance = pxRange*(sd - 0.5);
+                float opacity = clamp(screenPxDistance + 0.8, 0.0, 1.0);
+                return mix(bgColor, fgColor, opacity);
+            }
+
+
+            void FSMain() {
+                if(in_PosAfterTransform.x < in_ScissorStart.x || in_PosAfterTransform.x > in_ScissorStart.x + in_ScissorSize.x || in_PosAfterTransform.y < in_ScissorStart.y || in_PosAfterTransform.y > in_ScissorStart.y + in_ScissorSize.y) {
+                    discard;
+                }
+
+                uint StrockType;
+                uint PrimitiveType;
+                UnpackUintTo16(in_StrockType_PrimitiveType, StrockType, PrimitiveType);
+
+                vec2 fragCoord = (in_OriginPos - in_Center);
+
+                float aspect = in_Size.x / in_Size.y;
+                float aspectInver = in_Size.y / in_Size.x;
+
+                float d = 0.0f;
+                //fragCoord *= 1.05f;
+
+                if(PrimitiveType == 0) { // Box
+                    vec2 boxc_size = in_Parameter1.xy;
+                    d = sdBox(fragCoord,  boxc_size / 2);
+
+                } else if(PrimitiveType == 1) { // RoundBox
+                    vec2 boxc_size = in_Parameter1.xy;
+                    vec4 roundness = vec4(in_Parameter1.zw, in_Parameter2.xy);
+                    d = sdRoundBox(fragCoord,  boxc_size / 2, roundness * min(boxc_size.x, boxc_size.y) / 2);
+
+                } else if(PrimitiveType == 2) { // RoundNGon
+                    float r = in_Parameter1.x;
+                    float sides = in_Parameter1.y;
+                    float roundness = in_Parameter1.z;
+                    d = sdNGon(fragCoord, r, sides, roundness * r);
+
+                } else if(PrimitiveType == 3) { // Circle
+                    float r = in_Parameter1.x;
+                    d = sdCircle(fragCoord, r);
+
+                } else if(PrimitiveType == 50) { //Text
+                    vec2 uv = in_UV;
+                    float pxRange = in_Parameter1.z;
+                    vec3 msdf = texture(TextureArray[in_TextureBindlessIndex_or_GradientDataOffset], uv).rgb;
+                    //float pxRange = 2; // font_piece_canvas_resolution  / sdf_part_resolution * 2
+                    //d = median(msdf.r, msdf.g, msdf.b);
+                    //float screenPxDistance = pxRange*(d - 0.35);
+                    //float opacity = clamp(screenPxDistance + 0.5, 0.0, 1.0);
+                    //outColor = mix(vec4(1.0f, 1.0f, 1.0f, 0.0f), vec4(0.0f, 0.0f, 0.0f, 1.0f), opacity);
+                    outColor = renderFont(msdf, vec4(1.0f, 1.0f, 1.0f, 0.0f), vec4(0.0f, 0.0f, 0.0f, 1.0f), pxRange);
+                    //outColor = vec4(msdf.rrr, 1.0f);
+                }
+
+                if(PrimitiveType != 50){
+                    vec4 finalColor;
+                    if(StrockType == 0){ // Soild
+                        vec4 soild_color = UnpackUintToColor(in_Color);
+                        finalColor = soild_color;
+                    } else if(StrockType == 1){ // Texture
+                        vec2 uv = in_UV;
+                        uv.y *= aspectInver;
+                        uv.y = 1.0 - uv.y;
+                        vec3 c = texture(TextureArray[in_TextureBindlessIndex_or_GradientDataOffset], uv).rgb;
+                        finalColor = vec4(c, 1.0f);
+
+                    } else if(StrockType >= 20) { // Radial2
+
+                        if(StrockType == 20) {
+                            GradientParameter gradientParameter = Infos.gradientArray.GradientData[in_TextureBindlessIndex_or_GradientDataOffset];
+                            vec2 center_pos =  in_UV - vec2(0.5, 0.5)+ gradientParameter.Offset;
+
+                            float Pos1 = gradientParameter.Pos1 * 0.5;
+                            float Pos2 = gradientParameter.Pos2 * 0.5;
+
+                            vec4 color1 = UnpackUintToColor(gradientParameter.Color1);
+                            vec4 color2 = UnpackUintToColor(gradientParameter.Color2);
+
+                            center_pos.y *= aspectInver;
+
+                            float dis = length(center_pos);
+                            finalColor = mix(color1, color2, clamp((dis -  Pos1) / (Pos2 - Pos1), 0.0f, 1.0f));
+
+                        } else  if(StrockType == 21) {
+                            GradientParameter gradientParameter = Infos.gradientArray.GradientData[in_TextureBindlessIndex_or_GradientDataOffset];
+                            vec2 center_pos =  in_UV - vec2(0.5, 0.5)+ gradientParameter.Offset;
+
+                            float Pos1 = gradientParameter.Pos1 * 0.5;
+                            float Pos2 = gradientParameter.Pos2 * 0.5;
+                            float Pos3 = gradientParameter.Pos3 * 0.5;
+
+                            vec4 color1 = UnpackUintToColor(gradientParameter.Color1);
+                            vec4 color2 = UnpackUintToColor(gradientParameter.Color2);
+                            vec4 color3 = UnpackUintToColor(gradientParameter.Color3);
+
+                            center_pos.y *= aspectInver;
+
+                            float dis = length(center_pos);
+                            finalColor = mix(color1, color2, clamp((dis -  Pos1) / (Pos2 - Pos1), 0.0f, 1.0f));
+                            finalColor = mix(finalColor,  color3, clamp((dis -  Pos2)/(Pos3 - Pos2), 0.0, 1.0));
+
+
+                        } else  if(StrockType == 22) {
+                            GradientParameter gradientParameter = Infos.gradientArray.GradientData[in_TextureBindlessIndex_or_GradientDataOffset];
+                            vec2 center_pos =  in_UV - vec2(0.5, 0.5)+ gradientParameter.Offset;
+
+                            float Pos1 = gradientParameter.Pos1 * 0.5;
+                            float Pos2 = gradientParameter.Pos2 * 0.5;
+                            float Pos3 = gradientParameter.Pos3 * 0.5;
+                            float Pos4 = gradientParameter.Pos4 * 0.5;
+
+                            vec4 color1 = UnpackUintToColor(gradientParameter.Color1);
+                            vec4 color2 = UnpackUintToColor(gradientParameter.Color2);
+                            vec4 color3 = UnpackUintToColor(gradientParameter.Color3);
+                            vec4 color4 = UnpackUintToColor(gradientParameter.Color4);
+
+                            center_pos.y *= aspectInver;
+
+                            float dis = length(center_pos);
+                            finalColor = mix(color1, color2, clamp((dis -  Pos1) / (Pos2 - Pos1), 0.0f, 1.0f));
+                            finalColor = mix(finalColor,  color3, clamp((dis -  Pos2)/(Pos3 - Pos2), 0.0, 1.0));
+                            finalColor = mix(finalColor,  color4, clamp((dis -  Pos3)/(Pos4 - Pos3), 0.0, 1.0));
+
+                        } else if(StrockType == 23) {
+                            GradientParameter gradientParameter = Infos.gradientArray.GradientData[in_TextureBindlessIndex_or_GradientDataOffset];
+                            vec2 center_pos =  in_UV - vec2(0.5, 0.5)+ gradientParameter.Offset;
+
+                            float Pos1 = gradientParameter.Pos1 * 0.5;
+                            float Pos2 = gradientParameter.Pos2 * 0.5;
+                            float Pos3 = gradientParameter.Pos3 * 0.5;
+                            float Pos4 = gradientParameter.Pos4 * 0.5;
+                            float Pos5 = gradientParameter.Pos5* 0.5;
+
+                            vec4 color1 = UnpackUintToColor(gradientParameter.Color1);
+                            vec4 color2 = UnpackUintToColor(gradientParameter.Color2);
+                            vec4 color3 = UnpackUintToColor(gradientParameter.Color3);
+                            vec4 color4 = UnpackUintToColor(gradientParameter.Color4);
+                            vec4 color5 = UnpackUintToColor(gradientParameter.Color5);
+
+                            center_pos.y *= aspectInver;
+
+                            float dis = length(center_pos);
+                            finalColor = mix(color1, color2, clamp((dis -  Pos1) / (Pos2 - Pos1), 0.0f, 1.0f));
+                            finalColor = mix(finalColor,  color3, clamp((dis -  Pos2)/(Pos3 - Pos2), 0.0, 1.0));
+                            finalColor = mix(finalColor,  color4, clamp((dis -  Pos3)/(Pos4 - Pos3), 0.0, 1.0));
+                            finalColor = mix(finalColor,  color5, clamp((dis -  Pos4)/(Pos5 - Pos4), 0.0, 1.0));
+
+                        } else if(StrockType == 24) {
+                            GradientParameter gradientParameter = Infos.gradientArray.GradientData[in_TextureBindlessIndex_or_GradientDataOffset];
+                            vec2 center_pos =  in_UV - vec2(0.5, 0.5)+ gradientParameter.Offset;
+
+                            float Pos1 = gradientParameter.Pos1 * 0.5;
+                            float Pos2 = gradientParameter.Pos2 * 0.5;
+                            float Pos3 = gradientParameter.Pos3 * 0.5;
+                            float Pos4 = gradientParameter.Pos4 * 0.5;
+                            float Pos5 = gradientParameter.Pos5* 0.5;
+                            float Pos6 = gradientParameter.Pos6* 0.5;
+
+                            vec4 color1 = UnpackUintToColor(gradientParameter.Color1);
+                            vec4 color2 = UnpackUintToColor(gradientParameter.Color2);
+                            vec4 color3 = UnpackUintToColor(gradientParameter.Color3);
+                            vec4 color4 = UnpackUintToColor(gradientParameter.Color4);
+                            vec4 color5 = UnpackUintToColor(gradientParameter.Color5);
+                            vec4 color6 = UnpackUintToColor(gradientParameter.Color6);
+
+                            center_pos.y *= aspectInver;
+
+                            float dis = length(center_pos);
+                            finalColor = mix(color1, color2, clamp((dis -  Pos1) / (Pos2 - Pos1), 0.0f, 1.0f));
+                            finalColor = mix(finalColor,  color3, clamp((dis -  Pos2)/(Pos3 - Pos2), 0.0, 1.0));
+                            finalColor = mix(finalColor,  color4, clamp((dis -  Pos3)/(Pos4 - Pos3), 0.0, 1.0));
+                            finalColor = mix(finalColor,  color5, clamp((dis -  Pos4)/(Pos5 - Pos4), 0.0, 1.0));
+                            finalColor = mix(finalColor,  color6, clamp((dis -  Pos5)/(Pos6 - Pos5), 0.0, 1.0));
+                        }
+
+                    } else if(StrockType >= 10){ // Linear 2
+                        if(StrockType == 10){
+                            GradientParameter gradientParameter = Infos.gradientArray.GradientData[in_TextureBindlessIndex_or_GradientDataOffset];
+                            float currentAngle = gradientParameter.Angle;
+                            vec2 uv = rot2(in_UV, vec2(0.5, 0.5) , radians(currentAngle));
+
+                            float Pos1 = gradientParameter.Pos1;
+                            float Pos2 = gradientParameter.Pos2;
+
+                            vec4 color1 = UnpackUintToColor(gradientParameter.Color1);
+                            vec4 color2 = UnpackUintToColor(gradientParameter.Color2);
+
+                            finalColor = mix(color1, color2, clamp((uv.x -  Pos1) / (Pos2 - Pos1), 0.0f, 1.0f));
+
+                        } else if(StrockType == 11){
+                            GradientParameter gradientParameter = Infos.gradientArray.GradientData[in_TextureBindlessIndex_or_GradientDataOffset];
+                            float currentAngle = gradientParameter.Angle;
+                            vec2 uv = rot2(in_UV, vec2(0.5, 0.5) , radians(currentAngle));
+
+                            float Pos1 = gradientParameter.Pos1;
+                            float Pos2 = gradientParameter.Pos2;
+                            float Pos3 = gradientParameter.Pos3;
+
+                            vec4 color1 = UnpackUintToColor(gradientParameter.Color1);
+                            vec4 color2 = UnpackUintToColor(gradientParameter.Color2);
+                            vec4 color3 = UnpackUintToColor(gradientParameter.Color3);
+
+                            finalColor = mix(color1,     color2, clamp((uv.x -  Pos1) / (Pos2 - Pos1), 0.0f, 1.0f));
+                            finalColor = mix(finalColor, color3, clamp((uv.x -  Pos2) / (Pos3 - Pos2), 0.0f, 1.0f));
+
+                        } else if(StrockType == 12){
+                            GradientParameter gradientParameter = Infos.gradientArray.GradientData[in_TextureBindlessIndex_or_GradientDataOffset];
+                            float currentAngle = gradientParameter.Angle;
+                            vec2 uv = rot2(in_UV, vec2(0.5, 0.5) , radians(currentAngle));
+
+                            float Pos1 = gradientParameter.Pos1;
+                            float Pos2 = gradientParameter.Pos2;
+                            float Pos3 = gradientParameter.Pos3;
+                            float Pos4 = gradientParameter.Pos4;
+
+                            vec4 color1 = UnpackUintToColor(gradientParameter.Color1);
+                            vec4 color2 = UnpackUintToColor(gradientParameter.Color2);
+                            vec4 color3 = UnpackUintToColor(gradientParameter.Color3);
+                            vec4 color4 = UnpackUintToColor(gradientParameter.Color4);
+
+                            finalColor = mix(color1,     color2, clamp((uv.x -  Pos1) / (Pos2 - Pos1), 0.0f, 1.0f));
+                            finalColor = mix(finalColor, color3, clamp((uv.x -  Pos2) / (Pos3 - Pos2), 0.0f, 1.0f));
+                            finalColor = mix(finalColor, color4, clamp((uv.x -  Pos3) / (Pos4 - Pos3), 0.0f, 1.0f));
+                        } else if(StrockType == 13){
+                            GradientParameter gradientParameter = Infos.gradientArray.GradientData[in_TextureBindlessIndex_or_GradientDataOffset];
+                            float currentAngle = gradientParameter.Angle;
+                            vec2 uv = rot2(in_UV, vec2(0.5, 0.5) , radians(currentAngle));
+
+                            float Pos1 = gradientParameter.Pos1;
+                            float Pos2 = gradientParameter.Pos2;
+                            float Pos3 = gradientParameter.Pos3;
+                            float Pos4 = gradientParameter.Pos4;
+                            float Pos5 = gradientParameter.Pos5;
+
+                            vec4 color1 = UnpackUintToColor(gradientParameter.Color1);
+                            vec4 color2 = UnpackUintToColor(gradientParameter.Color2);
+                            vec4 color3 = UnpackUintToColor(gradientParameter.Color3);
+                            vec4 color4 = UnpackUintToColor(gradientParameter.Color4);
+                            vec4 color5 = UnpackUintToColor(gradientParameter.Color5);
+
+                            finalColor = mix(color1,     color2, clamp((uv.x -  Pos1) / (Pos2 - Pos1), 0.0f, 1.0f));
+                            finalColor = mix(finalColor, color3, clamp((uv.x -  Pos2) / (Pos3 - Pos2), 0.0f, 1.0f));
+                            finalColor = mix(finalColor, color4, clamp((uv.x -  Pos3) / (Pos4 - Pos3), 0.0f, 1.0f));
+                            finalColor = mix(finalColor, color5, clamp((uv.x -  Pos4) / (Pos5 - Pos4), 0.0f, 1.0f));
+                        } else if(StrockType == 14){
+                            GradientParameter gradientParameter = Infos.gradientArray.GradientData[in_TextureBindlessIndex_or_GradientDataOffset];
+                            float currentAngle = gradientParameter.Angle;
+                            vec2 uv = rot2(in_UV, vec2(0.5, 0.5) , radians(currentAngle));
+
+                            float Pos1 = gradientParameter.Pos1;
+                            float Pos2 = gradientParameter.Pos2;
+                            float Pos3 = gradientParameter.Pos3;
+                            float Pos4 = gradientParameter.Pos4;
+                            float Pos5 = gradientParameter.Pos5;
+                            float Pos6 = gradientParameter.Pos6;
+
+                            vec4 color1 = UnpackUintToColor(gradientParameter.Color1);
+                            vec4 color2 = UnpackUintToColor(gradientParameter.Color2);
+                            vec4 color3 = UnpackUintToColor(gradientParameter.Color3);
+                            vec4 color4 = UnpackUintToColor(gradientParameter.Color4);
+                            vec4 color5 = UnpackUintToColor(gradientParameter.Color5);
+                            vec4 color6 = UnpackUintToColor(gradientParameter.Color6);
+
+                            finalColor = mix(color1,     color2, clamp((uv.x -  Pos1) / (Pos2 - Pos1), 0.0f, 1.0f));
+                            finalColor = mix(finalColor, color3, clamp((uv.x -  Pos2) / (Pos3 - Pos2), 0.0f, 1.0f));
+                            finalColor = mix(finalColor, color4, clamp((uv.x -  Pos3) / (Pos4 - Pos3), 0.0f, 1.0f));
+                            finalColor = mix(finalColor, color5, clamp((uv.x -  Pos4) / (Pos5 - Pos4), 0.0f, 1.0f));
+                            finalColor = mix(finalColor, color6, clamp((uv.x -  Pos5) / (Pos6 - Pos5), 0.0f, 1.0f));
+                        }
+
+                    } else {
+                        vec3 col = (d>0.0) ? vec3(0.9,0.6,0.3) : vec3(0.65,0.85,1.0);
+                        //col *= 1.0 - exp(-0.02*abs(d)); //shadow
+                        col *= 0.8 + 0.3*cos(0.25*d);
+                        col = mix( col, vec3(1.0), 1.0-smoothstep(0.0,5,abs(d)) );
+                        finalColor = vec4(col, 1.0);
+                    }
+
+                    float d2 = d;
+                    //d2 = clamp(d2, 0, 1);
+                    d2 = smoothstep(5, 0.0, d);
+
+                    outColor = finalColor * vec4(1.0f, 1.0f, 1.0f, d2);
+                }
+            }
+
+      )";
+
+      const char* vs = R"(
+            #extension GL_EXT_nonuniform_qualifier : enable
+            #extension GL_EXT_buffer_reference : enable
+            #extension GL_EXT_scalar_block_layout : enable
+            #extension GL_EXT_buffer_reference2 : enable
+
+            layout(location = 0) in vec2 in_Pos;
+            layout(location = 1) in vec2 UV;
+
+            layout(location = 2) in uvec2 Scissor;
+            layout(location = 3) in uint CanvasSize;
+            layout(location = 4) in uint Size;
+            layout(location = 5) in vec2 Center;
+            layout(location = 6) in float CenterRotate;
+            layout(location = 7) in uint Color;
+            layout(location = 8) in uint TextureBindlessIndex_or_GradientDataOffset;
+            layout(location = 9) in uint StrockType_PrimitiveType;
+            layout(location = 10) in vec4 Parameter1;
+            layout(location = 11) in vec4 Parameter2;
+
+
+            layout(location = 0)  out vec2          out_PosAfterTransform;
+            layout(location = 1)  out vec2          out_NDCPos;
+            layout(location = 2)  out vec2          out_OriginPos;
+            layout(location = 3)  out vec2          out_UV;
+            layout(location = 4)  out vec2          out_GlobalUV;
+
+            layout(location = 5)  out flat vec2     out_CanvasSize;
+            layout(location = 6)  out flat vec2     out_ScissorStart;
+            layout(location = 7)  out flat vec2     out_ScissorSize;
+
+            layout(location = 8)  out flat vec2     out_Size;
+            layout(location = 9)  out flat vec2     out_Center;
+            layout(location = 10)  out flat uint     out_Color;
+
+            layout(location = 11) out flat uint     out_TextureBindlessIndex_or_GradientDataOffset;
+            layout(location = 12) out flat uint     out_StrockType_PrimitiveType;
+            layout(location = 13) out flat vec4     out_Parameter1;
+            layout(location = 14) out flat vec4     out_Parameter2;
+
+            struct GradientParameter {
+                vec2 Offset;
+                float Angle;
+                float Pos1;
+                float Pos2;
+                float Pos3;
+                float Pos4;
+                float Pos5;
+                float Pos6;
+                uint Color1;
+                uint Color2;
+                uint Color3;
+                uint Color4;
+                uint Color5;
+                uint Color6;
+            };
+
+            layout(buffer_reference, scalar) buffer PtrGradientBufferArray {
+                GradientParameter GradientData[];
+            };
+
+            layout(push_constant) uniform InfosType {
+                PtrGradientBufferArray gradientArray;
+            } Infos;
+
+            vec2 UnpackUintToVec2(uint packed) {
+                    float x = float(packed & 0xFFFF);
+                    float y = float((packed >> 16) & 0xFFFF);
+                    return vec2(x, y);
+            }
+
+            vec4 UnpackUintToColor(uint packed){
+                    return vec4(
+                            (packed & 0xFF) / 255.0f,
+                            ((packed >> 8) & 0xFF) / 255.0f,
+                            ((packed >> 16) & 0xFF) / 255.0f,
+                            ((packed >> 24) & 0xFF) / 255.0f
+                    );
+            }
+
+            void UnpackUintTo16(uint packed, out uint A, out uint B) {
+                    A  = (packed & 0xFFFF);
+                    B  = ((packed >> 16) & 0xFFFF);
+            }
+
+
+            void VSMain() {
+
+                    vec2 OriginPos = in_Pos;
+                    vec2 canvasSize = UnpackUintToVec2(CanvasSize);
+
+                    //Canvas Size to -1.0 ~ 1.0
+                    out_OriginPos = OriginPos;
+                    out_UV = UV;
+                    out_GlobalUV = OriginPos / canvasSize;
+
+                    float rotate_rad = radians(CenterRotate);
+                    mat2 rotateMat = mat2(cos(rotate_rad), -sin(rotate_rad), sin(rotate_rad), cos(rotate_rad));
+                    vec2 pos_center_rotated = rotateMat * (OriginPos - Center) + Center;
+
+                    out_PosAfterTransform = pos_center_rotated;
+
+                    out_NDCPos = (pos_center_rotated / canvasSize) * 2.0f - 1.0f;
+
+                    //rotate at center
+
+                    gl_Position = vec4(out_NDCPos, 0.0f, 1.0f);
+
+                    out_CanvasSize = canvasSize;
+                    vec2 scissorStart = UnpackUintToVec2(Scissor.x);
+                    vec2 scissorSize =  UnpackUintToVec2(Scissor.y);
+                    out_ScissorStart = scissorStart;
+                    out_ScissorSize = scissorSize;
+
+                    out_Size = UnpackUintToVec2(Size);
+                    out_Center = Center;
+                    out_Color = Color;
+
+                    out_TextureBindlessIndex_or_GradientDataOffset = TextureBindlessIndex_or_GradientDataOffset;
+                    out_StrockType_PrimitiveType = StrockType_PrimitiveType;
+                    out_Parameter1 = Parameter1;
+                    out_Parameter2 = Parameter2;
+            }
+
+      )";
+
+
+      const char* path[2] = {vs, fs};
+
+      // _programDraw = _gfx->CreateProgramFromFile({
+      //       .pResourceName = "PfxContext-Draw-Program",
+      //       .pConfig = draw_config,
+      //       .pSourceCodeFileNames = path,
+      //       .countSourceCodeFileName = 2
+      // });
+      _programDraw = _gfx->CreateProgram({
             .pResourceName = "PfxContext-Draw-Program",
             .pConfig = draw_config,
-            .pSourceCodeFileNames = path,
-            .countSourceCodeFileName = 2
+            .pSourceCodes = path,
+            .countSourceCode = 2
       });
 
       _kernelDraw = _gfx->CreateKernel(_programDraw, {.pResourceName = "PfxContext-Draw-Kernel"});
@@ -729,7 +1277,6 @@ GenInstanceData& PfxContext::NewDrawInstanceData() {
             case StrockFillType::Linear4:
             case StrockFillType::Linear5:
             case StrockFillType::Linear6:
-            case StrockFillType::Linear7:
                   current_instance_data.TextureBindlessIndex_or_GradientDataOffset = _gradientData.size();
                   _gradientData.emplace_back(
                   glm::vec2(0, 0),
@@ -753,10 +1300,9 @@ GenInstanceData& PfxContext::NewDrawInstanceData() {
             case StrockFillType::Radial4:
             case StrockFillType::Radial5:
             case StrockFillType::Radial6:
-            case StrockFillType::Radial7:
                   current_instance_data.TextureBindlessIndex_or_GradientDataOffset = _gradientData.size();
                   _gradientData.emplace_back(
-                  glm::vec2(0, 0),
+                  glm::vec2(_currentStrock.Radial.OffsetX, _currentStrock.Radial.OffsetY),
                   0,
                   _currentStrock.Radial.Pos1,
                   _currentStrock.Radial.Pos2,

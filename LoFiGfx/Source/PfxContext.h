@@ -20,15 +20,12 @@ namespace LoFi {
             Linear4 = 12,
             Linear5 = 13,
             Linear6 = 14,
-            Linear7 = 15,
-
 
             Radial2 = 20,
             Radial3 = 21,
             Radial4 = 22,
             Radial5 = 23,
             Radial6 = 24,
-            Radial7 = 25,
       };
 
       struct GradientData {
@@ -118,9 +115,7 @@ namespace LoFi {
             StrockFillType Type;
             union {
                   struct {
-                        uint16_t GradientDirection;
                         glm::u8vec4 SoildColor;
-                        ResourceHandle ImageHandle;
                   } Solid;
 
                   struct {
@@ -140,6 +135,8 @@ namespace LoFi {
                   } Linear;
 
                   struct {
+                        float OffsetX;
+                        float OffsetY;
                         float Pos1;
                         float Pos2;
                         float Pos3;
