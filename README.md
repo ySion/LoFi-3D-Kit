@@ -24,25 +24,25 @@ G-CR = Gradient Radial with Custom Center
 
 |                     | Shadow | Soft Anti-Aliasing | Texture | G-H | G-V | G-FP | G-R | G-C | G-CR |
 |--------------------:|:------:|:------------------:|:-------:|:---:|:---:|:----:|:---:|:---:|:----:|
-|                Path |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
-|                Rect |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
-|        Rounded Rect |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
-|            Triangle |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
-|             Polygon |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
-|              Circle |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
-|               Chord |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
-|                 Pie |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
-|             Ellipse |   -    |         -          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
-|                Text |   -    |        SDF         |    -    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
-|         Path Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
-|         Rect Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
-| Rounded Rect Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
-|     Triangle Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
-|      Polygon Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
-|       Circle Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
-|        Chord Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
-|          Pie Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
-|      Ellipse Filled |   Y    |         -          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|                Path |   Y    |         Y          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|                Rect |   Y    |         Y          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|        Rounded Rect |   Y    |         Y          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|            Triangle |   Y    |         Y          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|             Polygon |   Y    |         Y          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|              Circle |   Y    |         Y          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|               Chord |   Y    |         Y          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|                 Pie |   Y    |         Y          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|             Ellipse |   Y    |         Y          |    Y    |  Y  |  Y  |  Y   |  Y  |  Y  |  Y   |
+|                Text |   Y    |         Y          |    -    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|         Path Filled |   Y    |         Y          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|         Rect Filled |   Y    |         Y          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+| Rounded Rect Filled |   Y    |         Y          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|     Triangle Filled |   Y    |         Y          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|      Polygon Filled |   Y    |         Y          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|       Circle Filled |   Y    |         Y          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|        Chord Filled |   Y    |         Y          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|          Pie Filled |   Y    |         Y          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
+|      Ellipse Filled |   Y    |         Y          |    Y    |  Y  |  Y  |  -   |  Y  |  Y  |  Y   |
 
 
 ```c++
@@ -187,11 +187,6 @@ G-CR = Gradient Radial with Custom Center
       func.wait();
  
 ```
-
-![image](https://github.com/ySion/LoFi-3D-Kit/assets/39912009/f7defe0b-1da2-41aa-a614-5191097aed3b)
-![image](https://github.com/ySion/LoFi-3D-Kit/assets/39912009/57b8480f-66b2-472e-9680-7464c720e5d8)
-
-
 ----
 
 ## LoFiVDB
