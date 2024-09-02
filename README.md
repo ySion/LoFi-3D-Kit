@@ -427,6 +427,7 @@ GfxInit();
       GfxClose();
  
 ```
+![image](https://github.com/user-attachments/assets/bd9213f2-a44e-4281-8523-365e7ab17b2e)
 
 ----
 
