@@ -106,11 +106,10 @@ int main() {
       GfxDestroy(square_vert);
       GfxDestroy(square_index);
 
-      auto win = SDL_CreateWindow("hello", 512, 512, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
-      //auto win2 = SDL_CreateWindow("hello", 512, 512, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+
+      auto win = SDL_CreateWindow("hello", 1920 * 0.75, 1080 * 0.75, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
       const auto swapchain = GfxCreateSwapChain({.pResourceName = "hello", .AnyHandleForResizeCallback = (uint64_t)win, .PtrOnSwapchainNeedResizeCallback = CreateCurfaceCallBack});
-      //const auto swapchain2 = GfxCreateSwapChain({.pResourceName = "hello2", .AnyHandleForResizeCallback = (uint64_t)win2, .PtrOnSwapchainNeedResizeCallback = CreateCurfaceCallBack});
 
 
       const auto rt1 = GfxCreateTexture2D(FORMAT_R8G8B8A8_UNORM, 960, 540);
@@ -162,182 +161,237 @@ int main() {
 
       auto canvas = Gfx2DCreateCanvas();
 
-      Gfx2DLoadFont(canvas, "F:\\font\\llt.ttf");
-      auto cyTexture = GfxCreateTexture2DFromFile("D:\\K2.png");
-
-      bool should_close = false;
-      SDL_Event event;
+      Gfx2DLoadFont(canvas, "llt.ttf");
+      auto P1 = GfxCreateTexture2DFromFile("1.png");
+      auto P2 = GfxCreateTexture2DFromFile("2.png");
+      auto P3 = GfxCreateTexture2DFromFile("3.png");
+      auto P4 = GfxCreateTexture2DFromFile("4.png");
+      auto P5 = GfxCreateTexture2DFromFile("5.png");
 
 
       auto node = GfxCreateRDGNode({.pRenderNodeName = "MainNode"});
 
-      auto node2 = GfxCreateRDGNode({.pRenderNodeName = "MainNode2"});
-      std::array<const char*, 1> wait_for1 = {"MainNode3"};
-      GfxSetRDGNodeWaitFor(node2, {.pNamesRenderNodeWaitFor = wait_for1.data(), .countNamesRenderNodeWaitFor = 1});
-
-      auto node3 = GfxCreateRDGNode({.pRenderNodeName = "MainNode3"});
-      std::array<const char*, 1> wait_for2 = {"MainNode"};
-      GfxSetRDGNodeWaitFor(node3, {.pNamesRenderNodeWaitFor = wait_for2.data(), .countNamesRenderNodeWaitFor = 1});
+      // auto node2 = GfxCreateRDGNode({.pRenderNodeName = "MainNode2"});
+      // std::array<const char*, 1> wait_for1 = {"MainNode3"};
+      // GfxSetRDGNodeWaitFor(node2, {.pNamesRenderNodeWaitFor = wait_for1.data(), .countNamesRenderNodeWaitFor = 1});
+      //
+      // auto node3 = GfxCreateRDGNode({.pRenderNodeName = "MainNode3"});
+      // std::array<const char*, 1> wait_for2 = {"MainNode"};
+      // GfxSetRDGNodeWaitFor(node3, {.pNamesRenderNodeWaitFor = wait_for2.data(), .countNamesRenderNodeWaitFor = 1});
 
       GfxSetRootRDGNode(node);
+      auto nodec = GfxGetRDGNodeCore(node);
+
+      std::atomic<bool> should_close = false;
+      SDL_Event event;
+      auto task = std::async([&]() {
+            while (!should_close) {
+                  float time = (float)((double)SDL_GetTicks() / 1000.0);
+                  auto current = SDL_GetTicks();
+                  sum += current - prev;
+                  prev = current;
+                  fps += 1.0f;
+                  if (sum > 1'000) {
+                        printf("FPS: %f\n", fps);
+                        sum = 0;
+                        fps = 0.0f;
+                  }
+
+                  float multi = (glm::sin(time) * 0.5f + 0.5f) * 0.5f;
+                  float multi2 = glm::clamp((glm::sin(time) * 0.5f + 0.5f), 0.0f, 1.0f);
+
+                  Gfx2DReset(canvas);
+                  Gfx2DCmdPushCanvasSize(canvas, 3840, 2160);
+
+                  float t = glm::clamp(sin(time), 0.0f, 1.0f);
+                  Gfx2DCmdPushScissor(canvas, (int)(t * 800), (int)(t * 800), 3840, 2160);
+
+                  for (int i = 0; i < 10; i++) {
+                        for (int j = 0; j < 10; j++) {
+                              Gfx2DCmdDrawRoundBox(canvas, {100 + 200 * (float)j, 500 + 150 * (float)i}, {
+                                    .Size = {175, 125},
+                                    .RoundnessTopRight = multi2,
+                                    .RoundnessBottomRight = 0,
+                                    .RoundnessTopLeft = 0,
+                                    .RoundnessBottomLeft = 0
+                              }, 2.6f * i * j * multi2, {(uint8_t)((i + 1) * 20), (uint8_t)((j + 1) * 20), 128, 255});
+                        }
+                  }
+                  Gfx2DCmdPopScissor(canvas);
+
+                  Gfx2DCmdPushStrock(canvas, {
+                        .Type = Gfx2DStrockFillType::Linear6,
+                        .Linear = {
+                              .DirectionAngle = 0.0f,
+                              .Pos1 = 0.05,
+                              .Pos2 = 0.25,
+                              .Pos3 = 0.45f,
+                              .Pos4 = 0.6f,
+                              .Pos5 = 0.75f,
+                              .Pos6 = 0.9f,
+                              .Color1 = {128, 200, 55, 255},
+                              .Color2 = {255, 0, 255, (uint8_t)(255 * multi)},
+                              .Color3 = {0, 255, 100, 255},
+                              .Color4 = {55, 55, 200, (uint8_t)(255 * multi)},
+                              .Color5 = {240, 129, 129, 255},
+                              .Color6 = {0, 0, 255, 255},
+                        }
+                  });
+
+                  Gfx2DCmdDrawRoundBox(canvas, {2400, 1600}, {
+                        .Size = {500, 300},
+                        .RoundnessTopRight = multi2,
+                        .RoundnessBottomRight = multi2,
+                        .RoundnessTopLeft = 1.0f - multi2,
+                        .RoundnessBottomLeft = 1.0f - multi2
+                  }, 0, {255, (uint8_t)(255 * multi), 0, 255});
+
+                  Gfx2DCmdPopStrock(canvas);
+                  Gfx2DCmdPushStrock(canvas, {
+                        .Type = Gfx2DStrockFillType::Radial6,
+                        .Radial = {
+                              .OffsetX = 0.0f,
+                              .OffsetY = 0.0f + multi,
+                              .Pos1 = 0.05,
+                              .Pos2 = 0.25f + multi * 0.5f,
+                              .Pos3 = 0.45f + multi * 1.0f,
+                              .Pos4 = 0.6f + multi * 1.5f,
+                              .Pos5 = 0.75f + multi * 2.0f,
+                              .Pos6 = 0.9f + multi * 2.0f,
+                              .Color1 = {128, 200, 55, 255},
+                              .Color2 = {255, 0, 255, (uint8_t)(255 * multi)},
+                              .Color3 = {0, 255, 100, 255},
+                              .Color4 = {55, 55, 200, (uint8_t)(255 * multi)},
+                              .Color5 = {240, 129, 129, 255},
+                              .Color6 = {0, 0, 255, 255},
+                        }
+                  });
+
+                  Gfx2DCmdDrawRoundBox(canvas, {2900, 1200 + sin(time - 0.6f) * 200},
+                  {
+                        .Size = {600, 300},
+                        .RoundnessTopRight = multi2,
+                        .RoundnessBottomRight = multi2,
+                        .RoundnessTopLeft = 1.0f - multi2,
+                        .RoundnessBottomLeft = 1.0f - multi2
+                  }, 60 * multi2, {255, 0, 0, 255});
+
+                  Gfx2DCmdPushStrock(canvas, {
+                        .Type = Gfx2DStrockFillType::Texture,
+                        .Texture = {P1}
+                  });
+
+                  Gfx2DCmdDrawNGon(canvas, {600, 400 + sin(time - 0.3f) * 200},
+                  {
+                        .Radius = 240,
+                        .SegmentCount = 5 + (9 * multi2),
+                        .Roundness = (1.0f - multi2)
+                  }, 0, {255, 0, 0, 255});
+
+
+                  Gfx2DCmdPopStrock(canvas);
+                  Gfx2DCmdPushStrock(canvas, {
+                        .Type = Gfx2DStrockFillType::Texture,
+                        .Texture = {P2}
+                  });
+
+                  Gfx2DCmdDrawNGon(canvas, {1200, 400 + sin(time) * 200},
+                  {
+                        .Radius = 240,
+                        .SegmentCount = 4 + (4 * glm::clamp(sin(time), 0.0f, 1.0f)),
+                        .Roundness = 0.0f
+                  }, 30 * multi2, {255, 0, 0, 255});
+
+                  Gfx2DCmdPopStrock(canvas);
+                  Gfx2DCmdPushStrock(canvas, {
+                        .Type = Gfx2DStrockFillType::Texture,
+                        .Texture = {P3}
+                  });
+
+                  Gfx2DCmdDrawNGon(canvas, {1800, 400 + sin(time + 0.3f) * 200},
+                  {
+                        .Radius = 240,
+                        .SegmentCount = 4 + (4 * glm::clamp(sin(time), 0.0f, 1.0f)),
+                        .Roundness = 1.0f
+                  }, 60 * multi2, {255, 0, 0, 255});
+
+                  Gfx2DCmdPopStrock(canvas);
+                  Gfx2DCmdPushStrock(canvas, {
+                        .Type = Gfx2DStrockFillType::Texture,
+                        .Texture = {P4}
+                  });
+
+                  Gfx2DCmdDrawNGon(canvas, {2400, 400 + sin(time + 0.6f) * 200},
+                  {
+                        .Radius = 240,
+                        .SegmentCount = 4 + (4 * glm::clamp(sin(time), 0.0f, 1.0f)),
+                        .Roundness = 0.0f
+                  }, 0 * multi2, {255, 0, 0, 255});
+
+                  Gfx2DCmdPopStrock(canvas);
+                  Gfx2DCmdPushStrock(canvas, {
+                        .Type = Gfx2DStrockFillType::Texture,
+                        .Texture = {P5}
+                  });
+
+                  Gfx2DCmdDrawNGon(canvas, {3000, 400 + sin(time + 0.9f) * 200},
+                  {
+                        .Radius = 240,
+                        .SegmentCount = 4 + (4 * glm::clamp(sin(time), 0.0f, 1.0f)),
+                        .Roundness = 0.0f
+                  }, 0 * multi2, {255, 0, 0, 255});
+
+
+                  Gfx2DCmdDrawBox(canvas, {1200, 1300}, {
+                        .Size = {400, 400},
+                  }, 180 * multi2);
+
+                  Gfx2DCmdDrawText(canvas, {50, 50}, L"Hello World,你好?", {
+                        .Size = 45,
+                        .Space = 0,
+                        .PxRange = 0.5f + 4 * multi2
+                  }, {120, 100, 255, 255});
+                  Gfx2DCmdDrawText(canvas, {50, 140}, L"无法浏览R-18作品.", {
+                        .Size = 45,
+                        .Space = 0,
+                        .PxRange = 0.5f + 4 * multi2
+                  }, {120, 100, 255, 255});
+
+                  //pfx->PopScissor();
+                  Gfx2DCmdDrawCircle(canvas, {3400 + multi2 * 200, 700 - multi2 * 100}, {
+                        .Radius = 320
+                  }, 0, {255, 0, 0, 255});
+
+                  Gfx2DCmdPopStrock(canvas);
+                  Gfx2DCmdPopStrock(canvas);
+                  Gfx2DDispatchGenerateCommands(canvas);
+
+                  std::array<GfxInfoRenderPassaAttachment, 1> param2{
+                        GfxInfoRenderPassaAttachment{
+                              .TextureHandle = swapchain,
+                              .ClearColorR = 240,
+                              .ClearColorG = 240,
+                              .ClearColorB = 240,
+                              .ClearColorA = 240,
+                        }
+                  };
+                  GfxCmdBeginRenderPass(nodec, {.pAttachments = param2.data(), .countAttachments = param2.size()});
+                  Gfx2DEmitDrawCommand(canvas, nodec);
+                  GfxCmdEndRenderPass(nodec);
+
+                  GfxGenFrame();
+            }
+      });
 
       while (!should_close) {
             SDL_PollEvent(&event);
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
                   should_close = true;
             }
-
-            float time = (float)((double)SDL_GetTicks() / 1000.0);
-            auto current = SDL_GetTicks();
-            sum += current - prev;
-            prev = current;
-            fps += 1.0f;
-            if (sum > 1'000) {
-                  printf("FPS: %f\n", fps);
-                  sum = 0;
-                  fps = 0.0f;
-            }
-
-            float multi = (glm::sin(time) * 0.5f + 0.5f) * 0.5f;
-            float multi2 = glm::clamp((glm::sin(time) * 0.5f + 0.5f), 0.0f, 1.0f);
-
-            auto nodec = GfxGetRDGNodeCore(node);
-            auto nodec2 = GfxGetRDGNodeCore(node2);
-            auto nodec3 = GfxGetRDGNodeCore(node3);
-
-            std::array<GfxInfoRenderPassaAttachment, 1> param{
-                  GfxInfoRenderPassaAttachment{swapchain}
-            };
-            // GfxCmdBeginRenderPass(nodec, {.pAttachments = param.data(), .countAttachments = param.size()});
-            // GfxCmdAsSampledTexure(nodec, noise);
-            // GfxSetKernelConstant(kernel, "tex", GfxGetTextureBindlessIndex(noise));
-            // GfxCmdBindKernel(nodec, kernel);
-            // GfxCmdBindVertexBuffer(nodec, square_vert);
-            // GfxCmdBindIndexBuffer(nodec, square_index);
-            // GfxCmdDrawIndex(nodec, square_id.size());
-            // GfxCmdEndRenderPass(nodec);
-
-
-            // GfxCmdBeginComputePass(nodec3);
-            //
-            // GfxCmdAsReadTexure(nodec3, swapchain);
-            // GfxCmdAsWriteTexture(nodec3, med_rt);
-            //
-            // GfxSetKernelConstant(cs_kernel, "inTexture", GfxGetTextureBindlessIndex(swapchain));
-            // GfxSetKernelConstant(cs_kernel, "outTexture", GfxGetTextureBindlessIndex(med_rt));
-            //
-            // GfxCmdBindKernel(nodec3, cs_kernel);
-            // GfxCmdComputeDispatch(nodec3, 512 / 4, 512 / 4, 1);
-            // GfxCmdEndComputePass(nodec3);
-
-
-            Gfx2DReset(canvas);
-            Gfx2DCmdPushCanvasSize(canvas, 3840, 2160);
-
-            for (int i = 0; i < 10; i++) {
-                  for (int j = 0; j < 10; j++) {
-                        Gfx2DCmdDrawRoundBox(canvas, {300 + 200 * (float)j, 300 + 150 * (float)i}, {
-                              .Size = {175, 125},
-                              .RoundnessTopRight = multi2,
-                              .RoundnessBottomRight = 0,
-                              .RoundnessTopLeft = 0,
-                              .RoundnessBottomLeft = 0
-                        }, 2.6f * i * j * multi2, {(uint8_t)((i + 1) * 20), (uint8_t)((j + 1) * 20), 128, 255});
-                  }
-            }
-
-            Gfx2DCmdPushStrock(canvas, {
-                  .Type = Gfx2DStrockFillType::Radial6,
-                  .Radial = {
-                        .OffsetX = 0.0f,
-                        .OffsetY = 0.0f + multi,
-                        .Pos1 = 0.05,
-                        .Pos2 = 0.25,
-                        .Pos3 = 0.45f,
-                        .Pos4 = 0.6f,
-                        .Pos5 = 0.75f,
-                        .Pos6 = 0.9f,
-                        .Color1 = {128, 200, 55, 255},
-                        .Color2 = {255, 0, 255, 20},
-                        .Color3 = {0, 255, 100, 255},
-                        .Color4 = {55, 55, 200, 20},
-                        .Color5 = {240, 129, 129, 255},
-                        .Color6 = {0, 0, 255, 255},
-                  }
-            });
-
-            Gfx2DCmdDrawBox(canvas, {2400, 1200}, {
-                  .Size = {800, 800}
-            }, 60, {255, 0, 0, 255});
-
-            Gfx2DCmdDrawRoundBox(canvas, {2400 - multi2 * 300, 400 + multi2 * 300},
-            {
-                  .Size = {360 * 2, 640 * 2},
-                  .RoundnessTopRight = multi2,
-                  .RoundnessBottomRight = multi2,
-                  .RoundnessTopLeft = 1.0f - multi2,
-                  .RoundnessBottomLeft = 1.0f - multi2
-            }, 60 * multi2, {255, 0, 0, 255});
-
-            Gfx2DCmdPushStrock(canvas, {
-                  .Type = Gfx2DStrockFillType::Texture,
-                  .Texture = {cyTexture}
-            });
-
-            Gfx2DCmdDrawNGon(canvas, {700 - multi2 * 1300, 400 + multi2 * 300},
-            {
-                  .Radius = 320,
-                  .SegmentCount = 5 + (9 * multi2),
-                  .Roundness = (1.0f - multi2)
-            }, 60 * multi2, {255, 0, 0, 255});
-
-
-            Gfx2DCmdDrawBox(canvas, {1200, 1300}, {
-                  .Size = {400, 400},
-            }, 0);
-
-            Gfx2DCmdDrawText(canvas, {100, 80}, L"Hello World,你好.", {
-                  .Size = 45,
-                  .Space = 0,
-                  .PxRange = 8 * multi2
-            }, {120, 100, 255, 255});
-            Gfx2DCmdDrawText(canvas, {100, 170}, L"abcdefghijklmnnopqrstuvwxyz.", {
-                  .Size = 45,
-                  .Space = 0,
-                  .PxRange = 8 * multi2
-            }, {120, 100, 255, 255});
-
-            //pfx->PopScissor();
-            Gfx2DCmdDrawCircle(canvas, {700 + multi2 * 100, 700 - multi2 * 100}, {
-                  .Radius = 320
-            }, 0, {255, 0, 0, 255});
-
-            Gfx2DCmdPopStrock(canvas);
-            Gfx2DCmdPopStrock(canvas);
-            Gfx2DDispatchGenerateCommands(canvas);
-
-            std::array<GfxInfoRenderPassaAttachment, 1> param2{
-                  GfxInfoRenderPassaAttachment{
-                        .TextureHandle = swapchain,
-                        .ClearColorR = 240,
-                        .ClearColorG = 240,
-                        .ClearColorB= 240,
-                        .ClearColorA = 240,
-                  }
-            };
-            GfxCmdBeginRenderPass(nodec, {.pAttachments = param2.data(), .countAttachments = param2.size()});
-            Gfx2DEmitDrawCommand(canvas, nodec);
-            GfxCmdEndRenderPass(nodec);
-
-            GfxGenFrame();
       }
 
-      GfxClose();
-      printf("Over");
+      task.wait();
 
-      getchar();
-      getchar();
-      getchar();
-      getchar();
+      GfxClose();
       return 0;
 }

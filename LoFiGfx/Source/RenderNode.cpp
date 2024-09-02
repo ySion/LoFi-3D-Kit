@@ -817,8 +817,8 @@ void RenderNode::CmdBarrierTexture(VkCommandBuffer buf, Component::Gfx::Texture*
             .layerCount = 1
       };
 
-      barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      barrier.srcQueueFamilyIndex = 0;
+      barrier.dstQueueFamilyIndex = 0;
 
       if (new_kernel_type == GfxEnumKernelType::COMPUTE) {
             switch (new_usage) {
@@ -1032,8 +1032,8 @@ void RenderNode::CmdBarrierBuffer(VkCommandBuffer buf, Component::Gfx::Buffer* b
       barrier.buffer = buffer->GetBuffer();
       barrier.offset = 0;
       barrier.size = VK_WHOLE_SIZE;
-      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      barrier.dstQueueFamilyIndex = 0;
+      barrier.dstQueueFamilyIndex = 0;
 
       if (new_kernel_type == GfxEnumKernelType::COMPUTE) {
             switch (new_usage) {

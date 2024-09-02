@@ -33,9 +33,10 @@ target_include_directories(LoFiGfx PUBLIC Include)
 target_include_directories(LoFiGfx PRIVATE Third)
 target_link_directories(LoFiGfx PRIVATE ThirdBin)
 
-target_link_libraries(LoFiGfx PRIVATE Vulkan::Vulkan EnTT::EnTT mimalloc-static-secure mimalloc-redirect
+target_link_libraries(LoFiGfx PRIVATE dxcompiler.lib
+        Vulkan::Vulkan EnTT::EnTT mimalloc-static-secure mimalloc-redirect
         spirv-cross-core glslang glslang-default-resource-limits SPIRV SPIRV-Tools-opt SPIRV-Tools GenericCodeGen MachineIndependent
-        msdfgen-core msdfgen-ext freetype)
+        msdfgen-core msdfgen-ext freetype )
 
 target_compile_options(LoFiGfx PRIVATE /source-charset:utf-8)
 

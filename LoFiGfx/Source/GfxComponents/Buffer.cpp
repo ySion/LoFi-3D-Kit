@@ -244,8 +244,8 @@ void Buffer::BarrierLayout(VkCommandBuffer cmd, GfxEnumKernelType new_kernel_typ
       barrier.buffer = _buffer;
       barrier.offset = 0;
       barrier.size = VK_WHOLE_SIZE;
-      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      barrier.dstQueueFamilyIndex = 0;
+      barrier.dstQueueFamilyIndex = 0;
 
       if (new_kernel_type == GfxEnumKernelType::COMPUTE) {
             switch (new_usage) {

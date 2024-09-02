@@ -290,25 +290,25 @@ void Gfx2DCmdPopStrock(Gfx2DCanvas canvas) {
 
 void Gfx2DCmdDrawBox(Gfx2DCanvas canvas, GfxVec2 start, Gfx2DParamBox param, float rotation, GfxColor color) {
       return std::bit_cast<LoFi::PfxContext*>(canvas)->DrawBox(std::bit_cast<glm::vec2>(start), std::bit_cast<LoFi::PParamBox>(param), rotation,
-            std::bit_cast<glm::u8vec4>(color));
+      std::bit_cast<glm::u8vec4>(color));
 }
 
 void Gfx2DCmdDrawRoundBox(Gfx2DCanvas canvas, GfxVec2 start, Gfx2DParamRoundBox param, float rotation, GfxColor color) {
       return std::bit_cast<LoFi::PfxContext*>(canvas)->DrawRoundBox(std::bit_cast<glm::vec2>(start),
-            std::bit_cast<LoFi::PParamRoundBox>(param), rotation, std::bit_cast<glm::u8vec4>(color));
+      std::bit_cast<LoFi::PParamRoundBox>(param), rotation, std::bit_cast<glm::u8vec4>(color));
 }
 
 void Gfx2DCmdDrawNGon(Gfx2DCanvas canvas, GfxVec2 center, Gfx2DParamRoundNGon param, float rotation, GfxColor color) {
       return std::bit_cast<LoFi::PfxContext*>(canvas)->DrawNGon(std::bit_cast<glm::vec2>(center), std::bit_cast<LoFi::PParamRoundNGon>(param), rotation,
-            std::bit_cast<glm::u8vec4>(color));
+      std::bit_cast<glm::u8vec4>(color));
 }
 
 void Gfx2DCmdDrawCircle(Gfx2DCanvas canvas, GfxVec2 center, Gfx2DParamCircle param, float rotation, GfxColor color) {
       return std::bit_cast<LoFi::PfxContext*>(canvas)->DrawCircle(std::bit_cast<glm::vec2>(center), std::bit_cast<LoFi::PParamCircle>(param), rotation,
-            std::bit_cast<glm::u8vec4>(color));
+      std::bit_cast<glm::u8vec4>(color));
 }
 
 void Gfx2DCmdDrawText(Gfx2DCanvas canvas, GfxVec2 start, const wchar_t* text, Gfx2DParamText param, GfxColor color) {
       return std::bit_cast<LoFi::PfxContext*>(canvas)->DrawText(std::bit_cast<glm::vec2>(start), text, std::bit_cast<LoFi::PParamText>(param),
-            std::bit_cast<glm::u8vec4>(color));
+      std::bit_cast<glm::u8vec4>(color));
 }

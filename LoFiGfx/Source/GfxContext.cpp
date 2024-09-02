@@ -47,7 +47,7 @@ void GfxContext::Init() {
       volkInitialize();
 
       std::vector<const char*> instance_layers{};
-      if (_bDebugMode) instance_layers.push_back("VK_LAYER_KHRONOS_validation");
+      //if (_bDebugMode) instance_layers.push_back("VK_LAYER_KHRONOS_validation");
 
       std::vector needed_instance_extension{
             "VK_KHR_surface",
@@ -618,8 +618,6 @@ void GfxContext::Shutdown() {
       vkDestroyInstance(_instance, nullptr);
       GlobalContext = nullptr;
 }
-
-
 
 ResourceHandle GfxContext::CreateSwapChain(const GfxParamCreateSwapchain& param) {
       std::unique_lock lock(_worldRWMutex);

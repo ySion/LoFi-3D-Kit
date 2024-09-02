@@ -208,8 +208,8 @@ void Texture::BarrierLayout(VkCommandBuffer cmd, GfxEnumKernelType new_kernel_ty
             .layerCount = 1
       };
 
-      barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      barrier.srcQueueFamilyIndex = 0;
+      barrier.dstQueueFamilyIndex = 0;
 
       if (new_kernel_type == GfxEnumKernelType::COMPUTE) {
             switch (new_usage) {

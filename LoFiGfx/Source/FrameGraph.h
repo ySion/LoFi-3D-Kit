@@ -10,6 +10,7 @@
 
 namespace LoFi {
 
+
     class FrameGraph {
     public:
 
