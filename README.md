@@ -5,10 +5,10 @@
 # Components:
 
 ## LoFiGfx
-一个Vulkan GFX, 用于快速原型开发, 并且带有一个2D绘图库.
+一个Vulkan GFX, 用于快速原型开发, 本示例为一个2D绘制器, 进度为正在开发中
 ### Very Fucking hard to use!
 
-### 2D绘制器参数支持:
+### 2D绘制器参数支持: (正在制作中, 非完整, 期望支持如下)
 
 G-H = Gradient Linear Horizontal
 
@@ -427,17 +427,12 @@ GfxInit();
       GfxClose();
  
 ```
+
+## 现有效果.
+支持圆角矩形, 圆角多边形, 以及两种不同的填充方案, 对于边缘, 则使用sdf天然亲和的抗锯齿, 在7950x + 4070ti上, 在禁用垂直同步的情况下, 可以达到10000左右的FPS
+
 ![image](https://github.com/user-attachments/assets/bd9213f2-a44e-4281-8523-365e7ab17b2e)
 
 ----
-
-## LoFiVDB
-// TODO : 一个对OpenVDB的包装
-
-## LoFi MeshCore
-// TODO : 一个基于Lagrange的建模引擎
-
-## LoFi CXG Engine
-// TODO: 一个引擎
 
 
